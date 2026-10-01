@@ -979,7 +979,7 @@ export interface paths {
         put?: never;
         /**
          * 매칭권 구매 생성
-         * @description 인증된 회원의 희망 수량을 서버 판매 정책과 대조하고 서버가 가격·유효기간·주문번호를 결정합니다. 현재 판매 패키지는 10회 5,000원(회당 500원)이며 유효기간은 없습니다(validDays=null). 정책에 없는 수량은 400입니다. pass_purchases와 PENDING 결제 주문을 함께 생성하며 결제 승인 전에는 사용 권리(grantedAt)가 없습니다. 이용 정지·탈퇴·도우미 정지 계정은 403입니다.
+         * @description 인증된 회원의 희망 수량을 서버 판매 정책과 대조하고 서버가 가격·유효기간·주문번호를 결정합니다. 현재 판매 패키지는 1회 500원(단건)과 10회 5,000원(회당 500원) 두 가지이며 유효기간은 없습니다(validDays=null). 정책에 없는 수량은 400입니다. pass_purchases와 PENDING 결제 주문을 함께 생성하며 결제 승인 전에는 사용 권리(grantedAt)가 없습니다. 이용 정지·탈퇴·도우미 정지 계정은 403입니다.
          */
         post: operations["createPurchase"];
         delete?: never;
@@ -1579,7 +1579,7 @@ export interface paths {
         head?: never;
         /**
          * 관리자 신고 상태·처리 사유 기록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. OPEN→INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING→RESOLVED/DISMISSED만 허용합니다. 최종 처리 사유는 신고자에게 공개됩니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. OPEN→INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING→RESOLVED/DISMISSED만 허용합니다. 최종 처리 사유는 신고자에게 공개됩니다. RESOLVED에는 조치(action: RESTRICT_AGENT 도우미 활동 제한, SUSPEND_USER 회원 이용 정지, HIDE_REVIEW 연결된 거래의 후기 숨김)를 함께 실행할 수 있으며 조치 사유(actionReason)는 운영 내부 기록입니다. 조치가 실패하면 신고 상태도 바뀌지 않습니다. 처리자가 그 신고의 신고자이거나 신고 대상이면 403입니다. ADMIN 권한이 필요합니다.
          */
         patch: operations["update"];
         trace?: never;
@@ -1800,6 +1800,26 @@ export interface paths {
          * @description 목록의 kopisId(PF숫자)를 사용합니다. bookingLinks는 KOPIS가 제공한 외부 예매 페이지이며 제휴·대행 허용을 의미하지 않습니다. scheduleText는 공연 시간 안내로 예매 오픈 시각이 아닙니다. 응답 텍스트는 HTML로 실행하지 말고 일반 텍스트로 표시하고, 외부 링크는 noopener/noreferrer로 엽니다. 5분 캐시. attribution(KOPIS 표기 문구)을 화면에 반드시 함께 표시합니다.
          */
         get: operations["kopisPerformanceDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/performances/rankings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * KOPIS 집계 공연 순위 조회
+         * @description 인증 없이 조회합니다. 예매처별 순위가 아닌 KOPIS 예매상황판 집계입니다. from/to=yyyy-MM-dd, 최대 31일, 종료일은 한국 오늘 이전입니다. 기본은 어제까지 최근 7일, size=10(1~100). data={source,from,to,basedate,items,attribution}; items={rank,kopisId,name,performancePeriod,venueName,posterUrl,area,genre}. 상세와 예매 링크는 kopisId로 상세 API를 호출합니다. 5분 캐시. 화면에 집계기간과 attribution을 표시합니다. 예매 오픈 일정이나 대행 허용 여부를 의미하지 않습니다.
+         */
+        get: operations["kopisRankings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3952,11 +3972,20 @@ export interface components {
          * @enum {string}
          */
         UserMode: "REQUESTER" | "AGENT";
-        /** @description 관리자 신고 처리. INVESTIGATING에는 메모를 넣지 않고, RESOLVED/DISMISSED에는 공개 처리 사유를 입력합니다. */
+        /** @description 관리자 신고 처리. INVESTIGATING에는 메모를 넣지 않고, RESOLVED/DISMISSED에는 공개 처리 사유를 입력합니다. 조치(action)는 RESOLVED에서만 쓸 수 있고, 조치를 지정하면 운영 내부용 조치 사유(actionReason)가 필요합니다. */
         AdminReportUpdateRequest: {
             status: components["schemas"]["ReportStatus"];
             resolutionNote?: string;
+            /** @description 함께 실행할 조치. 생략하면 NONE(기록만) */
+            action?: components["schemas"]["ReportAction"];
+            /** @description 조치 사유(운영 내부 기록, 신고자에게 비공개). action이 NONE이 아닐 때 필수 */
+            actionReason?: string;
         };
+        /**
+         * @description 신고를 처리 완료(RESOLVED)할 때 함께 실행하는 조치. reports.action_taken의 DDL CHECK 허용값. NONE=기록만, RESTRICT_AGENT=신고 대상의 도우미 활동 제한, SUSPEND_USER=신고 대상 회원 이용 정지, HIDE_REVIEW=신고에 연결된 거래의 후기 숨김
+         * @enum {string}
+         */
+        ReportAction: "NONE" | "RESTRICT_AGENT" | "SUSPEND_USER" | "HIDE_REVIEW";
         /** @description 관리자 전용 신고 내역. 신고자·처리자 식별자를 포함합니다. */
         AdminReportResponse: {
             /** Format: int64 */
@@ -3978,6 +4007,10 @@ export interface components {
             resolvedAt?: string | null;
             /** Format: date-time */
             createdAt?: string;
+            /** @description 처리와 함께 실행한 조치 */
+            actionTaken?: components["schemas"]["ReportAction"];
+            /** @description 조치 사유(운영 내부 기록) */
+            actionReason?: string | null;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseAdminReportResponse: {
@@ -4052,6 +4085,33 @@ export interface components {
             success?: boolean;
             data?: components["schemas"]["Performance"];
             message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseRanking: {
+            success?: boolean;
+            data?: components["schemas"]["Ranking"];
+            message?: string;
+        };
+        RankedPerformance: {
+            /** Format: int32 */
+            rank?: number;
+            kopisId?: string;
+            name?: string;
+            performancePeriod?: string;
+            venueName?: string;
+            posterUrl?: string;
+            area?: string;
+            genre?: string;
+        };
+        Ranking: {
+            source?: string;
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            basedate?: string;
+            items?: components["schemas"]["RankedPerformance"][];
+            attribution?: string[];
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseVirtualAccountResponse: {
@@ -12587,6 +12647,48 @@ export interface operations {
             };
             /** @description 조회된 공연 없음 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description KOPIS_SERVICE_KEY 미설정 또는 외부 API 통신·인증·응답 오류 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    kopisRankings: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 날짜·조회 개수 범위 오류 */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

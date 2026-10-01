@@ -1013,9 +1013,17 @@ function PaymentsTab() {
 
 // ── 신고 ─────────────────────────────────────────────────
 // OPEN → INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING → RESOLVED/DISMISSED. 최종 처리 사유는 신고자에게 공개된다.
-// 신고 처리는 제재를 하지 않는다. 제재가 필요하면 회원 제재 탭에서 따로 한다.
+// '처리 완료'는 조치(도우미 활동 제한·회원 이용 정지·후기 숨김)를 함께 실행할 수 있다. 조치 사유는 운영 내부 기록이고 신고자에게는 처리 사유만 공개된다.
 type ReportStatus = components['schemas']['ReportStatus'];
+type ReportAction = components['schemas']['ReportAction'];
 const reportStatusNames: Record<ReportStatus, string> = { OPEN: '접수', INVESTIGATING: '조사 중', RESOLVED: '처리 완료', DISMISSED: '처리 안 함' };
+const reportActionNames: Record<ReportAction, string> = { NONE: '조치 없이 기록만', RESTRICT_AGENT: '도우미 활동 제한', SUSPEND_USER: '회원 이용 정지', HIDE_REVIEW: '관련 거래의 후기 숨김' };
+const reportActionHelp: Record<ReportAction, string> = {
+  NONE: '신고 상태와 처리 사유만 기록해요.',
+  RESTRICT_AGENT: '신고 대상의 도우미 공개 목록 노출과 요청 수신이 멈춰요. 이용자로서의 이용은 그대로예요. 대상에게 알림이 가요.',
+  SUSPEND_USER: '신고 대상이 로그인할 수 없고 모든 로그인 세션이 끊겨요. 진행 중인 거래가 있어도 막혀요.',
+  HIDE_REVIEW: '이 신고에 연결된 거래의 후기를 공개 목록에서 숨겨요. 연결된 거래가 없거나 후기가 없으면 처리되지 않아요.',
+};
 const reportReasonNames: Record<string, string> = { FRAUD: '사기·금전 피해', MACRO: '매크로 등 부정한 예매', RESALE: '재판매·티켓 양도', FALSE_REVIEW: '거짓 후기', OTHER: '기타' };
 
 /** 상세 API 응답을 그대로 보여 주는 모달 */
@@ -1057,6 +1065,74 @@ function StatusFilter<T extends string>({ value, onChange, options }: { value: T
   );
 }
 
+/** 신고 '처리 완료' 모달: 공개 처리 사유 + (선택) 조치와 내부 조치 사유. 조치가 실패하면 서버가 신고 처리도 취소한다. */
+function ReportResolveModal({ row, onClose, onDone }: { row: Raw; onClose: () => void; onDone: () => void }) {
+  const [note, setNote] = useState('');
+  const [action, setAction] = useState<ReportAction>('NONE');
+  const [reason, setReason] = useState('');
+  const { pending, run } = useAction();
+  const hasRequest = n(row, 'requestId') != null;
+  const actions = (Object.keys(reportActionNames) as ReportAction[]).filter((a) => a !== 'HIDE_REVIEW' || hasRequest);
+  const needReason = action !== 'NONE';
+  const missing = !note.trim() || (needReason && !reason.trim());
+  const target = `회원 #${n(row, 'reportedUserId')}`;
+  return (
+    <Modal title={`신고 #${n(row, 'reportId')} 처리 완료`} onClose={onClose}>
+      <form
+        noValidate
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (missing) return;
+          const ok = await run(
+            () =>
+              unwrap(
+                api.PATCH('/api/admin/reports/{reportId}', {
+                  params: { path: { reportId: n(row, 'reportId')! } },
+                  body: { status: 'RESOLVED', resolutionNote: note.trim(), action, actionReason: needReason ? reason.trim() : undefined },
+                }),
+              ),
+            needReason ? `신고를 처리하고 조치(${reportActionNames[action]})를 실행했어요.` : '신고 처리를 기록했어요.',
+          );
+          if (ok) {
+            onClose();
+            onDone();
+          }
+        }}
+      >
+        <Field label="처리 사유 (신고자에게 공개)" required>
+          <textarea rows={3} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        <Field label="함께 실행할 조치" helper={reportActionHelp[action]}>
+          <select value={action} onChange={(e) => setAction(e.target.value as ReportAction)}>
+            {actions.map((a) => (
+              <option key={a} value={a}>
+                {reportActionNames[a]}
+                {a !== 'NONE' && a !== 'HIDE_REVIEW' ? ` (${target})` : ''}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {needReason && (
+          <>
+            <Field label="조치 사유 (운영 내부 기록, 신고자에게 비공개)" required>
+              <textarea rows={2} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+            </Field>
+            <Notice tone="error">조치는 신고 처리와 함께 바로 적용돼요. 되돌리려면 회원 제재 탭에서 해제해야 해요.</Notice>
+          </>
+        )}
+        <div className="modal-actions">
+          <button type="button" className="btn secondary" onClick={onClose}>
+            돌아가기
+          </button>
+          <button type="submit" className={`btn ${needReason ? 'danger' : 'primary'}`} disabled={missing || pending}>
+            {pending ? '처리 중…' : needReason ? `${reportActionNames[action]} 후 처리 완료` : '처리 완료'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function ReportsTab() {
   const [status, setStatus] = useState<ReportStatus | ''>('OPEN');
   const [load, reload] = useLoad<Raw[]>(
@@ -1069,6 +1145,7 @@ function ReportsTab() {
   const { open, modal, pending } = useDialog(reload);
   const [detail, setDetail] = useState<number | null>(null);
   const [evidenceOf, setEvidenceOf] = useState<number | null>(null);
+  const [resolving, setResolving] = useState<Raw | null>(null);
   const update = (row: Raw, next: ReportStatus) =>
     open({
       title: `신고 #${n(row, 'reportId')} ${reportStatusNames[next]}`,
@@ -1082,7 +1159,7 @@ function ReportsTab() {
   return (
     <>
       <StatusFilter value={status} onChange={setStatus} options={Object.entries(reportStatusNames) as [ReportStatus, string][]} />
-      <ListBlock title="신고 목록" desc="처리 사유는 신고자에게 공개돼요. 이용 정지 등 제재는 회원 제재 탭에서 따로 해요. '증빙 보기'로 신고자가 올린 자료를 확인할 수 있어요(본인이 신고자·대상인 신고는 볼 수 없어요)." load={load} reload={reload} empty="해당 상태의 신고가 없어요.">
+      <ListBlock title="신고 목록" desc="처리 사유는 신고자에게 공개돼요. '처리 완료'에서 도우미 활동 제한·이용 정지·후기 숨김 같은 조치를 함께 실행할 수 있고, 조치 사유는 운영 내부에만 남아요. '증빙 보기'로 신고자가 올린 자료를 확인할 수 있어요(본인이 신고자·대상인 신고는 볼 수 없어요)." load={load} reload={reload} empty="해당 상태의 신고가 없어요.">
         {(rows) =>
           rows.map((row) => {
             const st = s(row, 'status') as ReportStatus;
@@ -1097,6 +1174,8 @@ function ReportsTab() {
                   ['관련 거래', n(row, 'requestId') ? `#${n(row, 'requestId')}` : ''],
                   ['내용', s(row, 'description')],
                   ['처리 사유', s(row, 'resolutionNote')],
+                  ['실행한 조치', s(row, 'actionTaken') && s(row, 'actionTaken') !== 'NONE' ? (reportActionNames[s(row, 'actionTaken') as ReportAction] ?? s(row, 'actionTaken')) : ''],
+                  ['조치 사유(내부)', s(row, 'actionReason')],
                   ['접수', utcToLocal(s(row, 'createdAt'))],
                   ['처리', utcToLocal(s(row, 'resolvedAt'))],
                 ]}
@@ -1114,7 +1193,7 @@ function ReportsTab() {
                 )}
                 {active && (
                   <>
-                    <button type="button" className="btn primary" disabled={pending} onClick={() => update(row, 'RESOLVED')}>
+                    <button type="button" className="btn primary" disabled={pending} onClick={() => setResolving(row)}>
                       처리 완료
                     </button>
                     <button type="button" className="btn ghost tx-danger" disabled={pending} onClick={() => update(row, 'DISMISSED')}>
@@ -1128,6 +1207,7 @@ function ReportsTab() {
         }
       </ListBlock>
       {modal}
+      {resolving && <ReportResolveModal row={resolving} onClose={() => setResolving(null)} onDone={reload} />}
       {detail !== null && <DetailModal title={`신고 #${detail}`} fetcher={() => unwrap(api.GET('/api/admin/reports/{reportId}', { params: { path: { reportId: detail } } }))} onClose={() => setDetail(null)} />}
       {evidenceOf !== null && <ReportEvidenceModal reportId={evidenceOf} onClose={() => setEvidenceOf(null)} />}
     </>

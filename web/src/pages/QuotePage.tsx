@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, unwrap } from '../api/client';
 import { list, pick, str, type Raw } from '../api/pick';
 import { findPolicy, usePolicies } from '../api/policies';
-import { categoryNames, toAgent, usePlatforms } from '../discovery/agent';
+import { categoryCodes, categoryNames, toAgent, usePlatforms } from '../discovery/agent';
 import { fetchDetail, useLoad, type RequestBody } from '../transactions/model';
 import { Field, Notice, TxCard, useAction } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
@@ -89,7 +89,7 @@ export function QuotePage() {
   const options = platforms.filter((p) => !agentPlatformIds.length || agentPlatformIds.includes(p.id));
   const initialPlatform = edit ? (edit.platformId ? String(edit.platformId) : edit.otherPlatformName ? 'other' : '') : options[0] ? String(options[0].id) : '';
   const platform = platformChoice ?? initialPlatform;
-  const agentCategories = list(pick(agent.raw, 'categories')).map(String);
+  const agentCategories = categoryCodes(pick(agent.raw, 'categories'));
   const categories = Object.keys(categoryNames);
   const defaultCategory = edit?.serviceCategory || str(pick(agent.raw, 'primaryCategory')) || 'CONCERT';
   // 서버는 공개용(isPrimary=true) 연락처가 있어야 요청을 받는다. 없으면 아래에서 공개용으로 등록한다.

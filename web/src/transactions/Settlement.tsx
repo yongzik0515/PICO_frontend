@@ -65,6 +65,8 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
   const decided = num(partial?.decidedAmountKrw);
   const refundAmount = num(partial?.refundAmountKrw);
   const remainder = proposed !== undefined ? a.successFeeKrw - proposed : 0;
+  // 합의한 성공보수가 0원이면 서버도 제안을 받지 않는다(409). 입력창을 보여 주지 않고 이유를 알려 준다.
+  const noFee = a.successFeeKrw <= 0;
   const done = (message: string) => (ok: boolean) => {
     if (ok) {
       setDialog('');
@@ -93,11 +95,17 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
 
   return (
     <TxCard title="부분 성공 정산">
-      <p className="prose">
-        결과가 부분 성공이라 성공보수 {won(a.successFeeKrw)} 중 도우미 몫을 정해요. 나머지는 이용자에게 환불돼요.
-        {a.upfrontFeeKrw > 0 && ` 착수비 ${won(a.upfrontFeeKrw)}은 결과가 확정돼 도우미 몫이고, 이 정산에 포함되지 않아요.`}
-      </p>
-      {!partial || status === 'NOT_PROPOSED' ? (
+      {noFee ? (
+        <p className="prose">결과가 부분 성공으로 확정됐어요.{a.upfrontFeeKrw > 0 && ` 착수비 ${won(a.upfrontFeeKrw)}은 결과가 확정돼 도우미 몫이고, 이 정산과 별개예요.`}</p>
+      ) : (
+        <p className="prose">
+          결과가 부분 성공이라 성공보수 {won(a.successFeeKrw)} 중 도우미 몫을 정해요. 나머지는 이용자에게 환불돼요.
+          {a.upfrontFeeKrw > 0 && ` 착수비 ${won(a.upfrontFeeKrw)}은 결과가 확정돼 도우미 몫이고, 이 정산에 포함되지 않아요.`}
+        </p>
+      )}
+      {noFee ? (
+        <Notice>합의한 성공보수가 0원이라 나눌 금액이 없어요. 정산 금액을 제안하거나 환불할 일 없이 거래가 마무리돼요.</Notice>
+      ) : !partial || status === 'NOT_PROPOSED' ? (
         agent ? (
           <form noValidate onSubmit={review}>
             <Field label="내 몫(원)" required helper={`0원 ~ ${money(a.successFeeKrw)}원. 한 번만 제안할 수 있어요. 받지 않으려면 0을 입력해 주세요.`}>

@@ -6164,7 +6164,7 @@
           "매칭권"
         ],
         "summary": "매칭권 구매 생성",
-        "description": "인증된 회원의 희망 수량을 서버 판매 정책과 대조하고 서버가 가격·유효기간·주문번호를 결정합니다. 현재 판매 패키지는 10회 5,000원(회당 500원)이며 유효기간은 없습니다(validDays=null). 정책에 없는 수량은 400입니다. pass_purchases와 PENDING 결제 주문을 함께 생성하며 결제 승인 전에는 사용 권리(grantedAt)가 없습니다. 이용 정지·탈퇴·도우미 정지 계정은 403입니다.",
+        "description": "인증된 회원의 희망 수량을 서버 판매 정책과 대조하고 서버가 가격·유효기간·주문번호를 결정합니다. 현재 판매 패키지는 1회 500원(단건)과 10회 5,000원(회당 500원) 두 가지이며 유효기간은 없습니다(validDays=null). 정책에 없는 수량은 400입니다. pass_purchases와 PENDING 결제 주문을 함께 생성하며 결제 승인 전에는 사용 권리(grantedAt)가 없습니다. 이용 정지·탈퇴·도우미 정지 계정은 403입니다.",
         "operationId": "createPurchase",
         "requestBody": {
           "content": {
@@ -9183,7 +9183,7 @@
           "admin"
         ],
         "summary": "관리자 신고 상태·처리 사유 기록",
-        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. OPEN→INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING→RESOLVED/DISMISSED만 허용합니다. 최종 처리 사유는 신고자에게 공개됩니다. ADMIN 권한이 필요합니다. ",
+        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. OPEN→INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING→RESOLVED/DISMISSED만 허용합니다. 최종 처리 사유는 신고자에게 공개됩니다. RESOLVED에는 조치(action: RESTRICT_AGENT 도우미 활동 제한, SUSPEND_USER 회원 이용 정지, HIDE_REVIEW 연결된 거래의 후기 숨김)를 함께 실행할 수 있으며 조치 사유(actionReason)는 운영 내부 기록입니다. 조치가 실패하면 신고 상태도 바뀌지 않습니다. 처리자가 그 신고의 신고자이거나 신고 대상이면 403입니다. ADMIN 권한이 필요합니다. ",
         "operationId": "update",
         "parameters": [
           {
@@ -10199,6 +10199,79 @@
           },
           "404": {
             "description": "조회된 공연 없음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "KOPIS_SERVICE_KEY 미설정 또는 외부 API 통신·인증·응답 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/performances/rankings": {
+      "get": {
+        "tags": [
+          "performance"
+        ],
+        "summary": "KOPIS 집계 공연 순위 조회",
+        "description": "인증 없이 조회합니다. 예매처별 순위가 아닌 KOPIS 예매상황판 집계입니다. from/to=yyyy-MM-dd, 최대 31일, 종료일은 한국 오늘 이전입니다. 기본은 어제까지 최근 7일, size=10(1~100). data={source,from,to,basedate,items,attribution}; items={rank,kopisId,name,performancePeriod,venueName,posterUrl,area,genre}. 상세와 예매 링크는 kopisId로 상세 API를 호출합니다. 5분 캐시. 화면에 집계기간과 attribution을 표시합니다. 예매 오픈 일정이나 대행 허용 여부를 의미하지 않습니다.",
+        "operationId": "kopisRankings",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "날짜·조회 개수 범위 오류",
             "content": {
               "application/json": {
                 "schema": {
@@ -16831,7 +16904,7 @@
       },
       "AdminReportUpdateRequest": {
         "type": "object",
-        "description": "관리자 신고 처리. INVESTIGATING에는 메모를 넣지 않고, RESOLVED/DISMISSED에는 공개 처리 사유를 입력합니다.",
+        "description": "관리자 신고 처리. INVESTIGATING에는 메모를 넣지 않고, RESOLVED/DISMISSED에는 공개 처리 사유를 입력합니다. 조치(action)는 RESOLVED에서만 쓸 수 있고, 조치를 지정하면 운영 내부용 조치 사유(actionReason)가 필요합니다.",
         "properties": {
           "status": {
             "$ref": "#/components/schemas/ReportStatus"
@@ -16840,10 +16913,30 @@
             "type": "string",
             "maxLength": 2000,
             "minLength": 0
+          },
+          "action": {
+            "$ref": "#/components/schemas/ReportAction",
+            "description": "함께 실행할 조치. 생략하면 NONE(기록만)"
+          },
+          "actionReason": {
+            "type": "string",
+            "description": "조치 사유(운영 내부 기록, 신고자에게 비공개). action이 NONE이 아닐 때 필수",
+            "maxLength": 500,
+            "minLength": 0
           }
         },
         "required": [
           "status"
+        ]
+      },
+      "ReportAction": {
+        "type": "string",
+        "description": "신고를 처리 완료(RESOLVED)할 때 함께 실행하는 조치. reports.action_taken의 DDL CHECK 허용값. NONE=기록만, RESTRICT_AGENT=신고 대상의 도우미 활동 제한, SUSPEND_USER=신고 대상 회원 이용 정지, HIDE_REVIEW=신고에 연결된 거래의 후기 숨김",
+        "enum": [
+          "NONE",
+          "RESTRICT_AGENT",
+          "SUSPEND_USER",
+          "HIDE_REVIEW"
         ]
       },
       "AdminReportResponse": {
@@ -16902,6 +16995,17 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "actionTaken": {
+            "$ref": "#/components/schemas/ReportAction",
+            "description": "처리와 함께 실행한 조치"
+          },
+          "actionReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "조치 사유(운영 내부 기록)"
           }
         }
       },
@@ -17111,6 +17215,82 @@
           },
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "ApiResponseRanking": {
+        "type": "object",
+        "description": "공통 응답. 성공은 success=true, 오류는 success=false와 data=null",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Ranking"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "RankedPerformance": {
+        "type": "object",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "kopisId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "performancePeriod": {
+            "type": "string"
+          },
+          "venueName": {
+            "type": "string"
+          },
+          "posterUrl": {
+            "type": "string"
+          },
+          "area": {
+            "type": "string"
+          },
+          "genre": {
+            "type": "string"
+          }
+        }
+      },
+      "Ranking": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "basedate": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RankedPerformance"
+            }
+          },
+          "attribution": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

@@ -56,6 +56,17 @@ function careerText(raw: Raw) {
   return str(pick(raw, 'careerDescription', 'profile.careerDescription', 'career')) || '미입력';
 }
 
+/**
+ * 도우미 활동 분야 코드 목록. 공개 상세(GET /api/agents/{id})는 categories를 [{category:'CONCERT'}]로,
+ * 관리자 심사 목록은 ['CONCERT']로 준다. 두 모양 모두 코드 문자열 배열로 바꾼다.
+ */
+export function categoryCodes(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((c) => (typeof c === 'string' ? c : c && typeof c === 'object' ? str((c as Raw).category) : undefined))
+    .filter((c): c is string => !!c);
+}
+
 export function toAgent(raw: Raw): Agent {
   const id = num(pick(raw, 'agentId', 'agentUserId', 'userId', 'id')) ?? 0;
   const name = str(pick(raw, 'activityName', 'profile.activityName', 'nickname', 'name')) || '이름 없는 도우미';
