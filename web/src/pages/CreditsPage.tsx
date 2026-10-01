@@ -11,10 +11,11 @@ import { useToast } from '../ui/Toast';
 // 프로토타입 transactions.js의 creditsPage(). 도우미가 요청을 수락할 때 매칭권 1장이 차감된다.
 // 명세: 판매 패키지는 1회 500원(단건)과 10회 5,000원. 구매 생성(POST /purchases) → PortOne 결제창 → 승인(POST /purchases/{id}/payment, txId를 pgPaymentKey로)
 // 금액은 서버가 수량으로 정한다. 화면의 금액은 안내용이며, 결제창에는 서버가 돌려준 주문 금액을 쓴다.
-const PACKS = [
-  { units: 1, price: 500 },
+// 1장(500원)은 KG이니시스 최소 결제 금액(1,000원) 때문에 막아 둔다(서버도 판매하지 않는다). 열 때는 disabled만 지우고 서버 패키지를 추가한다.
+const PACKS: readonly { units: number; price: number; disabled?: string }[] = [
+  { units: 1, price: 500, disabled: '준비 중' },
   { units: 10, price: 5000 },
-] as const;
+];
 const PENDING_KEY = 'pico.pendingPassPayment';
 
 type Pending = { purchaseId: number; orderNumber: string; units: number };
@@ -86,9 +87,12 @@ export function CreditsPage() {
   const [phoneInput, setPhoneInput] = useState<string | null>(null);
   const savedBuyer = load.status === 'done' ? load.data.buyer : null;
   const phone = phoneInput ?? savedBuyer?.phone ?? '';
-  const pack = PACKS.find((x) => x.units === units) ?? PACKS[1];
+  const pack = PACKS.find((x) => x.units === units && !x.disabled) ?? PACKS.find((x) => !x.disabled)!;
   const [search, setSearch] = useSearchParams();
   const resumed = useRef(false);
+  // 방금 충전을 마쳤을 때 안내(화면에 머물며 잔액을 바로 갱신해 보여 준다)
+  const [charged, setCharged] = useState<number | null>(null);
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
   /** 결제창 결과(txId)로 승인한다. 결과를 못 받았으면(503·PROCESSING) 이미 결제된 것이므로 다시 결제하게 하지 않는다. */
   async function approve(purchaseId: number, pgPaymentKey: string) {
@@ -102,26 +106,50 @@ export function CreditsPage() {
     }
   }
 
-  /** 승인 뒤 공통 마무리: 확인 중이면 안내하고, 충전됐으면 들어오기 전 화면으로 돌아간다. */
-  function finish(processing: boolean, chargedUnits: number) {
+  /**
+   * 승인 뒤 공통 마무리. 다른 화면으로 이동하지 않고 이 화면에서 잔액·내역을 바로 다시 불러온다.
+   * 확인 중(PROCESSING)이면 확정될 때까지 몇 초마다 다시 불러와 충전을 자동으로 반영한다.
+   */
+  function finish(processing: boolean, chargedUnits: number, purchaseId: number) {
     savePending(null);
+    reload();
     if (processing) {
+      setConfirmingId(purchaseId);
       setConfirming(true);
-      reload();
       return;
     }
+    setCharged(chargedUnits);
     toast(`매칭권 ${chargedUnits}장을 충전했어요.`);
-    // 충전은 보통 요청을 수락하려고 하므로, 충전을 마치면 들어오기 전 화면(받은 요청·매칭 관리·요청 상세)으로 돌아간다.
-    if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
-    else navigate('/leads', { replace: true });
   }
+
+  // 결제 확인 중이면 4초마다 다시 불러오고, 충전이 확정되면 안내를 바꾼다(최대 3분).
+  useEffect(() => {
+    if (!confirming) return;
+    const timer = setInterval(reload, 4000);
+    const stop = setTimeout(() => clearInterval(timer), 180_000);
+    return () => {
+      clearInterval(timer);
+      clearTimeout(stop);
+    };
+  }, [confirming, reload]);
+  useEffect(() => {
+    if (!confirming || confirmingId === null || load.status !== 'done') return;
+    const hit = load.data.purchases.find((p) => num(p.purchaseId) === confirmingId);
+    if (hit?.grantedAt) {
+      setConfirming(false);
+      setConfirmingId(null);
+      setCharged(num(hit.purchasedUnits) ?? 0);
+      toast('결제가 확인돼 매칭권이 충전됐어요.');
+    }
+  }, [confirming, confirmingId, load, toast]);
 
   async function buy() {
     // 결제창 호출에 필요한 구매자 정보를 먼저 확인한다(주문을 만든 뒤 결제창이 실패해 대기 주문이 남지 않도록).
     if (!savedBuyer?.email) return void toast('구매자 이메일을 확인하지 못했어요. 잠시 후 다시 시도해 주세요.');
     if (!validPhone(phone)) return void toast('결제에 필요한 휴대폰 번호를 입력해 주세요. 예: 010-1234-5678');
     const buyer: Buyer = { email: savedBuyer.email, name: savedBuyer.name || '회원', phone };
-    const result = { processing: false };
+    const result = { processing: false, purchaseId: 0 };
+    setCharged(null);
     const ok = await run(async () => {
       const purchase = await unwrap<Raw>(api.POST('/api/matching-passes/purchases', { body: { purchasedUnits: pack.units } }));
       const purchaseId = num(pick(purchase, 'purchaseId'));
@@ -129,6 +157,7 @@ export function CreditsPage() {
       const amount = num(pick(purchase, 'payment.amountKrw', 'priceKrw')) ?? pack.price;
       if (!purchaseId || !orderNumber) throw new Error('구매 주문을 만들지 못했어요.');
       // 결제창이 페이지를 이동시키는 환경(모바일)에서는 돌아온 뒤 이 주문을 이어서 승인한다.
+      result.purchaseId = purchaseId;
       savePending({ purchaseId, orderNumber, units: pack.units });
       const pgPaymentKey = await payWithPortOne(orderNumber, amount, pack.units, buyer);
       result.processing = await approve(purchaseId, pgPaymentKey);
@@ -137,7 +166,7 @@ export function CreditsPage() {
       savePending(null);
       return;
     }
-    finish(result.processing, pack.units);
+    finish(result.processing, pack.units, result.purchaseId);
   }
 
   // 모바일 결제창에서 redirectUrl(/credits?paymentId=…&txId=…&code=…)로 돌아왔을 때 결제를 이어서 승인한다.
@@ -165,7 +194,7 @@ export function CreditsPage() {
       const ok = await run(async () => {
         result.processing = await approve(saved.purchaseId, txId);
       });
-      if (ok) finish(result.processing, saved.units);
+      if (ok) finish(result.processing, saved.units, saved.purchaseId);
       else reload();
     })();
     // 처음 한 번만 실행한다.
@@ -188,15 +217,28 @@ export function CreditsPage() {
             {load.status === 'error' && <Notice tone="error">{load.message}</Notice>}
             <div className="pack-grid" role="radiogroup" aria-label="충전할 매칭권 수량">
               {PACKS.map((x) => (
-                <label key={x.units} className={`pack ${x.units === units ? 'selected' : ''}`}>
-                  <input type="radio" name="pack" checked={x.units === units} disabled={pending || confirming} onChange={() => setUnits(x.units)} />
+                <label key={x.units} className={`pack ${x.units === pack.units ? 'selected' : ''} ${x.disabled ? 'disabled' : ''}`} aria-disabled={!!x.disabled}>
+                  <input type="radio" name="pack" checked={x.units === pack.units} disabled={!!x.disabled || pending || confirming} onChange={() => setUnits(x.units)} />
                   <span>{x.units === 1 ? '한 장씩' : '묶음'}</span>
                   <strong>{x.units}장</strong>
-                  <b>{won(x.price)}</b>
+                  <b>{x.disabled ? x.disabled : won(x.price)}</b>
                 </label>
               ))}
             </div>
-            <p className="record-note">1장당 500원 · 유효기간 없음 · 요청을 수락할 때 1장씩 사용해요.</p>
+            <p className="record-note">1장당 500원 · 유효기간 없음 · 요청을 수락할 때 1장씩 사용해요. 한 장씩 결제는 카드 결제 최소 금액(1,000원) 때문에 잠시 막아 뒀어요.</p>
+            {charged !== null && (
+              <Notice tone="success">
+                매칭권 {charged}장을 충전했어요. 지금 보유 {load.status === 'done' ? load.data.balance : '-'}장이에요.
+                {(window.history.state?.idx ?? 0) > 0 && (
+                  <>
+                    {' '}
+                    <button type="button" className="text-link" onClick={() => navigate(-1)}>
+                      이전 화면으로 돌아가기
+                    </button>
+                  </>
+                )}
+              </Notice>
+            )}
           </TxCard>
           <TxCard title="충전 내역">
             {load.status === 'done' && load.data.purchases.length ? (
