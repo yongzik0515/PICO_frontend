@@ -427,7 +427,12 @@ function SettlementsTab() {
   const rows = (row: Raw): [string, ReactNode][] => [
     ['성공보수', won(n(row, 'successFeeKrw'))],
     ['도우미 제안', n(row, 'proposedAmountKrw') !== undefined ? `${won(n(row, 'proposedAmountKrw'))} · ${s(row, 'proposalNote')}` : '제안 없음'],
-    ['이용자 거절 사유', s(row, 'rejectionNote')],
+    ['협의 회차', n(row, 'round') ? `${n(row, 'round')}차` : ''],
+    ['이용자 반려 사유', s(row, 'rejectionNote')],
+    ['이용자가 바라는 금액', n(row, 'counterAmountKrw') !== undefined ? won(n(row, 'counterAmountKrw')) : ''],
+    ['운영팀에 넘긴 쪽', s(row, 'escalatedAt') ? `${s(row, 'escalatedByRole') === 'AGENT' ? '도우미' : '이용자'} · ${utcToLocal(s(row, 'escalatedAt'))}${s(row, 'escalationNote') ? ` · ${s(row, 'escalationNote')}` : ''}` : ''],
+    ['결정 가능 이유', s(row, 'escalatedAt') ? '당사자가 운영팀에 넘김' : '마지막 활동 후 24시간 경과'],
+    ['마지막 활동', utcToLocal(s(row, 'lastActivityAt'))],
     ['상태', s(row, 'status')],
   ];
   const decideButton = (row: Raw) => (
@@ -445,7 +450,7 @@ function SettlementsTab() {
   );
   return (
     <>
-      <ListBlock title="결정 대기 정산" desc="이용자가 거절했거나 제안 후 24시간 동안 응답이 없는 정산이에요." load={pendingLoad} reload={reloadPending} empty="결정할 정산이 없어요.">
+      <ListBlock title="결정 대기 정산" desc="마지막 제안·반려 후 24시간 동안 변화가 없거나, 도우미·이용자가 운영팀에 넘기기를 요청한 정산이에요. 당사자끼리 협의 중인 정산은 여기에 나오지 않아요." load={pendingLoad} reload={reloadPending} empty="결정할 정산이 없어요.">
         {(list_) =>
           list_.map((row) => (
             <Item key={String(n(row, 'requestId'))} raw={row} title={`요청 #${n(row, 'requestId')}`} rows={rows(row)}>
@@ -454,7 +459,7 @@ function SettlementsTab() {
           ))
         }
       </ListBlock>
-      <ListBlock title="도우미 제안 없는 부분성공" desc="결과 확정 후 24시간 동안 도우미가 금액을 제안하지 않은 거래예요." load={unproposedLoad} reload={reloadUnproposed} empty="해당 거래가 없어요.">
+      <ListBlock title="도우미 제안 없는 부분성공" desc="결과 확정 후 24시간 동안 도우미가 금액을 제안하지 않았거나, 그 전에 도우미·이용자가 운영팀에 넘기기를 요청한 거래예요." load={unproposedLoad} reload={reloadUnproposed} empty="해당 거래가 없어요.">
         {(list_) =>
           list_.map((row) => (
             <Item key={String(n(row, 'requestId'))} raw={row} title={`요청 #${n(row, 'requestId')}`} rows={rows(row)}>

@@ -535,7 +535,7 @@ export interface paths {
         put?: never;
         /**
          * 부분성공 정산 금액 제안
-         * @description 지정 도우미만, 최종 결과 PARTIAL(COMPLETED)인 안전거래에서 한 번 제안합니다. 금액은 0 이상 합의 성공보수 이하이며 최종 합의안의 부분성공 조건을 근거로 적습니다. 이미 제안됐거나 결제·성공보수가 없으면 409입니다.
+         * @description 지정 도우미만, 최종 결과 PARTIAL(COMPLETED)인 안전거래에서 제안합니다. 처음이거나 이용자가 이전 제안을 반려한 뒤에는 몇 번이든 새 금액을 제안할 수 있고(회차가 올라감), 응답 대기 중인 제안이 있거나 이미 확정됐거나 운영팀에 넘어간 정산은 409입니다. 금액은 0 이상 합의 성공보수 이하이며 최종 합의안의 부분성공 조건을 근거로 적습니다. 결제·성공보수가 없으면 409입니다(성공보수 0원은 NO_SUCCESS_FEE_TO_SETTLE).
          */
         post: operations["proposePartialSettlement"];
         delete?: never;
@@ -554,10 +554,30 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 부분성공 정산 제안 거절
-         * @description 이용자만 PROPOSED 제안을 거절합니다. 거절하면 금액 분쟁(REJECTED)이 되고 관리자가 금액을 결정합니다. 요청 상태는 바꾸지 않습니다.
+         * 부분성공 정산 제안 반려
+         * @description 이용자만 PROPOSED 제안을 반려합니다. 반려해도 바로 운영팀에 넘어가지 않고 협의 중(REJECTED)이 되며 도우미가 새 금액을 제안할 수 있습니다. 반려 사유는 필수이고 바라는 도우미 몫(counterAmountKrw)은 선택(참고용)입니다. 요청 상태는 바꾸지 않습니다.
          */
         post: operations["rejectPartialSettlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/requests/{requestId}/partial-settlement/escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 부분성공 정산을 운영팀에 넘기기
+         * @description 도우미와 이용자 누구나, 제안 전이든 협의 중이든 정산을 운영팀에 넘기도록 요청할 수 있습니다(거래당 한 번). 넘기면 운영팀이 24시간을 기다리지 않고 금액을 결정할 수 있고, 도우미는 더 이상 새 금액을 제안할 수 없습니다(이미 온 제안에 대한 이용자의 동의·반려는 가능). 상대방에게 알림이 갑니다.
+         */
+        post: operations["escalatePartialSettlement"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1319,7 +1339,7 @@ export interface paths {
         put?: never;
         /**
          * 부분성공 정산 관리자 결정
-         * @description 이용자가 거절(REJECTED)했거나 제안 후 24시간 응답이 없거나, 결과 확정 후 24시간 동안 도우미가 제안하지 않은 부분성공 거래의 도우미 몫을 관리자가 정합니다(0 이상 성공보수 이하). 기한 전·이미 확정은 409, 관리자 본인이 당사자인 거래는 403입니다. 결정 금액은 자동 지급 요청하며, 잔액 환불은 이용자가 수취 계좌를 입력해 환불 API로 요청합니다.
+         * @description 마지막 제안·반려 후 24시간 동안 변화가 없거나 당사자가 운영팀에 넘기기를 요청한 부분성공 정산(결과 확정 후 도우미가 제안하지 않은 거래 포함)의 도우미 몫을 관리자가 정합니다(0 이상 성공보수 이하). 당사자끼리 협의 중이면 409(SETTLEMENT_NEGOTIATING), 이미 확정은 409, 관리자 본인이 당사자인 거래는 403입니다. 결정 금액은 자동 지급 요청하며, 잔액 환불은 이용자가 수취 계좌를 입력해 환불 API로 요청합니다.
          */
         post: operations["decidePartialSettlement"];
         delete?: never;
@@ -2433,7 +2453,7 @@ export interface paths {
         };
         /**
          * 도우미 제안 없는 부분성공 거래 목록
-         * @description 최종 결과 PARTIAL 확정 후 24시간 동안 도우미가 정산 금액을 제안하지 않은 안전거래를 완료 시각 순으로 반환합니다(status=NOT_PROPOSED, settlementId=null). ADMIN 권한이 필요합니다.
+         * @description 최종 결과 PARTIAL 확정 후 24시간 동안 도우미가 정산 금액을 제안하지 않았거나 그 전에 당사자가 운영팀에 넘기기를 요청한 안전거래를 완료 시각 순으로 반환합니다(status=NOT_PROPOSED, settlementId=null). ADMIN 권한이 필요합니다.
          */
         get: operations["getUnproposedPartialSettlements"];
         put?: never;
@@ -2453,7 +2473,7 @@ export interface paths {
         };
         /**
          * 관리자 결정 대기 정산 목록
-         * @description 이용자가 거절했거나 제안 후 24시간 동안 응답하지 않은 부분성공 정산을 제안 시각 순으로 반환합니다. ADMIN 권한이 필요합니다.
+         * @description 진행 중(PROPOSED·REJECTED)이면서 마지막 제안·반려 후 24시간 동안 변화가 없거나 당사자가 운영팀에 넘기기를 요청한 부분성공 정산을 마지막 활동이 오래된 순으로 반환합니다. 당사자끼리 협의 중인 정산은 나오지 않습니다. ADMIN 권한이 필요합니다.
          */
         get: operations["getPendingPartialSettlements"];
         put?: never;
@@ -3018,7 +3038,46 @@ export interface components {
             data?: components["schemas"]["PartialSettlementResponse"];
             message?: string;
         };
-        /** @description 부분성공 성공보수 정산. 확정 금액은 도우미에게 지급하고 나머지(성공보수 - 확정 금액)는 이용자에게 환불 */
+        /** @description 부분성공 정산 협의 이력의 한 회차. 도우미 제안과 이용자 응답 */
+        PartialSettlementOfferResponse: {
+            /**
+             * Format: int32
+             * @description 협의 회차(1부터)
+             * @example 1
+             */
+            round: number;
+            /**
+             * Format: int64
+             * @description 도우미가 제안한 도우미 몫(원)
+             * @example 10000
+             */
+            proposedAmountKrw: number;
+            /** @description 제안 근거. 양측에 공개 */
+            proposalNote?: string | null;
+            /**
+             * Format: date-time
+             * @description 제안 시각. UTC
+             */
+            proposedAt: string;
+            /**
+             * @description 응답 결과. PENDING 응답 대기, ACCEPTED 동의, REJECTED 반려, SUPERSEDED 응답 없이 운영팀 결정으로 대체
+             * @example REJECTED
+             */
+            result: string;
+            /** @description 이용자 반려 사유. 양측에 공개 */
+            rejectionNote?: string | null;
+            /**
+             * Format: int64
+             * @description 이용자가 반려하며 적은 희망 도우미 몫(원). 참고용이며 도우미가 따르지 않아도 됩니다
+             */
+            counterAmountKrw?: number | null;
+            /**
+             * Format: date-time
+             * @description 응답 시각. UTC
+             */
+            respondedAt?: string | null;
+        };
+        /** @description 부분성공 성공보수 정산. 확정 금액은 도우미에게 지급하고 나머지(성공보수 - 확정 금액)는 이용자에게 환불. 이용자가 반려하면(REJECTED) 도우미가 새 금액을 계속 제안할 수 있고, 마지막 활동 후 24시간 동안 변화가 없거나 당사자가 운영팀에 넘기기를 요청하면 운영팀이 결정할 수 있음 */
         PartialSettlementResponse: {
             /**
              * Format: int64
@@ -3091,19 +3150,73 @@ export interface components {
              * @description 확정 시각. UTC
              */
             decidedAt?: string | null;
+            /**
+             * Format: int32
+             * @description 협의 회차(도우미가 제안한 횟수). NOT_PROPOSED면 0
+             * @example 1
+             */
+            round: number;
+            /**
+             * Format: int64
+             * @description 이용자가 반려하며 적은 희망 도우미 몫(원). 참고용
+             */
+            counterAmountKrw?: number | null;
+            /**
+             * Format: date-time
+             * @description 마지막 제안·반려 시각. UTC. 결과 확정 후 제안이 없으면 결과 확정 시각
+             */
+            lastActivityAt?: string | null;
+            /**
+             * Format: date-time
+             * @description 이 시각 이후 변화가 없으면 운영팀이 결정할 수 있음(마지막 활동 + 24시간). 확정됐으면 null
+             */
+            adminDecisionAvailableAt?: string | null;
+            /**
+             * @description 운영팀이 지금 결정할 수 있는지(24시간 경과 또는 운영팀에 넘기기 요청)
+             * @example false
+             */
+            adminDecisionAvailable: boolean;
+            /**
+             * Format: date-time
+             * @description 운영팀에 넘기기를 요청한 시각. UTC. 요청 전 null
+             */
+            escalatedAt?: string | null;
+            /**
+             * @description 운영팀에 넘기기를 요청한 쪽. REQUESTER 이용자, AGENT 도우미
+             * @example AGENT
+             */
+            escalatedByRole?: string | null;
+            /** @description 운영팀에 넘기며 남긴 말. 양측과 운영팀에 공개 */
+            escalationNote?: string | null;
+            /** @description 회차별 제안·응답 이력(오래된 순) */
+            offers: components["schemas"]["PartialSettlementOfferResponse"][];
         };
         /**
          * @description partial_success_settlements.status. PROPOSED 도우미 제안, ACCEPTED 이용자 동의, REJECTED 이용자 거절(금액 분쟁), ADMIN_DECIDED 관리자 결정. NOT_PROPOSED는 관리자 목록에서만 쓰는 파생값(도우미 제안 없음, DB에 저장하지 않음)
          * @enum {string}
          */
         PartialSettlementStatus: "PROPOSED" | "ACCEPTED" | "REJECTED" | "ADMIN_DECIDED" | "NOT_PROPOSED";
-        /** @description 부분성공 정산 제안 거절. 거절하면 관리자가 금액을 결정 */
+        /** @description 부분성공 정산 제안 반려. 반려해도 바로 운영팀에 넘어가지 않고 도우미가 새 금액을 제안할 수 있음 */
         PartialSettlementRejectRequest: {
             /**
-             * @description 거절 사유. 도우미·관리자에게 공개
+             * @description 반려 사유. 도우미·운영팀에 공개
              * @example 합의 조건상 30%가 맞습니다
              */
             note: string;
+            /**
+             * Format: int64
+             * @description 이용자가 바라는 도우미 몫(원, 선택). 0 이상 합의 성공보수 이하. 도우미가 참고하는 값이며 확정되지 않음
+             * @example 6000
+             */
+            counterAmountKrw?: number | null;
+        };
+        /** @description 부분성공 정산을 운영팀에 넘기기. 도우미와 이용자 누구나 요청할 수 있음 */
+        PartialSettlementEscalateRequest: {
+            /**
+             * @description 운영팀에 전할 말(선택). 양측과 운영팀에 공개
+             * @example 금액에 합의가 되지 않아요
+             */
+            note?: string | null;
         };
         /** @description 부분성공 정산 제안 동의. 이용자 환불 대상 금액이 있으면(가상계좌 결제) 환불 수취 계좌 3개 필드가 필수이며 저장하지 않음 */
         PartialSettlementAcceptRequest: {
@@ -7184,7 +7297,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description PARTIAL 확정 전·이미 제안·정산 대상 없음 */
+            /** @description PARTIAL 확정 전·응답 대기 중인 제안 있음·이미 확정·운영팀에 넘어감·정산 대상 없음 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7260,6 +7373,81 @@ export interface operations {
                 };
             };
             /** @description 응답 대기 중인 제안이 아님 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    escalatePartialSettlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description requests.id
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PartialSettlementEscalateRequest"];
+            };
+        };
+        responses: {
+            /** @description 넘기기 완료 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePartialSettlementResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 당사자 아님 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description PARTIAL 확정 안전거래 아님·이미 확정·이미 넘김·정산할 성공보수 없음 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10681,7 +10869,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 기한 전·이미 확정 */
+            /** @description 당사자 협의 중(24시간 전·넘기기 요청 없음)·이미 확정 */
             409: {
                 headers: {
                     [name: string]: unknown;

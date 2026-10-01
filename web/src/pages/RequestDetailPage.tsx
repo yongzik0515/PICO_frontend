@@ -518,13 +518,13 @@ export function RequestDetailPage() {
       case 'result_submitted':
         return agent ? (
           <>
-            <Notice>이용자가 결과를 확인하고 있어요. {confirmDue ? `${confirmDue}까지` : '24시간 동안'} 답이 없으면 운영팀이 확정해요. 추가 자료를 올리면 그때부터 다시 24시간이에요.</Notice>
+            <Notice>이용자가 결과를 확인하고 있어요. {confirmDue ? `${confirmDue}까지` : '24시간 동안'} 답이 없으면 운영팀이 확정할 수 있어요. 추가 자료를 올리면 그때부터 다시 24시간이에요.</Notice>
             {go(`/requests/${r.id}/result`, '추가 자료 올리기', 'secondary')}
           </>
         ) : (
           <>
             {btn('예매 결과 확인하기', () => setDialog('result'))}
-            <Notice>{confirmDue ? `${confirmDue}까지` : '24시간 안에'} 동의하거나 이의를 제기해 주세요. 답이 없으면 운영팀이 확정해요.</Notice>
+            <Notice>{confirmDue ? `${confirmDue}까지` : '24시간 안에'} 동의하거나 이의를 제기해 주세요. 답이 없으면 운영팀이 확정할 수 있어요.</Notice>
           </>
         );
       case 'disputed':
