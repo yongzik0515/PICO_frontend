@@ -41,6 +41,10 @@ const loadPending = (): Pending | null => {
  */
 async function payWithPortOne(orderNumber: string, amount: number, units: number) {
   const config = await unwrap<{ storeId: string; channelKey: string }>(api.GET('/api/payments/checkout-config'));
+  // KG이니시스 카드 결제는 구매자 이메일이 필수다(없으면 결제창 호출이 실패한다). 로그인 이메일과 닉네임을 구매자 정보로 보낸다.
+  const me = await unwrap<Raw>(api.GET('/api/me'));
+  const email = str(pick(me, 'email'));
+  if (!email) throw new Error('구매자 이메일을 확인하지 못했어요. 마이페이지에서 이메일을 확인해 주세요.');
   const PortOne = await loadPortOne();
   const res = await PortOne.requestPayment({
     storeId: config.storeId,
@@ -50,6 +54,7 @@ async function payWithPortOne(orderNumber: string, amount: number, units: number
     totalAmount: amount,
     currency: 'CURRENCY_KRW',
     payMethod: 'CARD',
+    customer: { email, fullName: str(pick(me, 'nickname')) || undefined },
     redirectUrl: `${window.location.origin}/credits`,
   });
   if (!res || res.code) throw new Error(res?.message || '결제를 완료하지 못했어요.');
