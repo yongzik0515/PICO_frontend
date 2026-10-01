@@ -9,7 +9,7 @@ import { Avatar, Badges, FavoriteButton } from '../discovery/AgentCard';
 import { Icon } from '../ui/Icon';
 import { ImagePreview } from '../ui/ImagePreview';
 import { PageTitle } from '../ui/PageTitle';
-import { money, responseTime } from '../ui/format';
+import { money, responseTime, successRate } from '../ui/format';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 discovery.js의 profile(). GET /api/agents/{id}와 GET /api/agents/{id}/reviews를 쓴다.
@@ -200,7 +200,7 @@ export function ProfilePage() {
             </div>
             <div className="profile-stats">
               {[
-                ['성공률', a.success + '%'],
+                ['성공률', successRate(a.success)],
                 ['거래 횟수', a.trades + '회'],
                 ['평균 응답', responseTime(a.reply)],
               ].map(([k, v]) => (

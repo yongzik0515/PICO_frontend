@@ -7,6 +7,8 @@ export type Me = Record<string, unknown>;
 
 interface AuthValue {
   me: Me | null;
+  avatarUrl: string | null;
+  helperAvatarUrl: string | null;
   loggedIn: boolean;
   /** 로그인한 계정 식별값(로그아웃이면 ''). 다른 계정으로 바뀌면 값이 달라지므로 계정별 데이터를 다시 불러올 때 쓴다. */
   userKey: string;
@@ -24,20 +26,22 @@ const keyOf = (t: StoredTokens | null) => (t ? String(t.userId ?? '?') : '');
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [userKey, setUserKey] = useState(() => keyOf(getTokens()));
   // 어느 계정의 /api/me인지 함께 저장한다. 로그인한 채 다른 계정으로 로그인해도 이전 계정의 정보를 보여 주지 않는다.
-  const [meState, setMeState] = useState<{ key: string; me: Me | null } | null>(null);
+  const [meState, setMeState] = useState<{ key: string; me: Me | null; avatarUrl: string | null; helperAvatarUrl: string | null } | null>(null);
   const loggedIn = !!userKey;
 
   const reloadMe = useCallback(async () => {
     const key = keyOf(getTokens());
     if (!key) return setMeState(null);
-    let me: Me | null = null;
-    try {
-      me = await unwrap<Me>(api.GET('/api/me'));
-    } catch {
-      me = null;
-    }
+    const [me, avatar, profiles] = await Promise.all([
+      unwrap<Me>(api.GET('/api/me')).catch(() => null),
+      unwrap<unknown>(api.GET('/api/me/avatar')).catch(() => null),
+      unwrap<unknown>(api.GET('/api/me/agent/profiles')).catch(() => null),
+    ]);
+    const avatarUrl = typeof avatar === 'string' ? avatar : null;
+    const helper = Array.isArray(profiles) ? profiles.find((p) => p?.status === 'PUBLISHED') : null;
+    const helperAvatarUrl = typeof helper?.imageUrl === 'string' ? helper.imageUrl : null;
     // 기다리는 사이 계정이 바뀌었으면 이 응답은 버린다.
-    if (keyOf(getTokens()) === key) setMeState({ key, me });
+    if (keyOf(getTokens()) === key) setMeState({ key, me, avatarUrl, helperAvatarUrl });
   }, []);
 
   useEffect(() => onTokensChange((t) => setUserKey(keyOf(t))), []);
@@ -60,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const current = meState?.key === userKey ? meState : null;
   return (
-    <AuthContext.Provider value={{ me: loggedIn ? (current?.me ?? null) : null, loggedIn, userKey, loading: loggedIn && !current, login, logout, reloadMe }}>
+    <AuthContext.Provider value={{ me: loggedIn ? (current?.me ?? null) : null, avatarUrl: loggedIn ? (current?.avatarUrl ?? null) : null, helperAvatarUrl: loggedIn ? (current?.helperAvatarUrl ?? null) : null, loggedIn, userKey, loading: loggedIn && !current, login, logout, reloadMe }}>
       {children}
     </AuthContext.Provider>
   );

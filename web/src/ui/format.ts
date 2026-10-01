@@ -22,3 +22,6 @@ export function tokenFrom(value: string) {
     return raw;
   }
 }
+
+/** 성공률은 화면에서 정수 퍼센트로 표시한다. */
+export const successRate = (value: number | null) => value === null || !Number.isFinite(value) ? '기록 없음' : `${Math.round(value)}%`;

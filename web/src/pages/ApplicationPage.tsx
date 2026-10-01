@@ -8,6 +8,7 @@ import {
   emptyProfile,
   fetchAgentState,
   saveDraft,
+  savePublicProfile,
   submitCareerCase,
   uploadProfileImage,
   verifyIdentity,
@@ -31,7 +32,7 @@ import { useToast } from '../ui/Toast';
 
 // 프로토타입 account.js의 application()/helperFields()/verificationCard()/careerUpload()/publicPreview()/applicationStatusPage()
 // 명세 흐름: PUT /api/me/agent/profile(초안) → 본인·계좌 인증 → 경력 증빙(CAREER 사례 1~3) → POST /profiles/{id}/submit → 관리자 심사
-// 승인 후 공개 프로필을 고치면 새 초안이 생기고 다시 심사받는다(edit 모드, /helper-profile).
+// 공개 항목만 수정하면 기존 경력 승인을 유지하고 즉시 게시한다.
 
 const statusLabels: Record<ProfileStatus | 'none', string> = { none: '미신청', draft: '작성 중', review: '심사 중', approved: '승인', rejected: '반려', archived: '이전 게시본' };
 const scanLabels: Record<string, string> = { clean: '검토 완료', pending: '운영팀 파일 검토 전', blocked: '차단됨 · 다시 제출해 주세요', unknown: '제출 완료' };
@@ -231,6 +232,7 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
             </button>
           )}
         </div>
+        {state.approved?.careerSourceProfileId && <Note>공개 내용은 수정해 바로 게시한 버전이에요. 인증·경력은 기존에 승인된 자료를 유지하고 있어요.</Note>}
         {latest.submittedAt && <small className="account-caption">신청일 {kstDay(latest.submittedAt)}</small>}
       </section>
       {s === 'approved' && (
@@ -253,7 +255,7 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
 export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const { me } = useAuth();
+  const { me, reloadMe } = useAuth();
   const [, setApp] = useAppState();
   const platforms = usePlatforms();
   const [load, reload] = useLoad(fetchAgentState, []);
@@ -334,7 +336,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
     );
 
   // 작성 중이던 초안 → 반려·수정이면 마지막 버전 → 처음이면 빈 양식
-  const base = latest?.body ?? { ...emptyProfile(), activityName: str(me?.nickname) ?? '' };
+  const base = (edit ? state.approved?.body : latest?.body) ?? { ...emptyProfile(), activityName: str(me?.nickname) ?? '' };
   const p = draft ?? base;
   const set = (patch: Partial<ProfileBody>) => setDraft({ ...p, ...patch });
   const caseStates = careerCaseStates(state.evidence);
@@ -358,10 +360,16 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
     if (message) return;
     const body = { ...p, primaryCategory: p.categories.includes(p.primaryCategory) ? p.primaryCategory : p.categories[0] };
     const ok = await run(async () => {
-      const saved = await saveDraft(body);
-      if (image && saved.id) await uploadProfileImage(saved.id, image.file);
-    }, '공개 프로필을 임시저장했어요.');
+      if (edit) {
+        await savePublicProfile(body, state.approved!.id, image?.file);
+        await reloadMe();
+      } else {
+        const saved = await saveDraft(body);
+        if (image && saved.id) await uploadProfileImage(saved.id, image.file);
+      }
+    }, edit ? '공개 프로필을 수정했어요.' : '공개 프로필을 임시저장했어요.');
     if (ok) {
+      if (edit) return navigate('/application', { replace: true });
       setDraft(body);
       setStep(1);
       reload();
@@ -449,30 +457,20 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
     <div className="account-form-layout">
       <aside className="account-form-aside">
         <span className="tiny-label">{edit ? '공개 프로필 수정' : '도우미 신청'}</span>
-        <h2>
-          프로필부터
-          <br />
-          차근차근 준비해요.
-        </h2>
-        <p>
-          단계마다 서버에 임시저장돼요.
-          <br />
-          잠시 나갔다 와도 이어서
-          <br />
-          작성할 수 있어요.
-        </p>
-        <Progress step={step} />
+        <h2>{edit ? '내 공개 정보를 새롭게 알려요.' : <>프로필부터<br />차근차근 준비해요.</>}</h2>
+        <p>{edit ? '소개와 활동 정보, 비용을 수정하고 저장하면 바로 반영돼요.' : <>단계마다 서버에 임시저장돼요.<br />잠시 나갔다 와도 이어서 작성할 수 있어요.</>}</p>
+        {edit ? <Note>소개·활동 정보·비용을 수정하면 바로 반영돼요. 이미 승인된 인증과 경력 자료는 다시 제출하지 않아도 돼요.</Note> : <Progress step={step} />}
         <span className="badge neutral">{edit ? '수정 중' : '작성 중'}</span>
       </aside>
       <div>
-        <PageTitle title={titles[0]} crumbs={[{ label: '마이페이지', to: '/my' }]} />
+        <PageTitle title={edit ? '공개 프로필 수정' : titles[0]} crumbs={[{ label: '마이페이지', to: '/my' }]} />
         <p className="prose">{titles[1]}</p>
         {step === 0 && (
           <form noValidate onSubmit={saveStep0}>
             <Card title="공개 프로필">
               <div className="account-image-picker">
                 <span className="avatar blue">
-                  {image || latest?.imageUrl ? <img src={image?.url ?? latest?.imageUrl} alt="" /> : p.activityName[0] || '나'}
+                  {image || (edit ? state.approved?.imageUrl : latest?.imageUrl) ? <img src={image?.url ?? (edit ? state.approved?.imageUrl : latest?.imageUrl)} alt="" /> : p.activityName[0] || '나'}
                   <span className="avatar-spark">✦</span>
                 </span>
                 <div>
@@ -582,7 +580,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
                 <br />
                 공개 금액은 안내용이며, 거래별 최종 조건에서 금액을 확정합니다.
               </p>
-              {footer('다음')}
+              {footer(edit ? '변경 사항 저장' : '다음')}
             </Card>
           </form>
         )}

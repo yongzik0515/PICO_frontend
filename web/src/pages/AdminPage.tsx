@@ -174,16 +174,16 @@ function PolicyTab() {
   const { open, modal, pending } = useDialog(reload);
   const decide = (row: Raw, allowed: boolean) =>
     open({
-      title: allowed ? '대리 신청 허용' : '대리 신청 차단',
-      fields: [noteField(allowed ? '허용 근거' : '차단 사유', 10000), { name: 'sourceUrl', label: '근거 URL', required: true, type: 'url', maxLength: 1000, helper: '예매처 이용약관·공지 등 판단 근거 주소(https://…)', initial: s(row, 'officialApplicationUrl', 'platform.homepageUrl', 'platformHomepageUrl') }],
-      submitText: allowed ? '허용' : '차단',
+      title: allowed ? '요청 진행 승인' : '요청 진행 제한',
+      fields: [{ ...noteField(allowed ? '승인 근거' : '제한 사유', 10000), required: !allowed }],
+      submitText: allowed ? '승인' : '진행 제한',
       danger: !allowed,
-      success: allowed ? '허용했어요. 도우미가 수락할 수 있어요.' : '차단했어요.',
-      action: (v) => unwrap(api.POST('/api/admin/requests/{requestId}/policy', { params: { path: { requestId: n(row, 'requestId', 'id')! } }, body: { allowed, note: v.note, sourceUrl: v.sourceUrl } })),
+      success: allowed ? '승인했어요. 도우미가 수락할 수 있어요.' : '요청 진행을 제한했어요.',
+      action: (v) => unwrap(api.POST('/api/admin/requests/{requestId}/policy', { params: { path: { requestId: n(row, 'requestId', 'id')! } }, body: { allowed, note: v.note || undefined } })),
     });
   return (
     <>
-      <ListBlock title="정책 검토 대기 요청" desc="대리 신청이 허용되는 대상인지 판단해요. 허용(ALLOWED)되어야 도우미가 수락할 수 있어요." load={load} reload={reload} empty="검토할 요청이 없어요.">
+      <ListBlock title="정책 검토 대기 요청" desc="도움 요청을 진행할 수 있는 대상인지 확인해요. 승인되어야 도우미가 수락할 수 있어요." load={load} reload={reload} empty="검토할 요청이 없어요.">
         {(rows) =>
           rows.map((row) => (
             <Item

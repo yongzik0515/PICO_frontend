@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Icon } from '../ui/Icon';
 import { ImagePreview } from '../ui/ImagePreview';
-import { money, responseTime } from '../ui/format';
+import { money, responseTime, successRate } from '../ui/format';
 import type { Agent } from './agent';
 import { useFavorites } from './favorites';
 
@@ -58,7 +58,7 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
             </span>
             <span className="stat-divider"></span>
             <span>
-              성공률 <strong>{a.success}%</strong>
+              성공률 <strong>{successRate(a.success)}</strong>
             </span>
           </div>
         </div>

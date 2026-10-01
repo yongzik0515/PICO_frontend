@@ -109,6 +109,8 @@ export function QuotePage() {
     if (new Date(d.expiresAt) >= openAt) return setError('도우미 응답 기한은 티켓 오픈 시각보다 앞서야 해요.');
     setError('');
     const optionalNumber = (v: string) => (v ? Number(v) : undefined);
+    if (d.agencyBudgetDesired && d.agencyBudgetMax && Number(d.agencyBudgetDesired) > Number(d.agencyBudgetMax))
+      return setError('최대 수고비는 희망 수고비 이상이어야 해요.');
     const body: RequestBody = {
       agentId,
       targetName: d.targetName,
@@ -123,7 +125,8 @@ export function QuotePage() {
       requestedQuantity: optionalNumber(d.requestedQuantity),
       requirements: d.requirements,
       successConditions: d.successConditions,
-      purchaseBudgetMax: optionalNumber(d.purchaseBudgetMax),
+      purchaseBudgetMax: edit?.purchaseBudgetMax,
+      agencyBudgetDesired: optionalNumber(d.agencyBudgetDesired),
       agencyBudgetMax: optionalNumber(d.agencyBudgetMax),
       additionalNote: d.additionalNote || undefined,
       applicationRound: (d.applicationRound || undefined) as RequestBody['applicationRound'],
@@ -216,11 +219,11 @@ export function QuotePage() {
               <textarea name="successConditions" rows={3} required maxLength={10000} defaultValue={edit?.successConditions} placeholder="예: 1층 A~C구역 연석 2매를 확보하면 성공" />
             </Field>
             <div className="form-grid">
-              <Field label="희망 수고비(최대)" helper="최종 금액은 도우미가 조건으로 제안해요.">
-                <input name="agencyBudgetMax" type="number" min={0} step={1000} defaultValue={edit?.agencyBudgetMax} />
+              <Field label="희망 수고비" helper="도우미에게 제안하고 싶은 수고비예요. 최종 금액은 서로 합의해요.">
+                <input name="agencyBudgetDesired" type="number" min={0} step={1} defaultValue={edit?.agencyBudgetDesired} />
               </Field>
-              <Field label="티켓 구매 예산(최대)">
-                <input name="purchaseBudgetMax" type="number" min={0} step={1000} defaultValue={edit?.purchaseBudgetMax} />
+              <Field label="최대 수고비" helper="수고비로 지불할 수 있는 최대 금액이에요. 티켓 구매 비용은 포함하지 않아요.">
+                <input name="agencyBudgetMax" type="number" min={0} step={1} defaultValue={edit?.agencyBudgetMax} />
               </Field>
             </div>
             <Field label="기타 사항">
