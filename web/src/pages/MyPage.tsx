@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
@@ -23,18 +23,6 @@ const statusLabels: Record<string, string> = { none: '미신청', draft: '작성
 const kindNames: Record<string, string> = { PHONE: '전화번호', KAKAO: '카카오톡 ID', EMAIL: '이메일' };
 const kindPlaceholder: Record<string, string> = { PHONE: '010-0000-0000', KAKAO: '카카오톡 ID', EMAIL: 'name@example.com' };
 
-/** GET /api/me/avatar — 회원 이미지 URL(없으면 null) */
-function useAvatar(key: unknown) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    unwrap<string | Raw | null>(api.GET('/api/me/avatar')).then(
-      (v) => setUrl(typeof v === 'string' ? v : (str(pick(v, 'url', 'imageUrl')) ?? null)),
-      () => setUrl(null),
-    );
-  }, [key]);
-  return url;
-}
-
 function Avatar({ url, name }: { url: string | null; name: string }) {
   return (
     <span className="avatar blue large">
@@ -55,10 +43,9 @@ function Loading({ text }: { text: string }) {
 // ── 마이페이지 ─────────────────────────────────────────────
 export function MyPage() {
   const navigate = useNavigate();
-  const { me, logout } = useAuth();
+  const { me, logout, avatarUrl: avatar } = useAuth();
   const [{ mode }, setState] = useAppState();
   const agent = mode === 'agent';
-  const avatar = useAvatar(me?.id);
   const name = str(me?.nickname) ?? '회원';
   const [load] = useLoad(async () => {
     const [agentState, counts, balance] = await Promise.all([
@@ -185,10 +172,8 @@ export function MyPage() {
 // ── 이용자·도우미 프로필(닉네임·이미지·연락처) ────────────────
 export function UserProfilePage() {
   const toast = useToast();
-  const { me, reloadMe } = useAuth();
+  const { me, reloadMe, avatarUrl: avatar } = useAuth();
   const [{ mode }] = useAppState();
-  const [tick, setTick] = useState(0);
-  const avatar = useAvatar(tick);
   const [contactsLoad, reloadContacts] = useLoad(() => unwrap<unknown>(api.GET('/api/me/contacts')).then(list), []);
   const [nickname, setNickname] = useState<string | null>(null);
   const [contact, setContact] = useState({ kind: 'PHONE', value: '', primary: true });
@@ -212,7 +197,7 @@ export function UserProfilePage() {
       if (!res.ok) throw new Error('이미지를 올리지 못했어요.');
       await unwrap(api.PUT('/api/me/avatar', { body: { storageKey: target.storageKey! } }));
     }, '프로필 이미지를 바꿨어요.');
-    if (ok) setTick((t) => t + 1);
+    if (ok) await reloadMe();
   }
 
   async function saveContact(e: FormEvent<HTMLFormElement>) {

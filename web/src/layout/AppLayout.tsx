@@ -33,7 +33,7 @@ const titles: Record<string, string> = {
 type Popover = '' | 'notifications' | 'profile';
 
 export function AppLayout() {
-  const { loggedIn, me, logout } = useAuth();
+  const { loggedIn, me, logout, avatarUrl, helperAvatarUrl } = useAuth();
   const [{ mode }, setState] = useAppState();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -45,6 +45,7 @@ export function AppLayout() {
   const right = useRef<HTMLDivElement>(null);
 
   const helper = mode === 'agent';
+  const headerAvatar = helper ? helperAvatarUrl || avatarUrl : avatarUrl;
   const name = String(me?.nickname ?? me?.name ?? '');
   const { items: notifications, unread, open: openNotification, readAll } = useNotifications(pathname);
   async function clickNotification(n: Notification) {
@@ -155,7 +156,7 @@ export function AppLayout() {
             </button>
             {loggedIn ? (
               <button className="my-avatar" data-shell="profile" aria-label="내 프로필" aria-haspopup="dialog" aria-expanded={opened === 'profile'} onClick={() => toggle('profile')}>
-                {name[0] || '나'}
+                {headerAvatar ? <img src={headerAvatar} alt="" /> : name[0] || '나'}
               </button>
             ) : (
               <button className="header-login" onClick={() => navigate('/login')}>

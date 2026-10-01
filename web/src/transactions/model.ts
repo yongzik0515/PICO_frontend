@@ -37,6 +37,7 @@ export interface TxRequest {
   successConditions: string;
   purchaseBudgetMax?: number;
   agencyBudgetMax?: number;
+  agencyBudgetDesired?: number;
   additionalNote: string;
   contactDeadlineRule: string;
   applicationRound: string;
@@ -97,6 +98,7 @@ export function toRequest(raw: Raw): TxRequest {
     successConditions: s('successConditions'),
     purchaseBudgetMax: n('purchaseBudgetMax'),
     agencyBudgetMax: n('agencyBudgetMax'),
+    agencyBudgetDesired: n('agencyBudgetDesired'),
     additionalNote: s('additionalNote'),
     contactDeadlineRule: s('contactDeadlineRule'),
     applicationRound: s('applicationRound'),
@@ -129,6 +131,7 @@ export interface Agreement {
   version: number;
   /** PROPOSED(제안) · FINALIZED(확정) 등 */
   status: string;
+  proposedByRole: 'REQUESTER' | 'AGENT';
   upfrontFeeKrw: number;
   successFeeKrw: number;
   safetyFeeKrw: number;
@@ -158,6 +161,7 @@ export function toAgreement(raw: Raw): Agreement {
     id: n('agreementId', 'id') ?? 0,
     version: n('version', 'versionNumber', 'revision') ?? 1,
     status: s('status') || 'PROPOSED',
+    proposedByRole: s('proposedByRole') === 'REQUESTER' ? 'REQUESTER' : 'AGENT',
     upfrontFeeKrw: n('upfrontFeeKrw') ?? 0,
     successFeeKrw,
     safetyFeeKrw: fee ?? safetyFee(successFeeKrw, safePayment),
@@ -199,7 +203,7 @@ export const stageNames: Record<Stage, string> = {
   policy_blocked: '진행할 수 없는 요청',
   pending: '도우미 응답 대기',
   terms_needed: '최종 조건 작성 필요',
-  terms_sent: '이용자 확인 대기',
+  terms_sent: '상대방 확인 대기',
   revision_requested: '조건 수정 요청',
   payment: '안전거래 결제 대기',
   ready: '착수 대기',

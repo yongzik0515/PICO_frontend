@@ -22,6 +22,7 @@ export interface ProfileVersion {
   submittedAt: string;
   body: ProfileBody;
   imageUrl?: string;
+  careerSourceProfileId?: number;
   listed?: boolean;
   acceptsRequests?: boolean;
 }
@@ -50,6 +51,7 @@ export function toProfile(raw: Raw): ProfileVersion {
     reviewNote: s('reviewNote', 'rejectionReason', 'reviewComment'),
     submittedAt: s('submittedAt'),
     imageUrl: s('imageUrl', 'profileImageUrl') || undefined,
+    careerSourceProfileId: n('careerSourceProfileId'),
     listed: pick(raw, 'listed') as boolean | undefined,
     acceptsRequests: pick(raw, 'acceptsRequests') as boolean | undefined,
     body: {
@@ -107,7 +109,7 @@ export async function fetchAgentState(): Promise<AgentState> {
     .map(toProfile)
     .sort((a, b) => b.version - a.version || b.id - a.id);
   // 이전 게시본(ARCHIVED)은 작성·심사 대상이 아니다.
-  const current = summaries.find((v) => v.status !== 'archived');
+  const current = summaries.find((v) => v.status === 'draft' || v.status === 'review') ?? summaries.find((v) => v.status !== 'archived');
   const path = current ? { params: { path: { profileId: current.id } } } : null;
   // 목록은 요약(활동명·상태 등)만 준다. 이어서 작성·공개 프로필 수정 양식을 채우려면 그 버전의 상세를 불러온다.
   const [detail, evidenceRaw] = path
@@ -118,11 +120,15 @@ export async function fetchAgentState(): Promise<AgentState> {
     : [null, []];
   const versions = detail && current ? summaries.map((v) => (v.id === current.id ? { ...toProfile(detail), id: v.id, version: v.version } : v)) : summaries;
   const latest = current && versions.find((v) => v.id === current.id);
+  const approvedSummary = versions.find((v) => v.status === 'approved');
+  const approved = approvedSummary && approvedSummary.id !== latest?.id
+    ? toProfile(await unwrap<Raw>(api.GET('/api/me/agent/profiles/{profileId}', { params: { path: { profileId: approvedSummary.id } } })))
+    : approvedSummary;
   const evidence = list(evidenceRaw);
   return {
     versions,
     latest,
-    approved: versions.find((v) => v.status === 'approved'),
+    approved,
     identityVerified: identity?.verified === true,
     payoutVerified: payout?.verified === true,
     payoutMasked: payout?.maskedAccount ?? '',
@@ -232,3 +238,14 @@ export const banks: [string, string][] = [
   ['071', '우체국'],
   ['045', '새마을금고'],
 ];
+
+/** Public-only edits retain the existing career approval and publish immediately. */
+export async function savePublicProfile(body: ProfileBody, expectedProfileId: number, image?: File) {
+  let imageStorageKey: string | undefined;
+  if (image) {
+    const target = await unwrap<Raw>(api.POST('/api/files/upload-url', { body: { purpose: 'PROFILE_IMAGE', originalName: image.name, mimeType: image.type, sizeBytes: image.size } }));
+    imageStorageKey = await putFile(target, image);
+  }
+  const { activityName, headline, bio, primaryCategory, contactHoursNote, upfrontFeeKrw, successFeeMin, successFeeMax, platformIds, categories } = body;
+  return unwrap(api.PUT('/api/me/agent/public-profile', { body: { expectedProfileId, activityName, headline, bio, primaryCategory, contactHoursNote, upfrontFeeKrw, successFeeMin, successFeeMax, platformIds, categories, imageStorageKey } }));
+}

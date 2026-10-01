@@ -1176,6 +1176,66 @@
         }
       }
     },
+    "/api/me/agent/public-profile": {
+      "put": {
+        "tags": [
+          "agent-controller"
+        ],
+        "operationId": "updatePublic",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicProfile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMapStringObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/me/agent/profiles/{profileId}/image": {
       "put": {
         "tags": [
@@ -14000,6 +14060,11 @@
             "type": "integer",
             "format": "int64",
             "exclusiveMinimum": 0
+          },
+          "agencyBudgetDesired": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
           }
         },
         "required": [
@@ -14213,6 +14278,88 @@
             "type": "boolean"
           }
         }
+      },
+      "PublicProfile": {
+        "type": "object",
+        "properties": {
+          "expectedProfileId": {
+            "type": "integer",
+            "format": "int64",
+            "exclusiveMinimum": 0
+          },
+          "activityName": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 0
+          },
+          "headline": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 0
+          },
+          "bio": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 0
+          },
+          "primaryCategory": {
+            "$ref": "#/components/schemas/ServiceCategory"
+          },
+          "contactHoursNote": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "upfrontFeeKrw": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "successFeeMin": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "successFeeMax": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "platformIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "exclusiveMinimum": 0
+            },
+            "maxItems": 30,
+            "minItems": 0,
+            "uniqueItems": true
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServiceCategory"
+            },
+            "maxItems": 6,
+            "minItems": 0,
+            "uniqueItems": true
+          },
+          "imageStorageKey": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "activityName",
+          "bio",
+          "categories",
+          "expectedProfileId",
+          "headline",
+          "platformIds",
+          "primaryCategory"
+        ]
       },
       "Business": {
         "type": "object",
@@ -15332,6 +15479,11 @@
             "type": "string",
             "maxLength": 500,
             "minLength": 0
+          },
+          "expectedAgreementVersion": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
           }
         },
         "required": [
@@ -16393,18 +16545,8 @@
             "type": "string",
             "maxLength": 10000,
             "minLength": 0
-          },
-          "sourceUrl": {
-            "type": "string",
-            "maxLength": 1000,
-            "minLength": 0,
-            "pattern": "https?://[^\\s]+"
           }
-        },
-        "required": [
-          "note",
-          "sourceUrl"
-        ]
+        }
       },
       "PartialSettlementDecisionRequest": {
         "type": "object",

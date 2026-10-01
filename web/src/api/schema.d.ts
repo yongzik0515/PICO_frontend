@@ -164,6 +164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/agent/public-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updatePublic"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/agent/profiles/{profileId}/image": {
         parameters: {
             query?: never;
@@ -2607,6 +2623,8 @@ export interface components {
             expiresAt: string;
             /** Format: int64 */
             contactSharingDocumentId: number;
+            /** Format: int64 */
+            agencyBudgetDesired?: number;
         };
         /**
          * @description agent_profile_versions.primary_category의 DDL CHECK 허용값
@@ -2693,6 +2711,24 @@ export interface components {
         Visibility: {
             listed?: boolean;
             acceptsRequests?: boolean;
+        };
+        PublicProfile: {
+            /** Format: int64 */
+            expectedProfileId: number;
+            activityName: string;
+            headline: string;
+            bio: string;
+            primaryCategory: components["schemas"]["ServiceCategory"];
+            contactHoursNote?: string;
+            /** Format: int64 */
+            upfrontFeeKrw?: number;
+            /** Format: int64 */
+            successFeeMin?: number;
+            /** Format: int64 */
+            successFeeMax?: number;
+            platformIds: number[];
+            categories: components["schemas"]["ServiceCategory"][];
+            imageStorageKey?: string;
         };
         Business: {
             registrationNumber?: string;
@@ -3241,6 +3277,8 @@ export interface components {
             attemptRule: string;
             refundRule: string;
             contactDeadlineRule: string;
+            /** Format: int64 */
+            expectedAgreementVersion?: number;
         };
         Accept: {
             /** Format: int64 */
@@ -3786,8 +3824,7 @@ export interface components {
         };
         Policy: {
             allowed?: boolean;
-            note: string;
-            sourceUrl: string;
+            note?: string;
         };
         /** @description 관리자의 부분성공 정산 금액 결정 */
         PartialSettlementDecisionRequest: {
@@ -5249,6 +5286,57 @@ export interface operations {
             };
             /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    updatePublic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicProfile"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

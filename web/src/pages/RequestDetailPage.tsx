@@ -61,8 +61,8 @@ function requestRows(r: TxRequest): [string, ReactNode][] {
     ['매수', r.requestedQuantity ? `${r.requestedQuantity}매` : ''],
     ['희망 좌석·요청 내용', r.requirements],
     ['성공 요건', r.successConditions],
-    ['희망 수고비(최대)', won(r.agencyBudgetMax)],
-    ['티켓 구매 예산(최대)', won(r.purchaseBudgetMax)],
+    ['희망 수고비', won(r.agencyBudgetDesired)],
+    ['최대 수고비', won(r.agencyBudgetMax)],
     ['기타 사항', r.additionalNote],
     ['도우미 응답 기한', utcToLocal(r.expiresAt)],
   ];
@@ -81,17 +81,17 @@ function agreementRows(a: Agreement): [string, ReactNode][] {
   ];
 }
 
-/** 최초 요청과 도우미가 제안한 최종 조건을 나란히 보여 준다(프로토타입 comparison()). */
+/** 최초 요청과 양측이 제안한 최종 조건을 나란히 보여 준다(프로토타입 comparison()). */
 function Comparison({ r, a }: { r: TxRequest; a: Agreement }) {
   const pairs: [string, string, string][] = [
     ['희망 좌석·요청 내용', r.requirements, a.requirements],
     ['성공 요건', r.successConditions, a.successConditions],
     ['수고비', r.agencyBudgetMax !== undefined ? `최대 ${money(r.agencyBudgetMax)}원` : '미입력', `${money(a.successFeeKrw)}원`],
-    ['착수비', '도우미 작성 항목', `${money(a.upfrontFeeKrw)}원`],
-    ['거래 방식', '도우미 작성 항목', a.safePayment ? `안전거래 · 수수료 ${money(a.safetyFeeKrw)}원` : '직접 거래'],
-    ['예매 시도 방식', '도우미 작성 항목', a.attemptRule],
-    ['실패·환불 처리', '도우미 작성 항목', a.refundRule],
-    ['결과 연락 기한', r.contactDeadlineRule || '도우미 작성 항목', a.contactDeadlineRule],
+    ['착수비', '합의 시 작성', `${money(a.upfrontFeeKrw)}원`],
+    ['거래 방식', '합의 시 작성', a.safePayment ? `안전거래 · 수수료 ${money(a.safetyFeeKrw)}원` : '직접 거래'],
+    ['예매 시도 방식', '합의 시 작성', a.attemptRule],
+    ['실패·환불 처리', '합의 시 작성', a.refundRule],
+    ['결과 연락 기한', r.contactDeadlineRule || '합의 시 작성', a.contactDeadlineRule],
   ];
   return (
     <div className="tx-comparison">
@@ -101,7 +101,7 @@ function Comparison({ r, a }: { r: TxRequest; a: Agreement }) {
         <strong>최종 조건</strong>
       </div>
       {pairs.map(([label, before, after]) => {
-        const changed = before !== '도우미 작성 항목' && before !== after;
+        const changed = before !== '합의 시 작성' && before !== after;
         return (
           <div key={label} className={changed ? 'changed' : ''}>
             <span>
@@ -292,6 +292,7 @@ export function RequestDetailPage() {
   const agent = role === 'agent';
   const stage = d.stage;
   const latest = latestAgreement(d.agreements);
+  const proposalMine = latest?.proposedByRole === (agent ? 'AGENT' : 'REQUESTER');
   const finalized = latest?.status === 'FINALIZED' ? latest : undefined;
   const previous = d.agreements.filter((a) => a !== latest).sort((a, b) => b.version - a.version);
   const latestEvidence = d.evidences[0];
@@ -388,15 +389,15 @@ export function RequestDetailPage() {
           거래 취소
         </button>
       ) : null;
-    // 확정 후 결제 전(또는 직접 거래 착수 전)에는 도우미가 조건을 다시 제안할 수 있다(새 버전이 확정되면 이전 확정본은 대체).
-    const repropose = agent && finalized && !hasActivePayment && (stage === 'ready' || stage === 'payment') ? go(`/requests/${r.id}/terms`, '조건 다시 제안하기', 'ghost') : null;
+    // 안전거래 확정 후 결제 전에는 양측이 조건을 다시 제안할 수 있다(새 버전이 확정되면 이전 확정본은 대체).
+    const repropose = finalized && !hasActivePayment && (stage === 'ready' || stage === 'payment') ? go(`/requests/${r.id}/terms`, '조건 다시 제안하기', 'ghost') : null;
     switch (stage) {
       case 'policy_blocked':
         return agent ? (
           <Notice>운영 정책상 수락할 수 없는 요청이에요.</Notice>
         ) : (
           <>
-            <Notice tone="error">해당 공연·예매처는 대리 신청이 허용되지 않아요. 내용을 수정하면 다시 검토해요.</Notice>
+            <Notice tone="error">해당 공연·예매처는 도움 요청을 진행할 수 없어요. 내용을 수정하면 다시 검토해요.</Notice>
             <div className="tx-request-actions">
               {r.agentId ? go(`/quote/${r.agentId}?edit=${r.id}`, '요청 내용 수정') : null}
               {btn('요청 취소', () => setDialog('cancel'), 'ghost tx-danger')}
@@ -427,13 +428,13 @@ export function RequestDetailPage() {
       case 'revision_requested':
         return (
           <>
-            {agent ? go(`/requests/${r.id}/terms`, stage === 'revision_requested' ? '최종 조건 수정하기' : '최종 조건 작성하기') : <Notice>도우미가 최종 조건을 준비하고 있어요.</Notice>}
+            {go(`/requests/${r.id}/terms`, stage === 'revision_requested' ? '최종 조건 수정하기' : '최종 조건 작성하기')}
             {cancelMatched}
           </>
         );
       case 'terms_sent':
-        return agent ? (
-          <Notice>이용자의 최종 확인을 기다리고 있어요.</Notice>
+        return proposalMine ? (
+          <Notice>상대방의 최종 확인을 기다리고 있어요.</Notice>
         ) : (
           <>
             {btn('확인하고 확정하기', () => setDialog('agree'))}
@@ -454,13 +455,13 @@ export function RequestDetailPage() {
         if (r.agreementChangePending)
           return agent ? (
             <>
-              <Notice tone="error">이용자가 확정된 조건의 변경을 요청해서 지금은 착수할 수 없어요. 요청 내용을 확인하고 조건을 다시 제안해 주세요.</Notice>
+              <Notice tone="error">확정된 조건의 변경 요청이 있어 지금은 착수할 수 없어요. 요청 내용을 확인하고 조건을 다시 제안해 주세요.</Notice>
               {go(`/requests/${r.id}/terms`, '조건 다시 제안하기')}
               {cancelMatched}
             </>
           ) : (
             <>
-              <Notice>조건 변경을 요청했어요. 도우미가 변경 내용을 검토해 새 조건을 보내기 전에는 착수하지 않아요. 새 조건이 오면 다시 확인하고 확정해 주세요.</Notice>
+              <Notice>조건 변경 요청이 있어 지금은 착수하지 않아요. 양측 모두 새 조건을 제안할 수 있고, 상대방이 보내면 다시 검토해 주세요.</Notice>
               {cancelMatched}
             </>
           );
@@ -564,7 +565,7 @@ export function RequestDetailPage() {
           </section>
 
           {(stage === 'revision_requested' || r.agreementChangePending) && d.changeRequests.length > 0 && (
-            <TxCard title="이용자의 수정 요청">
+            <TxCard title="조건 수정 요청">
               {d.changeRequests.map((c, i) => (
                 <Notice key={i}>{str(pick(c, 'reason', 'message', 'body')) ?? ''}</Notice>
               ))}
@@ -572,11 +573,11 @@ export function RequestDetailPage() {
           )}
 
           {latest && (
-            <TxCard title={finalized ? '확정된 최종 조건' : '도우미가 보낸 최종 조건'}>
+            <TxCard title={finalized ? '확정된 최종 조건' : `${latest.proposedByRole === 'AGENT' ? '도우미' : '이용자'}가 보낸 최종 조건`}>
               <Notice tone={finalized ? 'success' : ''}>
                 {finalized
-                  ? `이용자가 ${latest.version}차 제안을 확인하고 확정했어요.${latest.finalizedAt ? ` (${utcToLocal(latest.finalizedAt)})` : ''}`
-                  : `${latest.version}차 제안${latest.createdAt ? ` · ${utcToLocal(latest.createdAt)}` : ''} · ${stage === 'revision_requested' ? '수정 요청됨. 새 조건을 기다리고 있어요.' : '이용자 확인을 기다리고 있어요.'}`}
+                  ? `양측이 ${latest.version}차 제안에 동의해 확정됐어요.${latest.finalizedAt ? ` (${utcToLocal(latest.finalizedAt)})` : ''}`
+                  : `${latest.version}차 제안${latest.createdAt ? ` · ${utcToLocal(latest.createdAt)}` : ''} · ${stage === 'revision_requested' ? '수정 요청됨. 새 조건을 기다리고 있어요.' : '상대방 확인을 기다리고 있어요.'}`}
               </Notice>
               {finalized ? <Rows rows={agreementRows(latest)} /> : <Comparison r={r} a={latest} />}
               {previous.length > 0 && (
@@ -829,7 +830,7 @@ export function RequestDetailPage() {
               </p>
             )}
           </section>
-          <p className="aside-disclaimer">조건 확정은 도우미의 제안 후 이용자가 한 번 확인해요. 도우미의 별도 재확정은 필요하지 않아요.</p>
+          <p className="aside-disclaimer">양측 모두 조건을 제안할 수 있어요. 받은 상대방이 승인하면 확정되고, 수정을 요청하면 새 조건을 제안할 수 있어요.</p>
         </aside>
       </div>
 
@@ -891,14 +892,14 @@ export function RequestDetailPage() {
           onConfirm={() =>
             act(
               () => unwrap(api.POST('/api/requests/{requestId}/agreements/{agreementId}/accept', { params: { path: { requestId, agreementId: latest.id } } })),
-              latest.safePayment ? '조건을 확정했어요. 안전거래 결제를 진행해 주세요.' : '직접 거래 매칭을 완료했어요. 이후 당사자끼리 진행하고 후기를 남겨 주세요.',
+              latest.safePayment ? (agent ? '조건을 확정했어요. 이용자의 결제를 기다려 주세요.' : '조건을 확정했어요. 안전거래 결제를 진행해 주세요.') : '직접 거래 매칭을 완료했어요. 이후 당사자끼리 진행하고 후기를 남겨 주세요.',
             )
           }
         >
           <p className="prose">
-            확정한 뒤에는 조건을 바꿀 수 없어요.
+            안전거래는 결제가 시작되기 전까지만 조건을 다시 제안할 수 있어요.
             <br />
-            {latest.safePayment ? `확정 후 ${money(latest.upfrontFeeKrw + latest.successFeeKrw + latest.safetyFeeKrw)}원을 안전거래로 결제해요.` : '확정하면 직접 거래 매칭이 완료돼요. 착수·결과 등록 없이 당사자끼리 진행하고, 이용자는 후기를 남길 수 있어요.'}
+            {latest.safePayment ? `확정 후 이용자가 ${money(latest.upfrontFeeKrw + latest.successFeeKrw + latest.safetyFeeKrw)}원을 안전거래로 결제해요.` : '확정하면 직접 거래 매칭이 완료돼요. 착수·결과 등록 없이 당사자끼리 진행하고, 이용자는 후기를 남길 수 있어요.'}
           </p>
         </ConfirmModal>
       )}
@@ -912,7 +913,7 @@ export function RequestDetailPage() {
             act(() => unwrap(api.POST('/api/requests/{requestId}/agreements/{agreementId}/change-requests', { params: { path: { requestId, agreementId: latest.id } }, body: { reason } })), '수정 요청을 보냈어요.')
           }
         >
-          <p className="record-note">도우미가 수정한 새 조건을 보내면 다시 확인하고 확정할 수 있어요.</p>
+          <p className="record-note">수정 요청 후에는 양측 모두 새 조건을 제안할 수 있어요. 상대방이 보내면 먼저 확인하고 승인하거나 다시 수정을 요청해 주세요.</p>
         </ReasonModal>
       )}
       {dialog === 'start' && (
