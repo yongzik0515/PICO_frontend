@@ -2803,7 +2803,7 @@
           "request"
         ],
         "summary": "대행자가 처리 결과 제출",
-        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다. 안전거래의 도우미만 IN_PROGRESS에서 한 번 제출합니다. 결과 증빙은 선택이고, FAILURE는 최신 시도 증빙이 SUBMITTED·APPROVED·REJECTED 중 하나여야 합니다(반려돼도 결과 제출 가능, 이용자 불복 시 운영팀이 판단). 제출 후 24시간 동안 이용자가 답하지 않으면 관리자가 확정할 수 있습니다. 결과 제출 뒤 도우미가 결과 증빙을 추가하면 그 시각부터 다시 24시간입니다(요청 상세 resultConfirmDueAt). ",
+        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다. 안전거래의 도우미만 IN_PROGRESS에서 한 번 제출합니다. 결과 증빙은 선택이고, FAILURE는 최신 시도 증빙이 SUBMITTED·APPROVED·REJECTED 중 하나여야 합니다(반려돼도 결과 제출 가능, 이용자 불복 시 운영팀이 판단). 제출 후 72시간(3일) 동안 이용자가 답하지 않으면 관리자가 확정할 수 있습니다. 결과 제출 뒤 도우미가 결과 증빙을 추가하면 그 시각부터 다시 72시간입니다(요청 상세 resultConfirmDueAt). ",
         "operationId": "result",
         "parameters": [
           {
@@ -7705,7 +7705,7 @@
           "admin"
         ],
         "summary": "분쟁·이용자 무응답 결과 확정",
-        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청, 또는 도우미 결과 제출 후 24시간이 지나도록 이용자가 답하지 않은 IN_PROGRESS 요청의 최종 결과를 정합니다. 관리자가 그 거래의 당사자면 403입니다. body={result,note(필수, 확정 사유),attemptUnverified}. attemptUnverified=true는 FAILURE에만 쓸 수 있고(아니면 400) 예매 시도를 확인하지 못한 종결입니다: 착수비를 도우미에게 지급하지 않고 이용자가 착수비·성공보수를 환불받습니다(이용료 비환불). 착수비가 도우미 몫으로 확정됐으면(지급 요청·진행·완료, 또는 현재 결제 이후 최신 시도 증빙 승인) 409입니다. reviewReason(DISPUTED|CONFIRMATION_OVERDUE, 선택)에 관리자가 목록에서 본 계기를 보내면, 그 사이 상태가 바뀐 경우(예: 무응답 건에 이용자가 이의 제기) 409입니다. ",
+        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청, 또는 도우미 결과 제출 후 72시간이 지나도록 이용자가 답하지 않은 IN_PROGRESS 요청의 최종 결과를 정합니다. 관리자가 그 거래의 당사자면 403입니다. body={result,note(필수, 확정 사유),attemptUnverified}. attemptUnverified=true는 FAILURE에만 쓸 수 있고(아니면 400) 예매 시도를 확인하지 못한 종결입니다: 착수비를 도우미에게 지급하지 않고 이용자가 착수비·성공보수를 환불받습니다(이용료 비환불). 착수비가 도우미 몫으로 확정됐으면(지급 요청·진행·완료, 또는 현재 결제 이후 최신 시도 증빙 승인) 409입니다. reviewReason(DISPUTED|CONFIRMATION_OVERDUE, 선택)에 관리자가 목록에서 본 계기를 보내면, 그 사이 상태가 바뀐 경우(예: 무응답 건에 이용자가 이의 제기) 409입니다. ",
         "operationId": "resolve",
         "parameters": [
           {
@@ -13003,7 +13003,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "결과 분쟁·이용자 무응답(24시간) 목록",
+        "summary": "결과 분쟁·이용자 무응답(72시간) 목록",
         "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다. data=[{id,submittedTargetName,status,reviewReason(DISPUTED|CONFIRMATION_OVERDUE),resultConfirmDueAt,agentResult,agentResultNote,actualOutcomeDescription,agentResultSubmittedAt,requesterResult,requesterResultConfirmedAt,disputeNote,hasResultEvidence,hasAttemptEvidence,statementCount,awaitingRequesterReply,awaitingAgentReply,upfrontPayoutStarted,...}] 오래된 순. upfrontPayoutStarted=true면 착수비가 도우미 몫으로 확정돼(지급 시작 또는 현재 결제 이후 시도 증빙 승인) attemptUnverified 종결을 쓸 수 없습니다. 호출한 관리자가 당사자인 거래는 빠집니다. page=0~10000, size=1~100(범위 밖 400). 증빙은 /api/admin/requests/{requestId}/result/evidence와 /api/admin/requests/{requestId}/attempt-evidences로 봅니다. ",
         "operationId": "resultReview",
         "parameters": [

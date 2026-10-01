@@ -57,7 +57,7 @@ export interface TxRequest {
   upfrontForfeited: boolean;
   /** 이용자의 최근 이의 사유(양쪽 당사자에게 보임) */
   disputeNote: string;
-  /** 이용자 결과 확인 기한(UTC). 도우미가 결과 뒤 증빙을 추가하면 다시 24시간 */
+  /** 이용자 결과 확인 기한(UTC). 도우미가 결과 뒤 증빙을 추가하면 다시 72시간 */
   resultConfirmDueAt: string;
   agentOutcome: string;
   requesterResult?: RequestResult;

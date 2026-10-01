@@ -263,7 +263,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
         reload();
       }
       await unwrap(api.POST('/api/requests/{requestId}/result', { ...path, body: { result, note: d.note, actualOutcomeDescription: d.outcome || undefined } }));
-    }, '예매 결과를 등록했어요. 이용자가 24시간 안에 확인해요.');
+    }, '예매 결과를 등록했어요. 이용자가 3일 안에 확인해요.');
     setProgress('');
     if (ok) navigate(`/requests/${requestId}`, { replace: true });
     else reload();
@@ -346,7 +346,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                 <input name="outcome" maxLength={10000} placeholder="예: 1층 5구역 8열, 연석 2매" />
               </Field>
             )}
-            <Notice>결과는 한 번만 제출할 수 있어요. 이용자가 동의하면 거래가 완료되고, 이의를 제기하면 운영팀이 증빙을 보고 정해요. 이용자가 24시간 동안 답하지 않으면 운영팀이 확정할 수 있어요.</Notice>
+            <Notice>결과는 한 번만 제출할 수 있어요. 이용자가 동의하면 거래가 완료되고, 이의를 제기하면 운영팀이 증빙을 보고 정해요. 이용자가 3일 동안 답하지 않으면 운영팀이 확정할 수 있어요.</Notice>
             <div className="tx-form-footer">
               <span role="status">{progress || (needAttemptFile && !files.length ? '실패 결과는 시도 증빙 파일을 첨부해야 제출할 수 있어요.' : '')}</span>
               <button type="submit" className="btn primary" disabled={pending || (needAttemptFile && !files.length)}>

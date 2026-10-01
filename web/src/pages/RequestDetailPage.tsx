@@ -305,7 +305,7 @@ export function RequestDetailPage() {
   const final = r.finalResult ?? (r.status === 'COMPLETED' && r.requesterResult === r.agentResult ? r.agentResult : undefined);
   // 착수비 선지급·지급 안내는 안전거래이고 착수비가 있을 때만 맞는 말이다.
   const upfrontApplies = !!finalized?.safePayment && (finalized?.upfrontFeeKrw ?? 0) > 0;
-  // 이용자 결과 확인 기한(서버 계산). 도우미가 결과 뒤 증빙을 추가하면 다시 24시간.
+  // 이용자 결과 확인 기한(서버 계산). 도우미가 결과 뒤 증빙을 추가하면 다시 72시간.
   const confirmDue = r.resultConfirmDueAt ? utcToLocal(r.resultConfirmDueAt) : '';
   // 도우미가 결과를 내지 않아 운영팀이 종결한 거래(결과 없이 완료)
   const noResultClosed = r.status === 'COMPLETED' && !r.agentResult && !!r.adminResolutionNote;
@@ -519,13 +519,13 @@ export function RequestDetailPage() {
       case 'result_submitted':
         return agent ? (
           <>
-            <Notice>이용자가 결과를 확인하고 있어요. {confirmDue ? `${confirmDue}까지` : '24시간 동안'} 답이 없으면 운영팀이 확정할 수 있어요. 추가 자료를 올리면 그때부터 다시 24시간이에요.</Notice>
+            <Notice>이용자가 결과를 확인하고 있어요. {confirmDue ? `${confirmDue}까지` : '3일 동안'} 답이 없으면 운영팀이 확정할 수 있어요. 추가 자료를 올리면 그때부터 다시 3일이에요.</Notice>
             {go(`/requests/${r.id}/result`, '추가 자료 올리기', 'secondary')}
           </>
         ) : (
           <>
             {btn('예매 결과 확인하기', () => setDialog('result'))}
-            <Notice>{confirmDue ? `${confirmDue}까지` : '24시간 안에'} 동의하거나 이의를 제기해 주세요. 답이 없으면 운영팀이 확정할 수 있어요.</Notice>
+            <Notice>{confirmDue ? `${confirmDue}까지` : '3일 안에'} 동의하거나 이의를 제기해 주세요. 답이 없으면 운영팀이 확정할 수 있어요.</Notice>
           </>
         );
       case 'disputed':
@@ -954,7 +954,7 @@ export function RequestDetailPage() {
           upfrontApplies={upfrontApplies}
           onClose={close}
           onSubmit={(agreed, note) =>
-            // 24시간이 지나 운영팀이 먼저 확정한 경우 등 409는 useAction이 서버 메시지와 함께 최신 상태로 다시 불러온다.
+            // 확인 기한이 지나 운영팀이 먼저 확정한 경우 등 409는 useAction이 서버 메시지와 함께 최신 상태로 다시 불러온다.
             act(
               () => unwrap(api.POST('/api/requests/{requestId}/result/confirm', { ...path, body: { agreed, note: note || undefined } })),
               agreed ? '결과 확인을 완료했어요.' : '이의를 접수했어요. 운영팀이 확인해 결과 조정안을 제안해요.',

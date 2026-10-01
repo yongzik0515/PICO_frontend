@@ -528,7 +528,7 @@ const resultLabels: Record<string, string> = { SUCCESS: '성공', PARTIAL: '부�
 // JDBC 드라이버에 따라 true 또는 1로 온다.
 const flag = (row: unknown, key: string) => pick(row, key) === true || num(pick(row, key)) === 1;
 const evidenceStatusNames: Record<string, string> = { DRAFT: '작성 중', SUBMITTED: '확인 대기', APPROVED: '승인', REJECTED: '반려' };
-const reviewReasonNames: Record<string, string> = { DISPUTED: '이용자 이의 제기', CONFIRMATION_OVERDUE: '이용자 24시간 무응답', NO_RESULT: '도우미 결과 미제출(이용자 신고)' };
+const reviewReasonNames: Record<string, string> = { DISPUTED: '이용자 이의 제기', CONFIRMATION_OVERDUE: '이용자 3일 무응답', NO_RESULT: '도우미 결과 미제출(이용자 신고)' };
 const resultLabel = (row: unknown) => {
   const forfeited = flag(row, 'upfrontForfeited');
   if (s(row, 'reviewReason') === 'NO_RESULT') return forfeited ? '실패 · 결과 미제출(착수비 미지급)' : '실패 · 결과 미제출';
@@ -683,7 +683,7 @@ function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upf
     <>
       <ListBlock
         title="결과 확인이 필요한 요청"
-        desc="이용자가 이의를 제기했거나, 도우미 결과 등록 후 24시간 동안 이용자가 답하지 않은 요청이에요. 이의가 제기된 요청은 증빙·소명을 보고 결과 조정안을 제시하고(이용자·도우미 모두 수락해야 확정), 무응답 요청은 아래에서 바로 확정해요."
+        desc="이용자가 이의를 제기했거나, 도우미 결과 등록 후 3일 동안 이용자가 답하지 않은 요청이에요. 이의가 제기된 요청은 증빙·소명을 보고 결과 조정안을 제시하고(이용자·도우미 모두 수락해야 확정), 무응답 요청은 아래에서 바로 확정해요."
         load={load}
         reload={reload}
         empty="확인할 요청이 없어요."
@@ -697,7 +697,7 @@ function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upf
               <Item
                 key={id}
                 raw={row}
-                title={`#${id} ${s(row, 'submittedTargetName', 'targetName')} · ${overdue ? '이용자 24시간 무응답' : '이의 제기'}`}
+                title={`#${id} ${s(row, 'submittedTargetName', 'targetName')} · ${overdue ? '이용자 3일 무응답' : '이의 제기'}`}
                 rows={[
                   ['도우미 결과', `${resultLabels[s(row, 'agentResult')] ?? s(row, 'agentResult')} · ${s(row, 'agentResultNote')}`],
                   ['실제 확보 내용', s(row, 'actualOutcomeDescription')],
@@ -910,7 +910,7 @@ function RequestsTab() {
       <section className="content-card" id="admin-resolve-form">
         <h2>{mediating ? '결과 조정안 제시' : '결과 확정'}</h2>
         <p className="record-note">
-          이의가 제기된(DISPUTED) 요청은 운영팀이 결과를 직접 정하지 않고 <strong>조정안</strong>을 제시해요. 이용자와 도우미가 모두 수락하면 확정되고(최대 2회, 응답 3일, 무응답은 거부), 합의가 안 되면 금액이 보류돼요. 조정 불성립 뒤에는 외부 기관 결과를 반영해 직접 확정할 수 있어요. 도우미 결과 등록 후 24시간 동안 이용자가 답하지 않은 요청은 바로 확정해요. 위 목록의 버튼을 누르면 번호가 채워져요. 본인이 당사자인 거래는 처리할 수 없어요.
+          이의가 제기된(DISPUTED) 요청은 운영팀이 결과를 직접 정하지 않고 <strong>조정안</strong>을 제시해요. 이용자와 도우미가 모두 수락하면 확정되고(최대 2회, 응답 3일, 무응답은 거부), 합의가 안 되면 금액이 보류돼요. 조정 불성립 뒤에는 외부 기관 결과를 반영해 직접 확정할 수 있어요. 도우미 결과 등록 후 3일 동안 이용자가 답하지 않은 요청은 바로 확정해요. 위 목록의 버튼을 누르면 번호가 채워져요. 본인이 당사자인 거래는 처리할 수 없어요.
         </p>
         <form noValidate onSubmit={resolve}>
           <div className="form-grid">
