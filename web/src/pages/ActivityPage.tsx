@@ -10,8 +10,8 @@ import { PageTitle } from '../ui/PageTitle';
 
 // 프로토타입 transactions.js의 userActivity()/listPage()/activityTicket().
 // 목록은 GET /api/requests?role=REQUESTER|AGENT. 목록에는 합의·결제 정보가 없어 요청 상태(RequestStatus)로만 나눈다.
-const closed = ['COMPLETED', 'REJECTED', 'EXPIRED', 'CANCELLED'];
-const closedNames: Record<string, string> = { COMPLETED: '거래 완료', REJECTED: '요청 거절', EXPIRED: '요청 만료', CANCELLED: '요청 취소' };
+const closed = ['MATCHING_COMPLETED', 'COMPLETED', 'REJECTED', 'EXPIRED', 'CANCELLED'];
+const closedNames: Record<string, string> = { MATCHING_COMPLETED: '직접 거래 매칭 완료', COMPLETED: '거래 완료', REJECTED: '요청 거절', EXPIRED: '요청 만료', CANCELLED: '요청 취소' };
 
 function Ticket({ r, agent }: { r: TxRequest; agent: boolean }) {
   const person = agent ? r.requesterName : r.agentName;
@@ -138,6 +138,7 @@ export function UserActivityPage() {
         </section>
         <aside className="activity-guide content-card">
           <h2>요청 후에는 이렇게 진행해요</h2>
+          <p>직접 거래는 조건 확정으로 매칭을 완료하고 후기를 남겨요. 아래 착수·결과 확인 단계는 안전거래에 해당해요.</p>
           <ol className="guide-steps">
             <li>
               <b>1</b>

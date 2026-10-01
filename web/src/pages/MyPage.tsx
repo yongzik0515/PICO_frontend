@@ -2,14 +2,16 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
-import { setTokens } from '../api/tokens';
+import { getTokens, setTokens } from '../api/tokens';
 import { banks, fetchAgentState, verifyIdentity, verifyPayout } from '../agent/profile';
 import { useAppState, type Mode } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
 import { useLoad } from '../transactions/model';
 import { Field, useAction, utcToLocal, won } from '../transactions/ui';
 import { AccountCard, AccountInput, AccountNote, Verification } from '../ui/account';
+import { tokenFrom } from '../ui/format';
 import { Icon } from '../ui/Icon';
+import { ImagePreview } from '../ui/ImagePreview';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
 import { useToast } from '../ui/Toast';
@@ -36,7 +38,7 @@ function useAvatar(key: unknown) {
 function Avatar({ url, name }: { url: string | null; name: string }) {
   return (
     <span className="avatar blue large">
-      {url ? <img src={url} alt={`${name} 프로필`} /> : name[0] || '나'}
+      {url ? <ImagePreview src={url} alt={`${name} 프로필`} /> : name[0] || '나'}
       <span className="avatar-spark">✦</span>
     </span>
   );
@@ -56,7 +58,7 @@ export function MyPage() {
   const { me, logout } = useAuth();
   const [{ mode }, setState] = useAppState();
   const agent = mode === 'agent';
-  const avatar = useAvatar(me?.userId);
+  const avatar = useAvatar(me?.id);
   const name = str(me?.nickname) ?? '회원';
   const [load] = useLoad(async () => {
     const [agentState, counts, balance] = await Promise.all([
@@ -84,7 +86,8 @@ export function MyPage() {
 
   const items: [string, string, string][] = [
     [agent ? '도우미 프로필' : '이용자 프로필', '닉네임 · 프로필 이미지 · 연락처 관리', '/user-profile'],
-    ...(agent ? ([['공개 프로필', '도우미 소개와 활동 정보', approved ? '/helper-profile' : '/application']] as [string, string, string][]) : []),
+    // 신청 현황(/application)에 승인 후 '공개 프로필 수정' 버튼과 공개 설정(목록 공개·새 요청 받기)이 함께 있다.
+    ...(agent ? ([['공개 프로필', '도우미 소개와 활동 정보 · 공개 설정', '/application']] as [string, string, string][]) : []),
     ['계정·인증', '이메일 · 비밀번호 · 본인인증 · 정산 계좌', '/account'],
     ...(agent ? ([['거래 내역', '매칭권 충전 · 사용 · 정산', '/history']] as [string, string, string][]) : []),
     ['좋아요한 도우미', '저장한 도우미 보기', '/favorites'],
@@ -242,7 +245,7 @@ export function UserProfilePage() {
                   {avatar ? '이미지 변경' : '이미지 선택'}
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/jpeg,image/png"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       e.target.value = '';
@@ -251,7 +254,7 @@ export function UserProfilePage() {
                   />
                 </label>
               </div>
-              <small>JPG · PNG · WEBP / 최대 3MB</small>
+              <small>JPG · PNG / 최대 3MB</small>
             </div>
           </div>
           <Field label="닉네임" required helper="요청과 후기에서 사용하는 이름이에요. 최대 50자">
@@ -274,7 +277,7 @@ export function UserProfilePage() {
               <div key={String(pick(c, 'contactId', 'id') ?? c.kind)}>
                 <dt>
                   {kindNames[str(c.kind) ?? ''] ?? str(c.kind)}
-                  {c.primary === true && <small> · 공개용</small>}
+                  {c.isPrimary === true && <small> · 공개용</small>}
                 </dt>
                 <dd>
                   {str(c.value)}{' '}
@@ -340,7 +343,8 @@ export function AccountPage() {
   const [withdrawPassword, setWithdrawPassword] = useState('');
   const state = load.status === 'done' ? load.data : null;
   const applicationStatus = state?.latest?.status ?? 'none';
-  const emailVerified = pick(me, 'emailVerified', 'emailVerifiedAt') ? true : pick(me, 'emailVerified') === false ? false : null;
+  // GET /api/me의 loginVerifiedAt: 로그인 이메일 인증 시각(미인증이면 null). 응답에 키가 없으면(불러오기 전 등) 표시하지 않는다.
+  const emailVerified = me && 'loginVerifiedAt' in me ? !!pick(me, 'loginVerifiedAt') : null;
 
   // 명세: 비밀번호·이메일 변경, 탈퇴는 모든 세션을 폐기한다. 로그인 정보를 지우고 로그인 화면으로 보낸다.
   function signOut(message: string, to = '/login') {
@@ -495,7 +499,8 @@ export function AccountPage() {
               if (ok) signOut('탈퇴했어요. 그동안 이용해 주셔서 고마워요.', '/');
             }}
           >
-            <p className="prose">탈퇴하면 계정으로 로그인할 수 없어요. 진행 중인 거래가 있으면 탈퇴가 제한될 수 있어요.</p>
+            <p className="prose">탈퇴하면 계정으로 로그인할 수 없고, 연락처·본인인증·정산계좌 정보는 바로 지워져요. 거래·결제 기록은 법에 따라 보관돼요.</p>
+            <p className="prose">진행 중인 거래가 있거나 받을 돈·환불받을 돈이 남아 있으면 탈퇴할 수 없어요. 탈퇴 후 30일 동안은 같은 명의로 다시 본인인증을 할 수 없어요(도우미 활동이 정지된 상태에서 탈퇴하면 3년).</p>
             <Field label="비밀번호 확인" required>
               <input type="password" required maxLength={72} value={withdrawPassword} onChange={(e) => setWithdrawPassword(e.target.value)} autoComplete="current-password" />
             </Field>
@@ -521,23 +526,54 @@ function confirmEmail(token: string) {
   if (!confirming.has(token))
     confirming.set(
       token,
-      unwrap(api.POST('/api/auth/email-verification/confirm', { body: { token } })).then(() => {
-        // 명세: 이메일 변경 확정 시 기존 로그인 세션을 폐기한다.
-        setTokens(null);
+      unwrap(api.POST('/api/auth/email-verification/confirm', { body: { token } })).then(async () => {
+        // 이메일 변경 확정이면 서버가 모든 세션을 폐기하고, 가입 인증이면 세션을 그대로 둔다.
+        // 링크만으로는 둘을 구별할 수 없어 내 정보를 다시 불러 본다. 세션이 끊겼으면 토큰 갱신이 실패하며 로그인 정보가 지워진다.
+        if (!getTokens()) return;
+        await api.GET('/api/me').catch(() => undefined);
       }),
     );
   return confirming.get(token)!;
 }
 
-/** 인증 메일의 링크(/verify-email?token=…)로 들어오면 POST /api/auth/email-verification/confirm으로 확정한다. */
+/**
+ * 인증 메일의 링크(/verify-email?token=…)로 들어오면 POST /api/auth/email-verification/confirm으로 확정한다.
+ * 가입 인증과 이메일 변경 확인이 같은 링크를 쓴다. 링크가 열리지 않으면 토큰을 붙여 넣어 확인한다.
+ */
 export function VerifyEmailPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
-  const [load] = useLoad(async () => {
-    if (!token) throw new Error('인증 링크가 올바르지 않아요.');
-    await confirmEmail(token);
-  }, [token]);
+  // 토큰마다 새로 확인한다(붙여 넣은 토큰으로 바뀌면 이전 결과를 버린다).
+  if (token) return <VerifyEmailResult key={token} token={token} />;
+  return (
+    <div className="account-contained account-complete">
+      <section className="content-card">
+        <h1>이메일 인증</h1>
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            if (!form.checkValidity()) return form.querySelector<HTMLElement>(':invalid')?.focus();
+            const value = tokenFrom(String(new FormData(form).get('token') ?? ''));
+            if (value) navigate(`/verify-email?token=${encodeURIComponent(value)}`, { replace: true });
+          }}
+        >
+          <AccountNote>메일의 인증 링크가 열리지 않으면 링크를 복사해 아래에 붙여 넣어 주세요. 링크 전체나 token= 뒤의 값을 넣으면 돼요. 인증 링크는 15분 동안만 쓸 수 있어요.</AccountNote>
+          <AccountInput name="token" label="인증 토큰" required maxLength={2000} autoComplete="off" placeholder="메일로 받은 링크 또는 토큰" />
+          <button type="submit" className="btn primary full">
+            이메일 인증하기
+          </button>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+function VerifyEmailResult({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [load] = useLoad(() => confirmEmail(token), [token]);
   return (
     <div className="account-contained account-complete">
       <section className="content-card">
@@ -547,6 +583,9 @@ export function VerifyEmailPage() {
           <>
             <h1>이메일을 확인하지 못했어요</h1>
             <p className="prose">{load.message} 인증 링크는 15분 동안만 쓸 수 있어요.</p>
+            <button type="button" className="btn secondary full" onClick={() => navigate('/verify-email', { replace: true })}>
+              토큰 다시 입력하기
+            </button>
             <button type="button" className="btn primary full" onClick={() => navigate('/my')}>
               마이페이지로
             </button>
@@ -557,10 +596,18 @@ export function VerifyEmailPage() {
               <Icon name="check" size={32} />
             </div>
             <h1>이메일 인증을 마쳤어요</h1>
-            <p className="prose">이메일을 바꾼 경우에는 새 이메일로 다시 로그인해 주세요.</p>
-            <button type="button" className="btn primary full" onClick={() => navigate('/login', { replace: true })}>
-              로그인하기
-            </button>
+            {getTokens() ? (
+              <button type="button" className="btn primary full" onClick={() => navigate('/my', { replace: true })}>
+                마이페이지로
+              </button>
+            ) : (
+              <>
+                <p className="prose">이메일을 바꾼 경우에는 새 이메일로 다시 로그인해 주세요.</p>
+                <button type="button" className="btn primary full" onClick={() => navigate('/login', { replace: true })}>
+                  로그인하기
+                </button>
+              </>
+            )}
           </>
         )}
       </section>
@@ -655,7 +702,7 @@ export function HistoryPage() {
         ) : (
           <div className="empty">
             <h2>아직 내역이 없어요</h2>
-            <p>{tab === 'payouts' ? '착수비는 시도 증빙 승인 후, 수고비는 결과 확인 후 정산돼요.' : '매칭권을 충전하거나 요청을 수락하면 이곳에 기록돼요.'}</p>
+            <p>{tab === 'payouts' ? '안전거래만 정산돼요. 착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면, 수고비는 성공(부분 성공이면 정산에 합의한 금액)으로 확정되면 정산 계좌로 지급을 요청해요.' : '매칭권을 충전하거나 요청을 수락하면 이곳에 기록돼요.'}</p>
             {tab === 'purchases' && (
               <button type="button" className="btn primary" onClick={() => navigate('/credits')}>
                 매칭권 충전

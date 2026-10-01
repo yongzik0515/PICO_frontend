@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { setTokens } from '../api/tokens';
 import { AccountInput, AccountNote } from '../ui/account';
+import { tokenFrom } from '../ui/format';
 import { Icon } from '../ui/Icon';
 import { PageTitle } from '../ui/PageTitle';
 
@@ -51,6 +52,9 @@ export function RecoveryPage() {
             <button type="button" className="btn ghost" onClick={() => setSent('')}>
               다른 이메일로 다시 받기
             </button>
+            <button type="button" className="btn ghost" onClick={() => navigate('/reset-password')}>
+              링크가 열리지 않으면 토큰 직접 입력
+            </button>
           </div>
         ) : (
           <form noValidate onSubmit={submit}>
@@ -72,7 +76,8 @@ export function RecoveryPage() {
 export function ResetPasswordPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const token = params.get('token') ?? '';
+  // 메일 링크(/reset-password?token=…)로 오면 토큰이 주소에 있다. 링크가 열리지 않으면 직접 붙여 넣는다.
+  const urlToken = params.get('token') ?? '';
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
@@ -82,6 +87,8 @@ export function ResetPasswordPage() {
     const form = e.currentTarget;
     if (!form.checkValidity()) return form.querySelector<HTMLElement>(':invalid')?.focus();
     const d = new FormData(form);
+    const token = urlToken || tokenFrom(String(d.get('token') ?? ''));
+    if (!token) return setError('메일로 받은 재설정 토큰을 붙여 넣어 주세요.');
     const newPassword = String(d.get('newPassword'));
     if (newPassword !== d.get('confirmPassword')) return setError('비밀번호가 서로 달라요.');
     setError('');
@@ -112,16 +119,14 @@ export function ResetPasswordPage() {
               로그인으로
             </button>
           </div>
-        ) : !token ? (
-          <div className="recovery-result">
-            <h2>재설정 링크가 올바르지 않아요</h2>
-            <p className="prose">메일로 받은 링크를 다시 열거나, 재설정 링크를 새로 받아 주세요.</p>
-            <button type="button" className="btn primary" onClick={() => navigate('/recovery')}>
-              재설정 링크 받기
-            </button>
-          </div>
         ) : (
           <form noValidate onSubmit={submit}>
+            {!urlToken && (
+              <>
+                <AccountNote>메일의 링크가 열리지 않으면 링크를 복사해 아래에 붙여 넣어 주세요. 링크 전체나 token= 뒤의 값을 넣으면 돼요. 토큰은 한 번만 쓸 수 있어요.</AccountNote>
+                <AccountInput name="token" label="재설정 토큰" required maxLength={2000} autoComplete="off" placeholder="메일로 받은 링크 또는 토큰" />
+              </>
+            )}
             <AccountInput name="newPassword" label="새 비밀번호" type="password" required minLength={10} maxLength={72} autoComplete="new-password" helper="10자 이상 72자 이하로 입력해 주세요." />
             <AccountInput name="confirmPassword" label="새 비밀번호 확인" type="password" required minLength={10} maxLength={72} autoComplete="new-password" />
             <p className="recovery-error" role="alert">
@@ -130,6 +135,11 @@ export function ResetPasswordPage() {
             <button className="btn primary full" type="submit" disabled={pending}>
               {pending ? '변경 중…' : '비밀번호 변경'}
             </button>
+            {!urlToken && (
+              <button type="button" className="btn ghost full" onClick={() => navigate('/recovery')}>
+                재설정 링크 새로 받기
+              </button>
+            )}
           </form>
         )}
       </section>

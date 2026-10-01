@@ -16,28 +16,38 @@ interface FavoritesValue {
 
 const FavoritesContext = createContext<FavoritesValue | null>(null);
 
+const fetchFavorites = () =>
+  unwrap<Record<string, unknown>[]>(api.GET('/api/me/favorites', { params: { query: { page: 0, size: 100 } } })).then(
+    (list) => list.map(toAgent),
+    () => [] as Agent[],
+  );
+
 export function FavoritesProvider({ children }: { children: ReactNode }) {
-  const { loggedIn } = useAuth();
+  const { userKey } = useAuth();
   const toast = useToast();
   const [items, setItems] = useState<Agent[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   const reload = useCallback(async () => {
-    try {
-      const list = await unwrap<Record<string, unknown>[]>(api.GET('/api/me/favorites', { params: { query: { page: 0, size: 100 } } }));
-      setItems(list.map(toAgent));
-    } catch {
-      setItems([]);
-    } finally {
-      setLoaded(true);
-    }
+    setItems(await fetchFavorites());
+    setLoaded(true);
   }, []);
 
+  // 로그아웃하거나 다른 계정으로 로그인하면 이전 계정의 좋아요를 비우고 다시 불러온다. 늦게 온 이전 계정의 응답은 버린다.
   useEffect(() => {
+    let alive = true;
     setItems([]);
     setLoaded(false);
-    if (loggedIn) void reload();
-  }, [loggedIn, reload]);
+    if (userKey)
+      void fetchFavorites().then((list) => {
+        if (!alive) return;
+        setItems(list);
+        setLoaded(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userKey]);
 
   const has = useCallback((agentId: number) => items.some((a) => a.id === agentId), [items]);
 

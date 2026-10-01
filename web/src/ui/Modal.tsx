@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 
@@ -17,6 +17,7 @@ export function Modal({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const headingId = useId();
 
   useEffect(() => {
     const dialog = ref.current!;
@@ -24,7 +25,8 @@ export function Modal({
     dialog.showModal();
     document.body.classList.add('modal-open');
     return () => {
-      document.body.classList.remove('modal-open');
+      dialog.close();
+      if (!document.querySelector('dialog[open]')) document.body.classList.remove('modal-open');
       if (previous?.isConnected) previous.focus();
     };
   }, []);
@@ -33,9 +35,10 @@ export function Modal({
     <dialog
       ref={ref}
       className={`modal ${wide ? 'wide' : ''} ${className}`}
-      aria-labelledby="modal-heading"
+      aria-labelledby={headingId}
       onCancel={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         onClose();
       }}
       onClick={(e) => {
@@ -45,7 +48,7 @@ export function Modal({
       }}
     >
       <header className="modal-header">
-        <h2 id="modal-heading">{title}</h2>
+        <h2 id={headingId}>{title}</h2>
         <button type="button" className="icon-btn" aria-label="닫기" onClick={onClose}>
           <Icon name="close" />
         </button>

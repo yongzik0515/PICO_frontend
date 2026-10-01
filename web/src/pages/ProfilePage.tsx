@@ -3,11 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { useAppState } from '../AppState';
 import { toAgent, type Agent } from '../discovery/agent';
+import { resultNames, type RequestResult } from '../transactions/model';
 import { kstDay } from '../transactions/ui';
 import { Avatar, Badges, FavoriteButton } from '../discovery/AgentCard';
 import { Icon } from '../ui/Icon';
+import { ImagePreview } from '../ui/ImagePreview';
 import { PageTitle } from '../ui/PageTitle';
-import { money } from '../ui/format';
+import { money, responseTime } from '../ui/format';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 discovery.js의 profile(). GET /api/agents/{id}와 GET /api/agents/{id}/reviews를 쓴다.
@@ -15,6 +17,8 @@ interface Review {
   date: string;
   rating: number;
   text: string;
+  bookingResult?: RequestResult;
+  imageUrl?: string;
 }
 
 // 명세의 ReviewResponse. 후기 작성자 이름은 응답에 없어 표시하지 않는다.
@@ -23,6 +27,8 @@ function toReview(r: Record<string, unknown>): Review {
     date: kstDay(String(r.reviewedAt ?? '')),
     rating: Math.max(0, Math.min(5, Math.round(Number(r.rating) || 0))),
     text: typeof r.comment === 'string' ? r.comment : '',
+    imageUrl: typeof r.imageUrl === 'string' ? r.imageUrl : undefined,
+    bookingResult: ['SUCCESS', 'PARTIAL', 'FAILURE'].includes(String(r.bookingResult)) ? r.bookingResult as RequestResult : undefined,
   };
 }
 
@@ -83,7 +89,7 @@ function ReviewList({ rows }: { rows: Review[] }) {
               <strong>이용자</strong>
               <span className="badge verified">
                 <Icon name="check" size={12} />
-                거래 인증
+                매칭 내역 확인
               </span>
             </div>
             <div className="review-rating-date">
@@ -93,7 +99,9 @@ function ReviewList({ rows }: { rows: Review[] }) {
               </span>
               <time dateTime={r.date}>{r.date.replaceAll('-', '.')}</time>
             </div>
+            {r.bookingResult && <p className="record-note">이용자 후기 결과: {resultNames[r.bookingResult]}</p>}
             <p>{r.text}</p>
+            {r.imageUrl && <ImagePreview src={r.imageUrl} alt="후기 인증 사진" className="review-photo" />}
           </article>
         ))}
       </div>
@@ -194,7 +202,7 @@ export function ProfilePage() {
               {[
                 ['성공률', a.success + '%'],
                 ['거래 횟수', a.trades + '회'],
-                ['평균 응답', a.reply === null ? '-' : a.reply + '분'],
+                ['평균 응답', responseTime(a.reply)],
               ].map(([k, v]) => (
                 <div key={k} className="info-tile">
                   <span>{k}</span>
@@ -295,7 +303,7 @@ export function ProfilePage() {
           </div>
           <p className="aside-disclaimer">
             요청 → 도우미 수락 및 최종 조건 전달
-            <br />→ 이용자 확인·확정 → 안전거래 결제
+            <br />→ 이용자 확인·확정 → 안전거래 조건이면 결제
           </p>
         </aside>
       </div>

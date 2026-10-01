@@ -2,6 +2,7 @@ import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { loadPortOne } from '../api/portone';
 import type { components } from '../api/schema';
+import { mimeOf } from '../transactions/model';
 
 // 도우미 프로필(버전)·인증·경력 증빙. 프로필 버전 응답 필드는 명세에 없어(data: object) pick()으로 찾는다.
 // 상태 값은 백엔드 서비스 흐름 가이드 4장: DRAFT → PENDING → PUBLISHED / REJECTED, 새 버전이 게시되면 이전 게시본은 ARCHIVED.
@@ -37,7 +38,9 @@ function statusOf(v: string): ProfileStatus {
 export function toProfile(raw: Raw): ProfileVersion {
   const s = (...k: string[]) => str(pick(raw, ...k)) ?? '';
   const n = (...k: string[]) => num(pick(raw, ...k));
-  const platforms = pick(raw, 'platformIds') ?? list(pick(raw, 'platforms')).map((p) => p.id);
+  // 버전 상세(GET /profiles/{id})는 platforms=[{platformId}], categories=[{category}]로 준다.
+  const platforms = pick(raw, 'platformIds') ?? list(pick(raw, 'platforms')).map((p) => p.platformId ?? p.id);
+  const categoryList = pick(raw, 'categories');
   const rawStatus = s('status', 'reviewStatus');
   return {
     id: n('profileId', 'profileVersionId', 'id') ?? 0,
@@ -54,7 +57,7 @@ export function toProfile(raw: Raw): ProfileVersion {
       headline: s('headline'),
       bio: s('bio'),
       primaryCategory: (s('primaryCategory') || 'CONCERT') as Category,
-      categories: (Array.isArray(pick(raw, 'categories')) ? pick(raw, 'categories') : []) as Category[],
+      categories: (Array.isArray(categoryList) ? categoryList.map((c) => (typeof c === 'string' ? c : str(pick(c, 'category')))).filter(Boolean) : []) as Category[],
       contactHoursNote: s('contactHoursNote'),
       careerDescription: s('careerDescription'),
       careerStartedOn: s('careerStartedOn') || undefined,
@@ -100,14 +103,22 @@ export async function fetchAgentState(): Promise<AgentState> {
     unwrap(api.GET('/api/me/identity')).catch(() => null),
     unwrap(api.GET('/api/me/payout-account')).catch(() => null),
   ]);
-  const versions = list(versionsRaw)
+  const summaries = list(versionsRaw)
     .map(toProfile)
     .sort((a, b) => b.version - a.version || b.id - a.id);
   // 이전 게시본(ARCHIVED)은 작성·심사 대상이 아니다.
-  const latest = versions.find((v) => v.status !== 'archived');
-  const evidence = latest
-    ? list(await unwrap<unknown>(api.GET('/api/me/agent/profiles/{profileId}/evidence', { params: { path: { profileId: latest.id } } })).catch(() => []))
-    : [];
+  const current = summaries.find((v) => v.status !== 'archived');
+  const path = current ? { params: { path: { profileId: current.id } } } : null;
+  // 목록은 요약(활동명·상태 등)만 준다. 이어서 작성·공개 프로필 수정 양식을 채우려면 그 버전의 상세를 불러온다.
+  const [detail, evidenceRaw] = path
+    ? await Promise.all([
+        unwrap<Raw>(api.GET('/api/me/agent/profiles/{profileId}', path)).catch(() => null),
+        unwrap<unknown>(api.GET('/api/me/agent/profiles/{profileId}/evidence', path)).catch(() => []),
+      ])
+    : [null, []];
+  const versions = detail && current ? summaries.map((v) => (v.id === current.id ? { ...toProfile(detail), id: v.id, version: v.version } : v)) : summaries;
+  const latest = current && versions.find((v) => v.id === current.id);
+  const evidence = list(evidenceRaw);
   return {
     versions,
     latest,
@@ -152,7 +163,7 @@ export async function uploadProfileImage(profileId: number, file: File) {
 export async function submitCareerCase(profileId: number, caseNumber: number, files: File[], description: string) {
   const storageKeys: string[] = [];
   for (const f of files) {
-    const target = await unwrap<Raw>(api.POST('/api/evidence-files/upload-url', { body: { purpose: 'CAREER', originalName: f.name, mimeType: f.type || 'application/octet-stream', sizeBytes: f.size } }));
+    const target = await unwrap<Raw>(api.POST('/api/evidence-files/upload-url', { body: { purpose: 'CAREER', originalName: f.name, mimeType: mimeOf(f), sizeBytes: f.size } }));
     storageKeys.push(await putFile(target, f));
   }
   await unwrap(

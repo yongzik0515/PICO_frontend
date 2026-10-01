@@ -53,7 +53,7 @@ export function TermsPage() {
       safePayment: current.safe,
       requirements: d.requirements,
       successConditions: d.successConditions,
-      attemptRule: d.attemptRule,
+      attemptRule: current.safe ? d.attemptRule : '직접 거래: 착수 증빙을 플랫폼에 제출하지 않음',
       refundRule: d.refundRule,
       contactDeadlineRule: d.contactDeadlineRule,
     };
@@ -66,7 +66,7 @@ export function TermsPage() {
       <PageTitle title="최종 조건 작성" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
       <div className="detail-layout tx-layout">
         <form id="tx-terms-form" noValidate onSubmit={submit}>
-          {stage === 'revision_requested' &&
+          {(stage === 'revision_requested' || r.agreementChangePending) &&
             changeRequests.map((c, i) => <Notice key={i}>이용자 수정 요청: {str(pick(c, 'reason', 'message', 'body'))}</Notice>)}
           <TxCard title="진행 조건">
             <p className="record-note">이용자의 요청이 기본값이에요. 필요한 부분을 조정해 보내 주세요.</p>
@@ -76,9 +76,11 @@ export function TermsPage() {
             <Field label="성공 요건" required>
               <textarea name="successConditions" rows={3} required maxLength={10000} defaultValue={prev?.successConditions || r.successConditions} />
             </Field>
-            <Field label="예매 시도 방식" required>
-              <textarea name="attemptRule" rows={3} required maxLength={10000} defaultValue={prev?.attemptRule} placeholder="예: 티켓 오픈 시각에 PC 1대로 예매를 시도하고, 대기열 화면을 증빙으로 남겨요." />
-            </Field>
+            {current.safe ? (
+              <Field label="예매 시도 방식" required>
+                <textarea name="attemptRule" rows={3} required maxLength={10000} defaultValue={prev?.attemptRule} placeholder="예: 티켓 오픈 시각에 PC 1대로 예매를 시도하고, 대기열 화면을 증빙으로 남겨요." />
+              </Field>
+            ) : <Notice>직접 거래는 착수·결과 증빙을 플랫폼에 등록하지 않아요.</Notice>}
           </TxCard>
           <TxCard title="비용과 결과 안내">
             <div className="form-grid">
@@ -102,7 +104,7 @@ export function TermsPage() {
                 <input type="radio" name="safePayment" checked={!current.safe} onChange={() => setFees({ ...current, safe: false })} />
                 <span>
                   <strong>직접 거래</strong>
-                  <small>플랫폼 결제 없이 당사자끼리 정산해요. 수수료가 없지만 분쟁 시 보호가 제한돼요.</small>
+                  <small>조건 확정으로 매칭이 완료돼요. 착수·결과 등록 없이 당사자끼리 진행하고 이용자가 후기를 남겨요. 결제·환불은 직접 처리해요.</small>
                 </span>
               </label>
             </fieldset>
@@ -133,7 +135,7 @@ export function TermsPage() {
             </Field>
             <div className="tx-form-footer">
               <span role="status">
-                {reproposing ? `확정된 ${prev?.version}차 조건을 대신할 새 조건이에요. 이용자가 다시 확정해야 해요.` : prev ? `${prev.version + 1}차 제안으로 보내요.` : '이용자가 확인하고 확정하면 결제 단계로 넘어가요.'}
+                {reproposing ? `확정된 ${prev?.version}차 조건을 대신할 새 조건이에요. 이용자가 다시 확정해야 해요.` : prev ? `${prev.version + 1}차 제안으로 보내요.` : current.safe ? '이용자가 확인하고 확정하면 결제 단계로 넘어가요.' : '이용자가 확인하고 확정하면 매칭이 완료돼요. 이후 착수·결과 등록은 필요 없어요.'}
               </span>
               <button type="submit" className="btn primary" disabled={pending}>
                 {pending ? '보내는 중…' : '최종 조건 보내기'}

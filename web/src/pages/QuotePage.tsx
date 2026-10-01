@@ -92,7 +92,8 @@ export function QuotePage() {
   const agentCategories = list(pick(agent.raw, 'categories')).map(String);
   const categories = Object.keys(categoryNames);
   const defaultCategory = edit?.serviceCategory || str(pick(agent.raw, 'primaryCategory')) || 'CONCERT';
-  const hasContact = contacts.length > 0;
+  // 서버는 공개용(isPrimary=true) 연락처가 있어야 요청을 받는다. 없으면 아래에서 공개용으로 등록한다.
+  const hasContact = contacts.some((c) => c.isPrimary === true);
   const allAgreed = agreed.terms && agreed.privacy && agreed.contact;
 
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -236,7 +237,7 @@ export function QuotePage() {
           </TxCard>
           {!hasContact && (
             <TxCard title="연락처">
-              <Notice>요청을 보내려면 연락처가 필요해요. 수락한 도우미에게만 공개돼요.</Notice>
+              <Notice>요청을 보내려면 상대방에게 공개할 연락처가 필요해요. 수락한 도우미에게만 공개돼요.</Notice>
               <div className="form-grid">
                 <Field label="종류" required>
                   <select name="contactKind" required defaultValue="PHONE">
@@ -269,7 +270,7 @@ export function QuotePage() {
                 <strong>최종 조건에서 확정</strong>
               </div>
             </div>
-            <Notice>요청을 보내는 시점에는 결제하지 않아요. 최종 조건 확인 후 안전거래로 결제해요.</Notice>
+            <Notice>요청을 보내는 시점에는 결제하지 않아요. 도우미가 보낸 최종 조건이 안전거래면 확정한 뒤 결제하고, 직접 거래면 플랫폼 결제 없이 진행돼요.</Notice>
             <div className="quote-agreements">
               <label className="check-row quote-agree-all">
                 <input type="checkbox" checked={allAgreed} onChange={(e) => setAgreed({ terms: e.target.checked, privacy: e.target.checked, contact: e.target.checked })} />
@@ -332,7 +333,7 @@ export function RequestSentPage() {
           내 활동으로
         </button>
       </div>
-      <small>아직 결제하지 않았어요. 최종 조건 확인 후 결제가 진행돼요.</small>
+      <small>아직 결제하지 않았어요. 최종 조건이 안전거래면 확정한 뒤 결제해요.</small>
     </section>
   );
 }

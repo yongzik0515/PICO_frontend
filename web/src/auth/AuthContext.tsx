@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, unwrap } from '../api/client';
-import { getTokens, onTokensChange, setTokens } from '../api/tokens';
+import { getTokens, onTokensChange, setTokens, type StoredTokens } from '../api/tokens';
 
 // GET /api/me 응답 스키마가 명세에 없어(data: object) 필드가 확정될 때까지 느슨하게 둔다.
 export type Me = Record<string, unknown>;
@@ -8,6 +8,8 @@ export type Me = Record<string, unknown>;
 interface AuthValue {
   me: Me | null;
   loggedIn: boolean;
+  /** 로그인한 계정 식별값(로그아웃이면 ''). 다른 계정으로 바뀌면 값이 달라지므로 계정별 데이터를 다시 불러올 때 쓴다. */
+  userKey: string;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -16,27 +18,32 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
+/** 토큰의 userId로 계정을 구별한다. 같은 계정의 토큰 갱신(다른 탭 포함)은 값이 그대로다. */
+const keyOf = (t: StoredTokens | null) => (t ? String(t.userId ?? '?') : '');
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [loggedIn, setLoggedIn] = useState(() => !!getTokens());
-  const [me, setMe] = useState<Me | null>(null);
-  const [loading, setLoading] = useState(loggedIn);
+  const [userKey, setUserKey] = useState(() => keyOf(getTokens()));
+  // 어느 계정의 /api/me인지 함께 저장한다. 로그인한 채 다른 계정으로 로그인해도 이전 계정의 정보를 보여 주지 않는다.
+  const [meState, setMeState] = useState<{ key: string; me: Me | null } | null>(null);
+  const loggedIn = !!userKey;
 
   const reloadMe = useCallback(async () => {
-    if (!getTokens()) return setMe(null);
-    setLoading(true);
+    const key = keyOf(getTokens());
+    if (!key) return setMeState(null);
+    let me: Me | null = null;
     try {
-      setMe(await unwrap<Me>(api.GET('/api/me')));
+      me = await unwrap<Me>(api.GET('/api/me'));
     } catch {
-      setMe(null);
-    } finally {
-      setLoading(false);
+      me = null;
     }
+    // 기다리는 사이 계정이 바뀌었으면 이 응답은 버린다.
+    if (keyOf(getTokens()) === key) setMeState({ key, me });
   }, []);
 
-  useEffect(() => onTokensChange((t) => setLoggedIn(!!t)), []);
+  useEffect(() => onTokensChange((t) => setUserKey(keyOf(t))), []);
   useEffect(() => {
-    if (loggedIn) void reloadMe();
-  }, [loggedIn, reloadMe]);
+    if (userKey) void reloadMe();
+  }, [userKey, reloadMe]);
 
   const login = useCallback(async (email: string, password: string) => {
     const t = await unwrap(api.POST('/api/auth/login', { body: { email, password } }));
@@ -51,8 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const current = meState?.key === userKey ? meState : null;
   return (
-    <AuthContext.Provider value={{ me: loggedIn ? me : null, loggedIn, loading, login, logout, reloadMe }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ me: loggedIn ? (current?.me ?? null) : null, loggedIn, userKey, loading: loggedIn && !current, login, logout, reloadMe }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

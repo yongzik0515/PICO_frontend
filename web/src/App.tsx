@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Link, Route, Routes, useNavigate } from 'react-router-dom';
 import { AppStateProvider } from './AppState';
-import { AuthProvider } from './auth/AuthContext';
+import { AuthProvider, useAuth } from './auth/AuthContext';
 import { RequireAuth } from './auth/RequireAuth';
 import { AgentCard, FavoriteButton } from './discovery/AgentCard';
 import { FavoritesProvider, useFavorites } from './discovery/favorites';
@@ -95,6 +95,28 @@ function FavoritesPage() {
 
 const auth = (el: ReactNode) => <RequireAuth>{el}</RequireAuth>;
 
+/** 관리자 화면은 GET /api/me의 isAdmin이 true일 때만 연다. 권한은 서버가 API마다 다시 검사한다. */
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { me, loading } = useAuth();
+  if (!me && loading)
+    return (
+      <div className="empty" role="status">
+        <p>권한을 확인하고 있어요.</p>
+      </div>
+    );
+  if (me?.isAdmin === true) return children;
+  return (
+    <div className="empty">
+      <Icon name="info" size={38} />
+      <h3>권한이 없어요</h3>
+      <p>관리자만 볼 수 있는 화면이에요.</p>
+      <Link className="btn secondary" to="/">
+        홈으로
+      </Link>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -105,7 +127,7 @@ export default function App() {
             <Routes>
               {/* 관리자 화면은 이용자·도우미 헤더 없이 관리자 전용 셸로 보여 준다. */}
               <Route element={<AdminLayout />}>
-                <Route path="admin" element={auth(<AdminPage />)} />
+                <Route path="admin" element={auth(<RequireAdmin><AdminPage /></RequireAdmin>)} />
               </Route>
               <Route element={<AppLayout />}>
                 <Route index element={<HomePage />} />

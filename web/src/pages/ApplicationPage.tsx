@@ -23,6 +23,7 @@ import { categoryNames, usePlatforms } from '../discovery/agent';
 import { useLoad } from '../transactions/model';
 import { FilePicker, MoneyInput, kstDay, useAction } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
+import { ImagePreview } from '../ui/ImagePreview';
 import { PageTitle } from '../ui/PageTitle';
 import { Verification } from '../ui/account';
 import { money } from '../ui/format';
@@ -87,7 +88,7 @@ function PublicPreview({ p, platformNames, image }: { p: ProfileBody; platformNa
         <span className="tiny-label">공개 프로필 미리보기</span>
         <div className="account-preview-heading">
           <span className="avatar blue">
-            {image ? <img src={image} alt="" /> : p.activityName[0] || '나'}
+            {image ? <ImagePreview src={image} alt="프로필 사진" /> : p.activityName[0] || '나'}
             <span className="avatar-spark">✦</span>
           </span>
           <div>
@@ -159,10 +160,15 @@ function PublicPreview({ p, platformNames, image }: { p: ProfileBody; platformNa
 function StatusView({ state, onResume, reload }: { state: AgentState; onResume: () => void; reload: () => void }) {
   const navigate = useNavigate();
   const toast = useToast();
+  const { me, reloadMe } = useAuth();
   const latest = state.latest!;
-  // 승인된 버전이 공개 중이고, 수정한 새 버전이 심사 중일 수 있다.
-  const s: ProfileStatus = (latest.status === 'draft' || latest.status === 'archived') && state.approved ? 'approved' : latest.status;
-  const [visibility, setVisibility] = useState({ listed: state.approved?.listed ?? true, acceptsRequests: state.approved?.acceptsRequests ?? true });
+  // 게시된(승인) 버전이 있으면 새로 고친 버전이 심사 중이거나 반려돼도 공개 프로필은 그대로 공개 중이다.
+  const s: ProfileStatus = state.approved ? 'approved' : latest.status;
+  const revision = state.approved && latest.id !== state.approved.id ? latest.status : undefined;
+  // 공개 설정의 현재 값은 GET /api/me(isListed·acceptsRequests)에 있다. 하나를 바꿀 때 다른 하나를 그대로 보내야 한다.
+  const flag = (v: unknown) => v === true || v === 1;
+  const [changed, setVisibility] = useState<{ listed: boolean; acceptsRequests: boolean } | null>(null);
+  const visibility = changed ?? { listed: flag(me?.isListed), acceptsRequests: flag(me?.acceptsRequests) };
   const data: Record<ProfileStatus, [string, string, 'clock' | 'check' | 'info']> = {
     archived: ['이전 게시본이에요', '새 버전이 게시되어 이 버전은 보관됐어요.', 'info'],
     draft: ['신청서를 작성하고 있어요', '이어서 작성하고 제출해 주세요.', 'info'],
@@ -173,13 +179,15 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
   const [title, text, icon] = data[s];
 
   async function saveVisibility(next: typeof visibility) {
+    const before = changed;
     setVisibility(next);
     try {
       await unwrap(api.PUT('/api/me/agent/visibility', { body: next }));
       toast(next.listed ? '공개 설정을 저장했어요.' : '도우미 찾기 목록에서 내 프로필을 숨겼어요.');
+      await reloadMe();
       reload();
     } catch (e) {
-      setVisibility(visibility);
+      setVisibility(before);
       toast(e instanceof Error ? e.message : '공개 설정을 저장하지 못했어요.');
     }
   }
@@ -194,16 +202,24 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
         <span className={`badge ${s === 'approved' ? 'verified' : s === 'rejected' ? 'account-badge-error' : 'neutral'}`}>{statusLabels[s]}</span>
         <h2>{title}</h2>
         <p>{text}</p>
-        {s === 'approved' && latest.status === 'review' && <Note>수정한 공개 프로필을 심사하고 있어요. 승인되면 새 내용으로 바뀌어요.</Note>}
+        {revision === 'review' && <Note>수정한 공개 프로필을 심사하고 있어요. 심사 중에도 기존 공개 프로필은 그대로 공개되고, 승인되면 새 내용으로 바뀌어요.</Note>}
+        {revision === 'rejected' && (
+          <Note kind="error">
+            수정한 공개 프로필이 승인되지 않았어요{latest.reviewNote ? ` (사유: ${latest.reviewNote})` : ''}. 기존 공개 프로필은 그대로 공개 중이에요. '공개 프로필 수정'에서 보완해 다시 신청할 수 있어요.
+          </Note>
+        )}
         <div className="account-status-actions">
           {s === 'approved' ? (
             <>
               <button type="button" className="btn primary full" onClick={() => navigate('/leads')}>
                 받은 요청 확인
               </button>
-              <button type="button" className="btn secondary full" onClick={() => navigate('/helper-profile')}>
-                공개 프로필 수정
-              </button>
+              {/* 심사 중인 수정본이 있으면 서버가 새 수정을 받지 않는다(409). */}
+              {revision !== 'review' && (
+                <button type="button" className="btn secondary full" onClick={() => navigate('/helper-profile')}>
+                  공개 프로필 수정
+                </button>
+              )}
             </>
           ) : s === 'review' ? (
             <button type="button" className="btn secondary full" onClick={() => navigate('/my')}>
@@ -220,11 +236,11 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
       {s === 'approved' && (
         <Card title="공개 설정">
           <label className="check-row">
-            <input type="checkbox" checked={visibility.listed} onChange={(e) => void saveVisibility({ ...visibility, listed: e.target.checked })} />
+            <input type="checkbox" disabled={!me} checked={visibility.listed} onChange={(e) => void saveVisibility({ ...visibility, listed: e.target.checked })} />
             도우미 찾기 목록에 내 프로필 공개
           </label>
           <label className="check-row">
-            <input type="checkbox" checked={visibility.acceptsRequests} onChange={(e) => void saveVisibility({ ...visibility, acceptsRequests: e.target.checked })} />
+            <input type="checkbox" disabled={!me} checked={visibility.acceptsRequests} onChange={(e) => void saveVisibility({ ...visibility, acceptsRequests: e.target.checked })} />
             새 요청 받기
           </label>
           <p className="record-note">잠시 쉬고 싶을 때 끄면 목록에서 숨겨지거나 새 요청을 받지 않아요. 진행 중인 거래는 그대로 이어져요.</p>
@@ -234,7 +250,7 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
   );
 }
 
-export function ApplicationPage({ edit = false }: { edit?: boolean }) {
+export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean }) {
   const navigate = useNavigate();
   const toast = useToast();
   const { me } = useAuth();
@@ -268,6 +284,8 @@ export function ApplicationPage({ edit = false }: { edit?: boolean }) {
 
   const state = load.data;
   const { latest } = state;
+  // /helper-profile(헤더 '프로필 수정')로 들어와도 승인된 프로필이 없으면 수정이 아니라 신규 신청 흐름이다.
+  const edit = editRoute && !!state.approved;
   const inForm = started || edit || latest?.status === 'draft';
 
   if (!inForm && latest && latest.status !== 'draft') return <StatusView state={state} reload={reload} onResume={() => setStarted(true)} />;
@@ -467,7 +485,7 @@ export function ApplicationPage({ edit = false }: { edit?: boolean }) {
                       {image ? '이미지 변경' : '이미지 선택'}
                       <input
                         type="file"
-                        accept="image/jpeg,image/png,image/webp"
+                        accept="image/jpeg,image/png"
                         onChange={(e) => {
                           const f = e.target.files?.[0];
                           e.target.value = '';
@@ -483,7 +501,7 @@ export function ApplicationPage({ edit = false }: { edit?: boolean }) {
                       </button>
                     )}
                   </div>
-                  <small>JPG · PNG · WEBP / 최대 3MB</small>
+                  <small>JPG · PNG / 최대 3MB</small>
                 </div>
               </div>
               <Note>이 화면의 소개와 활동 정보는 공개 프로필에 표시돼요. 연락처와 인증 제출 자료는 공개하지 않습니다.</Note>
@@ -625,7 +643,7 @@ export function ApplicationPage({ edit = false }: { edit?: boolean }) {
                   </div>
                   {(!submittedCases.includes(n) || career[n]) && (n === 1 || submittedCases.includes(n - 1) || submittedCases.includes(n)) ? (
                     <>
-                      <FilePicker files={career[n]?.files ?? []} onChange={(files) => setCareer({ ...career, [n]: { description: career[n]?.description ?? '', files: files.slice(0, 10) } })} />
+                      <FilePicker kind="career" files={career[n]?.files ?? []} onChange={(files) => setCareer({ ...career, [n]: { description: career[n]?.description ?? '', files: files.slice(0, 10) } })} />
                       <Field label="설명" required>
                         <textarea rows={3} maxLength={10000} value={career[n]?.description ?? ''} onChange={(e) => setCareer({ ...career, [n]: { files: career[n]?.files ?? [], description: e.target.value } })} />
                       </Field>

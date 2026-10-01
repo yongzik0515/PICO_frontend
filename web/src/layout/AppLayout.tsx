@@ -89,12 +89,12 @@ export function AppLayout() {
     setOpened(opened === kind ? '' : kind);
   }
 
-  // 로그인하면 서버에 저장된 기본 모드(GET /api/me의 preferredMode)로 시작한다. 한 계정에 한 번만 맞춘다.
+  // 로그인하면 서버에 저장된 기본 모드(GET /api/me의 preferredMode)로 시작한다. 한 계정에 한 번만 맞춘다(/api/me의 계정 번호는 id).
   const synced = useRef<unknown>(null);
   useEffect(() => {
     const preferred = me?.preferredMode;
-    if (!me || synced.current === me.userId || (preferred !== 'REQUESTER' && preferred !== 'AGENT')) return;
-    synced.current = me.userId;
+    if (!me || synced.current === me.id || (preferred !== 'REQUESTER' && preferred !== 'AGENT')) return;
+    synced.current = me.id;
     setState((s) => ({ ...s, mode: preferred === 'AGENT' ? 'agent' : 'user' }));
   }, [me, setState]);
 

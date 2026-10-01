@@ -15,13 +15,28 @@ export class ApiError extends Error {
   }
 }
 
-const NO_REFRESH = ['/api/auth/login', '/api/auth/refresh', '/api/auth/register'];
+// 로그인 없이 쓰는 인증 API: 저장된 토큰을 붙이지 않는다(만료·무효 토큰이 붙으면 서버가 401로 막는다).
+const NO_REFRESH = [
+  '/api/auth/login',
+  '/api/auth/refresh',
+  '/api/auth/register',
+  '/api/auth/password-reset/request',
+  '/api/auth/password-reset/confirm',
+  '/api/auth/email-verification/confirm',
+];
 let refreshing: Promise<boolean> | null = null;
 
-async function refreshTokens(): Promise<boolean> {
+/**
+ * 401을 받은 요청을 다시 보낼 수 있으면 true. sent는 그 요청에 붙였던 accessToken이다.
+ * - 이 탭에서는 동시에 여러 요청이 401을 받아도 refresh를 한 번만 부른다(이전 refreshToken은 재사용 불가).
+ * - 요청을 보낸 뒤 다른 요청이나 다른 탭이 이미 토큰을 바꿨으면 refresh 없이 새 토큰으로 다시 보낸다.
+ * - refresh가 거절돼도 그사이 다른 탭이 같은 refreshToken으로 먼저 갱신했을 수 있어, 저장된 토큰을 다시 읽고 바뀌었으면 그것을 쓴다.
+ *   그대로일 때만 로그아웃한다.
+ */
+async function refreshTokens(sent: string | undefined): Promise<boolean> {
   const current = getTokens();
   if (!current?.refreshToken) return false;
-  // 동시에 여러 요청이 401을 받아도 refresh는 한 번만 호출한다(이전 refreshToken은 재사용 불가).
+  if (current.accessToken !== sent) return true;
   refreshing ??= (async () => {
     try {
       const res = await fetch(`${baseUrl}/api/auth/refresh`, {
@@ -31,7 +46,9 @@ async function refreshTokens(): Promise<boolean> {
       });
       const body = await res.json().catch(() => null);
       if (!res.ok || !body?.success || !body.data?.accessToken) {
-        setTokens(null);
+        const stored = getTokens();
+        if (stored?.refreshToken && stored.refreshToken !== current.refreshToken) return true; // 다른 탭이 먼저 갱신함
+        if (stored) setTokens(null);
         return false;
       }
       setTokens({ accessToken: body.data.accessToken, refreshToken: body.data.refreshToken, userId: body.data.userId });
@@ -45,19 +62,21 @@ async function refreshTokens(): Promise<boolean> {
   return refreshing;
 }
 
-function withAuth(request: Request): Request {
-  const token = getTokens()?.accessToken;
+function withAuth(request: Request, token: string | undefined): Request {
   const next = new Request(request);
   if (token) next.headers.set('Authorization', `Bearer ${token}`);
   return next;
 }
 
 async function authFetch(input: Request): Promise<Response> {
-  const retry = input.clone();
-  const response = await fetch(withAuth(input));
   const path = new URL(input.url, location.origin).pathname;
-  if (response.status !== 401 || NO_REFRESH.includes(path)) return response;
-  return (await refreshTokens()) ? fetch(withAuth(retry)) : response;
+  // 로그인·가입·갱신에는 저장된 토큰을 붙이지 않는다. 만료·무효 토큰이 남아 있으면 서버가 401로 막는다.
+  if (NO_REFRESH.some((p) => path.endsWith(p))) return fetch(input); // API 주소에 경로 접두어가 있어도 맞게
+  const retry = input.clone();
+  const sent = getTokens()?.accessToken;
+  const response = await fetch(withAuth(input, sent));
+  if (response.status !== 401) return response;
+  return (await refreshTokens(sent)) ? fetch(withAuth(retry, getTokens()?.accessToken)) : response;
 }
 
 export const api = createClient<paths>({ baseUrl, fetch: authFetch });

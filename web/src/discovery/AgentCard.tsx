@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Icon } from '../ui/Icon';
-import { money } from '../ui/format';
+import { ImagePreview } from '../ui/ImagePreview';
+import { money, responseTime } from '../ui/format';
 import type { Agent } from './agent';
 import { useFavorites } from './favorites';
 
@@ -8,7 +9,7 @@ import { useFavorites } from './favorites';
 export function Avatar({ agent, size = '' }: { agent: Pick<Agent, 'name' | 'initial' | 'color' | 'image'>; size?: string }) {
   return (
     <span className={`avatar ${agent.color || 'blue'} ${size}`}>
-      {agent.image ? <img src={agent.image} alt={`${agent.name} 프로필`} /> : agent.initial || agent.name?.[0] || '나'}
+      {agent.image ? <ImagePreview src={agent.image} alt={`${agent.name} 프로필`} /> : agent.initial || agent.name?.[0] || '나'}
       <span className="avatar-spark">✦</span>
     </span>
   );
@@ -77,7 +78,7 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
           {a.reply !== null && (
             <span className="response-time">
               <Icon name="clock" size={13} />
-              평균 {a.reply}분 응답
+              평균 {responseTime(a.reply)} 응답
             </span>
           )}
         </div>

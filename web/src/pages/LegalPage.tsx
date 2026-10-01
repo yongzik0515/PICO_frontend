@@ -55,7 +55,7 @@ export function TermsOfServicePage() {
         <p className="prose">이용자가 도우미의 공개 프로필을 확인하고 직접 요청하는 매칭 서비스입니다. 플랫폼은 예매 성공이나 티켓을 보증하지 않습니다.</p>
       </AccountCard>
       <AccountCard title="진행과 비용">
-        <p className="prose">이용자 요청 → 도우미 수락 및 최종 조건 전달 → 이용자 확인·확정 순서로 진행해요. 이용자는 확정된 금액을 확인하고 안전거래 결제를 진행합니다.</p>
+        <p className="prose">이용자 요청 → 도우미 수락 및 최종 조건 전달 → 이용자 확인·확정 순서로 진행해요. 최종 조건이 안전거래면 이용자가 확정된 금액을 결제하고, 직접 거래면 플랫폼 결제 없이 당사자끼리 정산해요.</p>
         <p className="prose">도우미의 매칭권은 요청 수락 시 1장이 사용돼요. 이용자의 안전거래 결제와 별개입니다.</p>
       </AccountCard>
       <AccountCard title="허용되지 않는 이용">

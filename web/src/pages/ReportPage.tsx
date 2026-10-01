@@ -4,7 +4,7 @@ import { api, unwrap } from '../api/client';
 import { list, num, str, type Raw } from '../api/pick';
 import type { components } from '../api/schema';
 import { uploadReportFile, useLoad } from '../transactions/model';
-import { Field, FilePicker, Notice, useAction, utcToLocal } from '../transactions/ui';
+import { EvidenceFileNames, Field, FilePicker, Notice, useAction, utcToLocal } from '../transactions/ui';
 import { AccountCard, AccountNote } from '../ui/account';
 import { PageTitle } from '../ui/PageTitle';
 
@@ -29,8 +29,10 @@ export function ReportPage() {
   const reportedUserId = Number(params.get('userId'));
   const requestId = Number(params.get('requestId')) || null;
   const name = params.get('name') ?? '상대방';
-  const [reason, setReason] = useState<Reason>('FRAUD');
-  const [description, setDescription] = useState('');
+  // 요청 상세의 '도우미가 결과를 등록하지 않나요?'에서 온 경우: 결과 미제출 신고로 채워 둔다.
+  const noResult = params.get('topic') === 'no-result' && !!requestId;
+  const [reason, setReason] = useState<Reason>(noResult ? 'OTHER' : 'FRAUD');
+  const [description, setDescription] = useState(noResult ? '도우미가 착수한 뒤 예매 결과를 등록하지 않고 있어요.\n마지막으로 연락된 시각과 상황: ' : '');
   const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState('');
   const { pending, run } = useAction();
@@ -65,8 +67,13 @@ export function ReportPage() {
   return (
     <div className="account-contained">
       <PageTitle title="신고하기" crumbs={requestId ? [{ label: '요청 상세', to: `/requests/${requestId}` }] : [{ label: '마이페이지', to: '/my' }]} />
-      <AccountCard title={`${name} 신고`}>
+      <AccountCard title={noResult ? `${name} 결과 미제출 신고` : `${name} 신고`}>
         <form noValidate onSubmit={submit}>
+          {noResult && (
+            <Notice>
+              운영팀이 확인한 뒤 도우미 결과 미제출로 거래를 실패 종결할 수 있어요. 안전거래라면 성공보수를 환불받고, 착수비는 도우미의 시도 증빙이 승인됐거나 지급이 시작됐으면 도우미 몫이라 환불되지 않고, 그렇지 않으면 착수비도 환불받아요(이용료 제외).
+            </Notice>
+          )}
           <Field label="신고 사유" required>
             <select value={reason} onChange={(e) => setReason(e.target.value as Reason)}>
               {reasons.map(([v, t]) => (
@@ -77,10 +84,10 @@ export function ReportPage() {
             </select>
           </Field>
           <Field label="신고 내용" required helper="언제, 어떤 일이 있었는지 구체적으로 적어 주세요.">
-            <textarea rows={6} required value={description} onChange={(e) => setDescription(e.target.value)} />
+            <textarea rows={6} required maxLength={4000} value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
           <Field label="증빙 파일" helper="대화 캡처, 입금 내역 등. 신고 내역에서 나중에 추가할 수도 있어요.">
-            <FilePicker files={files} onChange={setFiles} />
+            <FilePicker kind="report" files={files} onChange={setFiles} />
           </Field>
           <AccountNote>신고 내용은 운영팀만 확인해요. 처리 결과와 사유는 신고 내역에서 볼 수 있어요. 이용 정지 등 제재는 조사 후 운영팀이 따로 결정해요.</AccountNote>
           <div className="account-form-footer">
@@ -203,15 +210,7 @@ function ReportEvidence({ reportId, open }: { reportId: number; open: boolean })
                   {num(ev.revision)}차 제출 · {utcToLocal(str(ev.submittedAt) ?? '')}
                 </strong>
                 {str(ev.description) && <small>{str(ev.description)}</small>}
-                {list(ev.attachments).map((f) =>
-                  str(f.url) ? (
-                    <a key={String(f.attachmentId)} href={str(f.url)} target="_blank" rel="noreferrer">
-                      {str(f.originalName) ?? '파일'}
-                    </a>
-                  ) : (
-                    <small key={String(f.attachmentId)}>{str(f.originalName) ?? '파일'} · 열람할 수 없음</small>
-                  ),
-                )}
+                <EvidenceFileNames files={list(ev.attachments)} status={() => ''} />
               </div>
             </div>
           ))}
@@ -224,7 +223,7 @@ function ReportEvidence({ reportId, open }: { reportId: number; open: boolean })
           <Field label="증빙 설명">
             <textarea rows={2} maxLength={16000} value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
-          <FilePicker files={files} onChange={setFiles} />
+          <FilePicker kind="report" files={files} onChange={setFiles} />
           <div className="tx-form-footer">
             <span role="status">{progress}</span>
             <button type="submit" className="btn secondary" disabled={pending || !files.length}>

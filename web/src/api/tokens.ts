@@ -34,3 +34,12 @@ export function onTokensChange(fn: Listener) {
     listeners.delete(fn);
   };
 }
+
+// 다른 탭에서 로그인·로그아웃·토큰 갱신을 하면 이 탭에도 알린다(storage 이벤트는 다른 탭의 변경에만 온다).
+// 같은 계정의 토큰 갱신이면 받는 쪽(AuthContext)이 계정 번호로 구별해 아무것도 하지 않는다.
+if (typeof window !== 'undefined')
+  window.addEventListener('storage', (e) => {
+    if (e.key !== KEY && e.key !== null) return; // null: 다른 탭에서 localStorage.clear()
+    const tokens = getTokens();
+    listeners.forEach((fn) => fn(tokens));
+  });
