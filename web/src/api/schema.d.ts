@@ -604,6 +604,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/requests/{requestId}/mediation/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 조정안 수락·거부
+         * @description 이용자와 도우미가 각자 현재 조정안에 응답합니다. 한쪽이라도 거부하면 그 회차가 끝나고(2회 미만이면 운영팀이 새 조정안을 제시), 양측이 모두 수락하면 확정되어 결과 확정 또는 성공보수 지급·환불로 이어집니다. 이미 응답했거나 응답 대기 중인 조정안이 없으면 409입니다.
+         */
+        post: operations["respond"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/requests/{requestId}/dispute/messages": {
         parameters: {
             query?: never;
@@ -1348,6 +1368,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/requests/{requestId}/mediation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관리자 분쟁 조정 조회
+         * @description 운영팀이 조정 내역을 조회합니다. ADMIN 권한이 필요합니다.
+         */
+        get: operations["getMediationAsAdmin"];
+        put?: never;
+        /**
+         * 조정안 제시
+         * @description 운영팀이 결과 분쟁(RESULT: DISPUTED 요청) 또는 부분성공 정산(SETTLEMENT)의 조정안을 제시합니다. 응답 대기 중인 조정안이 있으면 409(MEDIATION_IN_PROGRESS), 이미 2회 제시했거나 합의가 안 됐으면 409(MEDIATION_FAILED), 이미 확정됐으면 409입니다. 관리자 본인이 당사자인 거래는 403입니다. 양측에 알림이 가고 응답 기한은 3일입니다.
+         */
+        post: operations["propose_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/requests/{requestId}/dispute/questions": {
         parameters: {
             query?: never;
@@ -1625,6 +1669,26 @@ export interface paths {
          * @description 수신자 본인의 알림인지 확인만 하고 read_at을 변경하지 않습니다. 본문은 없으며 Cache-Control: no-store입니다. 타인·없는 알림은 404입니다.
          */
         head: operations["headNotification"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/requests/{requestId}/mediation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 분쟁 조정 조회
+         * @description 거래의 이용자와 도우미가 같은 조정 내역(회차별 조정안·응답·진행 상태)을 봅니다. 타인은 404입니다.
+         */
+        get: operations["getMediation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -3190,6 +3254,17 @@ export interface components {
             escalationNote?: string | null;
             /** @description 회차별 제안·응답 이력(오래된 순) */
             offers: components["schemas"]["PartialSettlementOfferResponse"][];
+            /**
+             * @description 운영팀 분쟁 조정 상태. NONE 조정 없음, OPEN 응답 대기 중, WAITING_NEXT 다음 조정안 대기, AGREED 합의, FAILED 조정 불성립(분쟁 금액 보류·외부 기관 안내). 자세한 내용은 GET /api/requests/{id}/mediation?kind=SETTLEMENT
+             * @example NONE
+             */
+            mediationStatus: string;
+            /**
+             * Format: int32
+             * @description 제시된 조정안 수
+             * @example 0
+             */
+            mediationRounds: number;
         };
         /**
          * @description partial_success_settlements.status. PROPOSED 도우미 제안, ACCEPTED 이용자 동의, REJECTED 이용자 거절(금액 분쟁), ADMIN_DECIDED 관리자 결정. NOT_PROPOSED는 관리자 목록에서만 쓰는 파생값(도우미 제안 없음, DB에 저장하지 않음)
@@ -3235,6 +3310,123 @@ export interface components {
              * @example 홍길동
              */
             refundAccountHolder?: string | null;
+        };
+        /**
+         * @description 조정 대상. RESULT는 분쟁(DISPUTED) 거래의 결과, SETTLEMENT는 부분성공 성공보수 정산의 도우미 몫
+         * @enum {string}
+         */
+        MediationKind: "RESULT" | "SETTLEMENT";
+        /** @description 조정안에 대한 이용자·도우미 각자의 응답. 한쪽이라도 거부하면 그 회차는 끝나고, 양쪽이 모두 수락하면 확정됩니다. */
+        MediationRespondRequest: {
+            /** @description 조정 대상 */
+            kind: components["schemas"]["MediationKind"];
+            /** @description true 수락, false 거부 */
+            accept: boolean;
+            /** @description 응답에 덧붙일 말(선택). 거부 사유로 적으면 다음 조정안에 참고됩니다. 양측과 운영팀에 공개 */
+            note?: string | null;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseMediationResponse: {
+            success?: boolean;
+            data?: components["schemas"]["MediationResponse"];
+            message?: string;
+        };
+        /** @description 조정안 한 회차 */
+        MediationProposalResponse: {
+            /**
+             * Format: int32
+             * @description 회차(1~2)
+             * @example 1
+             */
+            round: number;
+            /**
+             * Format: int64
+             * @description SETTLEMENT 조정안의 도우미 몫(원)
+             */
+            proposedAmountKrw?: number | null;
+            /** @description RESULT 조정안의 최종 결과(SUCCESS·PARTIAL·FAILURE) */
+            proposedResult?: string | null;
+            /**
+             * @description RESULT 조정안이 시도 미확인 종결인지
+             * @example false
+             */
+            attemptUnverified: boolean;
+            /** @description 조정 근거. 양측에 공개 */
+            note: string;
+            /**
+             * Format: date-time
+             * @description 제시 시각. UTC
+             */
+            proposedAt: string;
+            /**
+             * Format: date-time
+             * @description 응답 기한. UTC. 제시 후 3일
+             */
+            responseDueAt: string;
+            /**
+             * @description 이용자 응답. PENDING·ACCEPTED·REJECTED
+             * @example PENDING
+             */
+            requesterResponse: string;
+            /** @description 이용자가 응답에 남긴 말 */
+            requesterNote?: string | null;
+            /**
+             * @description 도우미 응답. PENDING·ACCEPTED·REJECTED
+             * @example PENDING
+             */
+            agentResponse: string;
+            /** @description 도우미가 응답에 남긴 말 */
+            agentNote?: string | null;
+            /**
+             * @description 회차 결과. PENDING 응답 대기, AGREED 합의, REJECTED 한쪽이 거부, EXPIRED 기한 내 무응답(거부로 처리)
+             * @example PENDING
+             */
+            outcome: string;
+            /**
+             * Format: date-time
+             * @description 회차 종료 시각. UTC
+             */
+            closedAt?: string | null;
+        };
+        /** @description 거래의 분쟁 조정 현황(이용자·도우미·운영팀이 같은 내용을 봅니다) */
+        MediationResponse: {
+            kind: components["schemas"]["MediationKind"];
+            /**
+             * @description NONE 조정 없음, OPEN 응답 대기 중인 조정안 있음, WAITING_NEXT 조정안이 거부돼 다음 조정안을 기다림(최대 2회), AGREED 합의, FAILED 2회 모두 합의되지 않음(조정 불성립)
+             * @example OPEN
+             */
+            status: string;
+            /**
+             * Format: int32
+             * @description 제시된 조정안 수
+             * @example 1
+             */
+            roundsUsed: number;
+            /**
+             * Format: int32
+             * @description 최대 조정안 수
+             * @example 2
+             */
+            maxRounds: number;
+            /**
+             * Format: int32
+             * @description 응답 기한(일). 기한 안에 응답하지 않으면 거부로 처리
+             * @example 3
+             */
+            responseDays: number;
+            /** @description 응답 대기 중인 조정안. 없으면 null */
+            active?: components["schemas"]["MediationProposalResponse"];
+            /**
+             * @description 호출한 회원이 지금 응답할 수 있는지(응답 대기 중이고 아직 응답하지 않음). 운영팀 조회는 false
+             * @example true
+             */
+            canRespond: boolean;
+            /** @description 호출한 회원이 이미 한 응답. PENDING이면 아직 */
+            yourResponse?: string | null;
+            /** @description 조정 불성립(FAILED) 시 외부 분쟁 조정 기관 안내. 그 밖에는 null */
+            externalGuidance?: string | null;
+            /** @description 회차별 이력(오래된 순, 진행 중인 회차 포함) */
+            proposals: components["schemas"]["MediationProposalResponse"][];
         };
         DisputeStatement: {
             body: string;
@@ -3970,6 +4162,26 @@ export interface components {
             /**
              * @description 결정 사유. 양측에 공개
              * @example 합의안 부분성공 조건(30%) 적용
+             */
+            note: string;
+        };
+        /** @description 운영팀의 조정안. kind=RESULT면 result(필수), kind=SETTLEMENT면 amountKrw(필수)를 보냅니다. 같은 거래·종류에 최대 2회까지 제시할 수 있고 양측이 모두 수락해야 확정됩니다. */
+        MediationProposeRequest: {
+            /** @description 조정 대상 */
+            kind: components["schemas"]["MediationKind"];
+            /**
+             * Format: int64
+             * @description SETTLEMENT: 도우미 몫(원). 0 이상 합의 성공보수 이하
+             * @example 9000
+             */
+            amountKrw?: number | null;
+            /** @description RESULT: 조정안의 최종 결과 */
+            result?: components["schemas"]["RequestResult"];
+            /** @description RESULT: FAILURE일 때 시도 미확인 종결(착수비 미지급·이용자 환불). 착수비가 이미 도우미 몫으로 확정됐으면 불가 */
+            attemptUnverified?: boolean | null;
+            /**
+             * @description 조정 근거. 양측에 공개
+             * @example 제출된 증빙 기준으로 2매 중 1매 확보로 판단
              */
             note: string;
         };
@@ -7551,6 +7763,81 @@ export interface operations {
             };
         };
     };
+    respond: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description requests.id
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediationRespondRequest"];
+            };
+        };
+        responses: {
+            /** @description 응답 반영 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMediationResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 당사자 아님 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 응답할 조정안 없음·이미 응답함·기한 만료 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     thread: {
         parameters: {
             query?: never;
@@ -10889,6 +11176,158 @@ export interface operations {
             };
         };
     };
+    getMediationAsAdmin: {
+        parameters: {
+            query: {
+                /**
+                 * @description 조정 대상
+                 * @example RESULT
+                 */
+                kind: components["schemas"]["MediationKind"];
+            };
+            header?: never;
+            path: {
+                /**
+                 * @description requests.id
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조정 내역 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMediationResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description ADMIN 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 요청 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    propose_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description requests.id
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediationProposeRequest"];
+            };
+        };
+        responses: {
+            /** @description 조정안 제시 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMediationResponse"];
+                };
+            };
+            /** @description kind에 맞지 않는 입력·금액 범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description ADMIN 권한 없음 또는 본인 거래 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 요청 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 조정 대상 아님·응답 대기 중·조정 불성립·이미 확정 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     disputeQuestion: {
         parameters: {
             query?: never;
@@ -12217,6 +12656,74 @@ export interface operations {
             };
             /** @description 접근 권한이 없습니다. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    getMediation: {
+        parameters: {
+            query: {
+                /**
+                 * @description 조정 대상
+                 * @example RESULT
+                 */
+                kind: components["schemas"]["MediationKind"];
+            };
+            header?: never;
+            path: {
+                /**
+                 * @description requests.id
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조정 내역 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMediationResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 당사자 아님 */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

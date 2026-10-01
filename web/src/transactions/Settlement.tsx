@@ -5,16 +5,17 @@ import { banks } from '../agent/profile';
 import { Modal } from '../ui/Modal';
 import { money } from '../ui/format';
 import type { Agreement, RequestResult, TxRequest } from './model';
+import { MediationCard } from './Mediation';
 import { Field, MoneyInput, Notice, Rows, TxCard, useAction, utcToLocal, won } from './ui';
 
 // 백엔드 서비스 흐름 가이드 11장: 성공보수·부분성공 정산·환불. 안전거래(결제가 있는 거래)에서만 쓴다.
 // - SUCCESS: 성공보수 전액 자동 지급(이용자가 즉시 지급 시도 가능)
-// - PARTIAL: 도우미가 자기 몫 X를 한 번 제안 → 이용자 동의(잔액 환불) / 거절 → 관리자 결정
+// - PARTIAL: 도우미가 자기 몫 X를 제안 → 이용자 동의(잔액 환불) / 반려 → 재제안. 운영팀이 개입하면 조정안(양측 수락)으로 확정
 // - FAILURE: 이용자가 성공보수 환불 요청
 // - 착수 전(MATCHED, PAID, 지급 없음): 이용자가 전액 환불 요청 가능
 // 가상계좌 환불은 환불 받을 계좌 3개 필드가 필수이고 서버는 저장하지 않는다.
 
-const partialNames: Record<string, string> = { PROPOSED: '이용자 확인 대기', ACCEPTED: '이용자 동의', REJECTED: '협의 중 · 이용자가 반려했어요', ADMIN_DECIDED: '운영팀 결정' };
+const partialNames: Record<string, string> = { PROPOSED: '이용자 확인 대기', ACCEPTED: '이용자 동의', REJECTED: '협의 중 · 이용자가 반려했어요', ADMIN_DECIDED: '운영팀 조정·결정' };
 const refundNames: Record<string, string> = { REQUESTED: '환불 요청', PROCESSING: '환불 처리 중', SUCCEEDED: '환불 완료', FAILED: '환불 실패', CANCELLED: '환불 취소' };
 const componentNames: Record<string, string> = { UPFRONT: '착수비', SUCCESS: '성공보수', SAFETY_FEE: '안전거래 이용료' };
 
@@ -46,11 +47,12 @@ function RefundAccount({ value, onChange }: { value: { bank: string; number: str
 const emptyAccount = { bank: '004', number: '', holder: '' };
 
 const roleNames: Record<string, string> = { REQUESTER: '이용자', AGENT: '도우미' };
-const offerResultNames: Record<string, string> = { PENDING: '응답 대기', ACCEPTED: '동의', REJECTED: '반려', SUPERSEDED: '운영팀 결정으로 대체' };
+const offerResultNames: Record<string, string> = { PENDING: '응답 대기', ACCEPTED: '동의', REJECTED: '반려', SUPERSEDED: '운영팀 조정·결정으로 대체' };
 
 /**
  * 부분 성공 정산 카드. 흐름: 도우미 제안 → 이용자 동의 / 반려 → (반려하면) 도우미가 새 금액을 계속 제안.
- * 운영팀은 마지막 활동 후 24시간 동안 변화가 없거나 도우미·이용자가 '운영팀에 넘기기'를 눌렀을 때 결정할 수 있다.
+ * 운영팀은 마지막 활동 후 24시간 동안 변화가 없거나 도우미·이용자가 '운영팀에 넘기기'를 눌렀을 때 조정안을 제시할 수 있다.
+ * 조정이 시작되면 당사자끼리의 직접 제안·동의·반려는 막히고, 조정안에 양측이 수락해야 확정된다(최대 2회).
  */
 export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxRequest; a: Agreement; partial: Raw | null; agent: boolean; reload: () => void }) {
   const [amountInput, setAmountInput] = useState<number | null>(null);
@@ -80,13 +82,15 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
   const escalatedBy = str(partial?.escalatedByRole);
   const escalated = !!escalatedAt;
   const adminOpen = partial?.adminDecisionAvailable === true;
+  const mediationStatus = str(partial?.mediationStatus) ?? 'NONE';
+  const mediating = mediationStatus !== 'NONE'; // 조정이 시작된 뒤에는 금액을 직접 주고받지 않는다
   const remainder = proposed !== undefined ? a.successFeeKrw - proposed : 0;
   // 합의한 성공보수가 0원이면 서버도 제안을 받지 않는다(409). 입력창을 보여 주지 않고 이유를 알려 준다.
   const noFee = a.successFeeKrw <= 0;
   const settled = status === 'ACCEPTED' || status === 'ADMIN_DECIDED';
   const hasProposal = !!partial && status !== 'NOT_PROPOSED';
-  const canPropose = agent && !escalated && !settled && (!hasProposal || status === 'REJECTED');
-  const canEscalate = !settled && !escalated;
+  const canPropose = agent && !escalated && !settled && !mediating && (!hasProposal || status === 'REJECTED');
+  const canEscalate = !settled && !escalated && !mediating;
   // 새 제안의 기본값: 이용자가 바라는 금액 → 직전 제안 금액 → 0원
   const amount = amountInput ?? (status === 'REJECTED' ? (counter ?? proposed ?? 0) : 0);
   const done = (message: string) => (ok: boolean) => {
@@ -129,12 +133,13 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
   );
 
   return (
+    <>
     <TxCard title="부분 성공 정산">
       {noFee ? (
         <p className="prose">결과가 부분 성공으로 확정됐어요.{a.upfrontFeeKrw > 0 && ` 착수비 ${won(a.upfrontFeeKrw)}은 결과가 확정돼 도우미 몫이고, 이 정산과 별개예요.`}</p>
       ) : (
         <p className="prose">
-          결과가 부분 성공이라 성공보수 {won(a.successFeeKrw)} 중 도우미 몫을 정해요. 나머지는 이용자에게 환불돼요. 먼저 도우미와 이용자가 금액을 맞춰 보고, 합의가 어려우면 운영팀에 넘길 수 있어요.
+          결과가 부분 성공이라 성공보수 {won(a.successFeeKrw)} 중 도우미 몫을 정해요. 나머지는 이용자에게 환불돼요. 먼저 도우미와 이용자가 금액을 맞춰 보고, 합의가 어려우면 운영팀에 넘길 수 있고, 운영팀은 조정안을 제안해요(이용자와 도우미가 모두 수락해야 확정).
           {a.upfrontFeeKrw > 0 && ` 착수비 ${won(a.upfrontFeeKrw)}은 결과가 확정돼 도우미 몫이고, 이 정산에 포함되지 않아요.`}
         </p>
       )}
@@ -144,7 +149,7 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
         <>
           {escalated && !settled && (
             <Notice>
-              {roleNames[escalatedBy ?? ''] ?? '당사자'}가 운영팀에 넘겼어요{str(partial?.escalationNote) ? ` ("${str(partial?.escalationNote)}")` : ''}. 이제 운영팀이 금액을 결정해요.
+              {roleNames[escalatedBy ?? ''] ?? '당사자'}가 운영팀에 넘겼어요{str(partial?.escalationNote) ? ` ("${str(partial?.escalationNote)}")` : ''}. 이제 운영팀이 조정안을 제안해요.
               {status === 'PROPOSED' && !agent ? ' 이미 온 제안에는 계속 동의하거나 반려할 수 있어요.' : ''}
             </Notice>
           )}
@@ -158,7 +163,7 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
                 ...(status === 'REJECTED' && counter !== undefined ? ([['이용자가 바라는 금액', won(counter)]] as [string, string][]) : []),
                 ...(decided !== undefined ? ([['확정된 도우미 몫', won(decided)]] as [string, string][]) : []),
                 ...(refundAmount !== undefined ? ([['이용자 환불', won(refundAmount)]] as [string, string][]) : []),
-                ...(partial?.decisionNote ? ([['운영팀 결정 사유', str(partial.decisionNote) ?? '']] as [string, string][]) : []),
+                ...(partial?.decisionNote ? ([['조정·결정 사유', str(partial.decisionNote) ?? '']] as [string, string][]) : []),
                 ...(partial?.decidedAt ? ([['확정 시각', utcToLocal(str(partial.decidedAt) ?? '')]] as [string, string][]) : []),
               ]}
             />
@@ -201,11 +206,12 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
               </button>
             </form>
           )}
-          {!hasProposal && !escalated && !agent && <Notice>도우미가 정산 금액을 제안하면 알려드릴게요. 24시간 안에 제안이 없으면 운영팀이 결정할 수 있어요.</Notice>}
-          {status === 'PROPOSED' && agent && !escalated && <Notice>이용자가 금액을 확인하고 있어요. 24시간 동안 답이 없으면 운영팀이 결정할 수 있어요.</Notice>}
-          {status === 'REJECTED' && !agent && !escalated && <Notice>도우미가 새 금액을 제안할 수 있어요. 기다리거나, 합의가 어렵다면 운영팀에 넘길 수 있어요. 24시간 동안 변화가 없으면 운영팀이 결정할 수 있어요.</Notice>}
-          {!escalated && !settled && adminOpen && <Notice>마지막 활동 후 24시간이 지나 운영팀이 금액을 결정할 수 있어요.</Notice>}
-          {status === 'PROPOSED' && !agent && (
+          {!hasProposal && !escalated && !agent && <Notice>도우미가 정산 금액을 제안하면 알려드릴게요. 24시간 안에 제안이 없으면 운영팀이 조정안을 제안할 수 있어요.</Notice>}
+          {status === 'PROPOSED' && agent && !escalated && !mediating && <Notice>이용자가 금액을 확인하고 있어요. 24시간 동안 답이 없으면 운영팀이 조정안을 제안할 수 있어요.</Notice>}
+          {status === 'REJECTED' && !agent && !escalated && !mediating && <Notice>도우미가 새 금액을 제안할 수 있어요. 기다리거나, 합의가 어렵다면 운영팀에 넘길 수 있어요. 24시간 동안 변화가 없으면 운영팀이 조정안을 제안할 수 있어요.</Notice>}
+          {!escalated && !settled && !mediating && adminOpen && <Notice>마지막 활동 후 24시간이 지나 운영팀이 조정안을 제안할 수 있어요.</Notice>}
+          {mediating && !settled && mediationStatus !== 'FAILED' && <Notice>운영팀 조정이 진행 중이라 금액을 직접 제안하거나 동의·반려할 수 없어요. 아래 조정안에 응답해 주세요.</Notice>}
+          {status === 'PROPOSED' && !agent && !mediating && (
             <div className="tx-request-actions">
               <button type="button" className="btn primary" disabled={pending} onClick={() => setDialog('accept')}>
                 동의하기
@@ -313,7 +319,7 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
             }}
           >
             <p className="prose">
-              넘기면 운영팀이 금액을 결정해요. 도우미는 더 이상 새 금액을 제안할 수 없고, 이미 온 제안에는 이용자가 계속 동의하거나 반려할 수 있어요. 넘기지 않아도 마지막 활동 후 24시간 동안 변화가 없으면 운영팀이 결정할 수 있어요.
+              넘기면 운영팀이 조정안을 제안해요. 도우미는 더 이상 새 금액을 제안할 수 없고, 이미 온 제안에는 이용자가 계속 동의하거나 반려할 수 있어요. 넘기지 않아도 마지막 활동 후 24시간 동안 변화가 없으면 운영팀이 조정안을 제안할 수 있어요. 이용자와 도우미가 모두 수락해야 확정돼요.
             </p>
             <Field label="운영팀에 전할 말">
               <textarea rows={3} maxLength={1000} value={escalateNote} onChange={(e) => setEscalateNote(e.target.value)} placeholder="예: 서로 금액이 맞지 않아요." />
@@ -331,6 +337,8 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
         </Modal>
       )}
     </TxCard>
+    {mediating && <MediationCard requestId={r.id} kind="SETTLEMENT" feeKrw={a.successFeeKrw} reloadDetail={reload} />}
+    </>
   );
 }
 
@@ -343,9 +351,9 @@ export function refundCase(r: TxRequest, final: RequestResult | undefined, parti
       ? { label: '착수비·성공보수 환불 요청', text: '운영팀 종결로 착수비와 성공보수가 환불돼요. 이용료는 환불되지 않아요.' }
       : { label: '성공보수 환불 요청', text: '운영팀 종결로 성공보수가 환불돼요. 이용료는 환불되지 않아요.' };
   if (r.status === 'COMPLETED' && final === 'FAILURE') return { label: '성공보수 환불 요청', text: '예매 실패로 성공보수가 환불돼요. 착수비와 이용료는 환불되지 않아요.' };
-  // 부분 성공: 이용자가 동의하면 서버가 환불을 자동 요청하고, 운영팀이 결정한 경우에만 이용자가 직접 요청한다.
+  // 부분 성공: 이용자가 동의하면 서버가 환불을 자동 요청하고, 조정·결정으로 확정된 경우에만 이용자가 직접 요청한다.
   if (r.status === 'COMPLETED' && final === 'PARTIAL' && str(partial?.status) === 'ADMIN_DECIDED')
-    return { label: '남은 성공보수 환불 요청', text: '운영팀이 정한 도우미 몫을 뺀 성공보수가 환불돼요.' };
+    return { label: '남은 성공보수 환불 요청', text: '조정·결정으로 확정된 도우미 몫을 뺀 성공보수가 환불돼요.' };
   return null;
 }
 

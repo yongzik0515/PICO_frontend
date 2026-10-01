@@ -411,11 +411,15 @@ function AttemptsTab() {
   );
 }
 
-// ── 부분성공 정산 결정 ─────────────────────────────────────
+// ── 부분성공 정산 조정 ─────────────────────────────────────
+// 운영팀은 금액을 직접 정하지 않고 조정안을 제시한다. 이용자·도우미가 모두 수락해야 확정되고(최대 2회, 응답 3일),
+// 2회까지 합의가 안 되면 금액이 보류된다. 그 뒤 외부 기관 결과를 반영할 때만 직접 확정한다.
+const mediationLabels: Record<string, string> = { NONE: '조정 전', OPEN: '조정안 응답 대기', WAITING_NEXT: '조정안 거부됨 · 새 조정안 가능', AGREED: '합의', FAILED: '조정 불성립 · 금액 보류' };
 function SettlementsTab() {
   const [pendingLoad, reloadPending] = useAdminList(() => unwrap(api.GET('/api/admin/partial-settlements/pending', { params: { query: { page: 0, size: 100 } } })));
   const [unproposedLoad, reloadUnproposed] = useAdminList(() => unwrap(api.GET('/api/admin/partial-settlements/unproposed', { params: { query: { page: 0, size: 100 } } })));
   const [target, setTarget] = useState<Raw | null>(null);
+  const external = s(target, 'mediationStatus') === 'FAILED'; // 조정 불성립 뒤 외부 기관 결과 반영
   const [amount, setAmount] = useState(0);
   const [note, setNote] = useState('');
   const { pending, run } = useAction();
@@ -431,26 +435,31 @@ function SettlementsTab() {
     ['이용자 반려 사유', s(row, 'rejectionNote')],
     ['이용자가 바라는 금액', n(row, 'counterAmountKrw') !== undefined ? won(n(row, 'counterAmountKrw')) : ''],
     ['운영팀에 넘긴 쪽', s(row, 'escalatedAt') ? `${s(row, 'escalatedByRole') === 'AGENT' ? '도우미' : '이용자'} · ${utcToLocal(s(row, 'escalatedAt'))}${s(row, 'escalationNote') ? ` · ${s(row, 'escalationNote')}` : ''}` : ''],
-    ['결정 가능 이유', s(row, 'escalatedAt') ? '당사자가 운영팀에 넘김' : '마지막 활동 후 24시간 경과'],
+    ['조정안 제시 가능 이유', s(row, 'escalatedAt') ? '당사자가 운영팀에 넘김' : '마지막 활동 후 24시간 경과'],
+    ['조정', `${mediationLabels[s(row, 'mediationStatus') || 'NONE'] ?? s(row, 'mediationStatus')}${n(row, 'mediationRounds') ? ` · ${n(row, 'mediationRounds')}/2차` : ''}`],
     ['마지막 활동', utcToLocal(s(row, 'lastActivityAt'))],
     ['상태', s(row, 'status')],
   ];
-  const decideButton = (row: Raw) => (
-    <button
-      type="button"
-      className="btn primary"
-      onClick={() => {
-        setTarget(row);
-        setAmount(n(row, 'proposedAmountKrw') ?? 0);
-        setNote('');
-      }}
-    >
-      금액 결정
-    </button>
-  );
+  const decideButton = (row: Raw) => {
+    const m = s(row, 'mediationStatus') || 'NONE';
+    return (
+      <button
+        type="button"
+        className="btn primary"
+        disabled={m === 'OPEN'}
+        onClick={() => {
+          setTarget(row);
+          setAmount(n(row, 'proposedAmountKrw') ?? 0);
+          setNote('');
+        }}
+      >
+        {m === 'OPEN' ? '조정안 응답 대기 중' : m === 'FAILED' ? '외부 결과 반영(확정)' : '조정안 제시'}
+      </button>
+    );
+  };
   return (
     <>
-      <ListBlock title="결정 대기 정산" desc="마지막 제안·반려 후 24시간 동안 변화가 없거나, 도우미·이용자가 운영팀에 넘기기를 요청한 정산이에요. 당사자끼리 협의 중인 정산은 여기에 나오지 않아요." load={pendingLoad} reload={reloadPending} empty="결정할 정산이 없어요.">
+      <ListBlock title="조정 대기 정산" desc="마지막 제안·반려 후 24시간 동안 변화가 없거나, 도우미·이용자가 운영팀에 넘기기를 요청한 정산이에요. 조정안을 제시하면 이용자와 도우미가 모두 수락해야 확정돼요(최대 2회, 응답 3일). 당사자끼리 협의 중인 정산은 여기에 나오지 않아요." load={pendingLoad} reload={reloadPending} empty="조정할 정산이 없어요.">
         {(list_) =>
           list_.map((row) => (
             <Item key={String(n(row, 'requestId'))} raw={row} title={`요청 #${n(row, 'requestId')}`} rows={rows(row)}>
@@ -469,15 +478,19 @@ function SettlementsTab() {
         }
       </ListBlock>
       {target && (
-        <Modal title={`요청 #${n(target, 'requestId')} 정산 결정`} onClose={() => setTarget(null)}>
+        <Modal title={`요청 #${n(target, 'requestId')} ${external ? '외부 결과 반영' : '정산 조정안'}`} onClose={() => setTarget(null)}>
           <form
             noValidate
             onSubmit={async (e) => {
               e.preventDefault();
               if (amount > fee || !note.trim()) return;
+              const requestId = n(target, 'requestId')!;
               const ok = await run(
-                () => unwrap(api.POST('/api/admin/requests/{requestId}/partial-settlement/decide', { params: { path: { requestId: n(target, 'requestId')! } }, body: { amountKrw: amount, note: note.trim() } })),
-                '정산 금액을 결정했어요. 도우미 몫은 자동 지급 요청되고, 잔액은 이용자가 환불을 요청해요.',
+                () =>
+                  external
+                    ? unwrap(api.POST('/api/admin/requests/{requestId}/partial-settlement/decide', { params: { path: { requestId } }, body: { amountKrw: amount, note: note.trim() } }))
+                    : unwrap(api.POST('/api/admin/requests/{requestId}/mediation', { params: { path: { requestId } }, body: { kind: 'SETTLEMENT', amountKrw: amount, note: note.trim() } })),
+                external ? '외부 기관 결과로 도우미 몫을 확정했어요. 도우미 몫은 자동 지급 요청되고, 잔액은 이용자가 환불을 요청해요.' : '조정안을 보냈어요. 이용자와 도우미가 3일 안에 응답해요.',
               );
               if (ok) {
                 setTarget(null);
@@ -485,11 +498,12 @@ function SettlementsTab() {
               }
             }}
           >
-            <Field label="도우미 몫(원)" required helper={`0원 ~ ${won(fee)}`}>
+            {external && <Notice tone="error">조정이 이뤄지지 않은 정산이에요. 외부 분쟁 조정 기관의 결과가 나온 경우에만 그 결과를 반영해 확정해 주세요.</Notice>}
+            <Field label={external ? '확정할 도우미 몫(원)' : '조정안: 도우미 몫(원)'} required helper={`0원 ~ ${won(fee)}`}>
               <MoneyInput required max={fee} value={amount} onChange={setAmount} />
             </Field>
             <p className="record-note">이용자 환불 예정: {won(Math.max(0, fee - amount))}</p>
-            <Field label="결정 사유" required>
+            <Field label={external ? '확정 사유(외부 기관 결과)' : '조정 근거'} required helper={external ? undefined : '이용자와 도우미 모두에게 공개돼요.'}>
               <textarea rows={3} required maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
             {amount > fee && <Notice tone="error">성공보수보다 많이 정할 수 없어요.</Notice>}
@@ -498,7 +512,7 @@ function SettlementsTab() {
                 돌아가기
               </button>
               <button type="submit" className="btn primary" disabled={pending || amount > fee || !note.trim()}>
-                결정
+                {external ? '확정' : '조정안 보내기'}
               </button>
             </div>
           </form>
@@ -658,7 +672,7 @@ function EvidenceModal({ id, allowAsk, onClose, onAsked }: { id: number; allowAs
   );
 }
 
-function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upfrontStarted: boolean, reviewReason: string) => void; version: number }) {
+function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upfrontStarted: boolean, reviewReason: string, mediation: string) => void; version: number }) {
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/requests/result-review', { params: { query: { page: 0, size: 100 } } })));
   useEffect(() => {
     if (version) reload();
@@ -669,7 +683,7 @@ function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upf
     <>
       <ListBlock
         title="결과 확인이 필요한 요청"
-        desc="이용자가 이의를 제기했거나, 도우미 결과 등록 후 24시간 동안 이용자가 답하지 않은 요청이에요. 증빙을 보고 아래에서 결과를 확정해요."
+        desc="이용자가 이의를 제기했거나, 도우미 결과 등록 후 24시간 동안 이용자가 답하지 않은 요청이에요. 이의가 제기된 요청은 증빙·소명을 보고 결과 조정안을 제시하고(이용자·도우미 모두 수락해야 확정), 무응답 요청은 아래에서 바로 확정해요."
         load={load}
         reload={reload}
         empty="확인할 요청이 없어요."
@@ -678,6 +692,7 @@ function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upf
           rows.map((row) => {
             const id = n(row, 'id', 'requestId')!;
             const overdue = s(row, 'reviewReason') === 'CONFIRMATION_OVERDUE';
+            const mstat = s(row, 'mediationStatus') || 'NONE';
             return (
               <Item
                 key={id}
@@ -691,14 +706,15 @@ function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upf
                   ['이의 사유', s(row, 'disputeNote')],
                   ['증빙', [pick(row, 'hasResultEvidence') === true && '결과 증빙 있음', pick(row, 'hasAttemptEvidence') === true && '시도 증빙 있음'].filter(Boolean).join(' · ') || '증빙 없음'],
                   ['소명', [`${n(row, 'statementCount') ?? 0}건`, pick(row, 'awaitingRequesterReply') === true && '이용자 답변 대기', pick(row, 'awaitingAgentReply') === true && '도우미 답변 대기'].filter(Boolean).join(' · ')],
+                  ['조정', overdue ? '' : `${mediationLabels[mstat] ?? mstat}${n(row, 'mediationRounds') ? ` · ${n(row, 'mediationRounds')}/2차` : ''}`],
                   ['착수비', flag(row, 'upfrontPayoutStarted') ? '도우미 몫으로 확정(시도 증빙 승인 또는 지급 진행) · 시도 미확인 종결 불가' : '미확정'],
                 ]}
               >
                 <button type="button" className="btn secondary" onClick={() => setShown({ id, disputed: !overdue })}>
                   증빙·소명 보기
                 </button>
-                <button type="button" className="btn primary" onClick={() => onPick(id, flag(row, 'upfrontPayoutStarted'), s(row, 'reviewReason'))}>
-                  결과 확정
+                <button type="button" className="btn primary" disabled={!overdue && mstat === 'OPEN'} onClick={() => onPick(id, flag(row, 'upfrontPayoutStarted'), s(row, 'reviewReason'), mstat)}>
+                  {overdue ? '결과 확정' : mstat === 'OPEN' ? '조정안 응답 대기 중' : mstat === 'FAILED' ? '외부 결과 반영(확정)' : '조정안 제시'}
                 </button>
               </Item>
             );
@@ -796,6 +812,9 @@ function RequestsTab() {
   const [result, setResult] = useState<components['schemas']['RequestResult'] | 'UNVERIFIED' | ''>('');
   // 목록에서 고른 요청의 확정 계기(DISPUTED|CONFIRMATION_OVERDUE). 그 사이 바뀌면 서버가 409로 막는다.
   const [reviewReason, setReviewReason] = useState('');
+  // 고른 분쟁 요청의 조정 상태. 분쟁은 조정안으로 진행하고, 조정 불성립(FAILED) 뒤에만 직접 확정한다.
+  const [mediation, setMediation] = useState('');
+  const mediating = reviewReason === 'DISPUTED' && mediation !== 'FAILED';
   const [note, setNote] = useState('');
   // 목록에서 고른 요청의 착수비 지급 여부(지급이 시작됐으면 시도 미확인 종결을 고를 수 없다). 직접 입력하면 모른다(null).
   const [upfrontStarted, setUpfrontStarted] = useState<boolean | null>(null);
@@ -807,6 +826,24 @@ function RequestsTab() {
     if (!Number(requestId) || !note.trim() || !result) return;
     const unverified = result === 'UNVERIFIED';
     const ok = await run(async () => {
+      if (mediating) {
+        try {
+          await unwrap(
+            api.POST('/api/admin/requests/{requestId}/mediation', {
+              params: { path: { requestId: Number(requestId) } },
+              body: { kind: 'RESULT', result: unverified ? 'FAILURE' : result, attemptUnverified: unverified, note: note.trim() },
+            }),
+          );
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 409) {
+            setVersion((v) => v + 1);
+            throw new Error(`${err.message} 목록을 새로 고쳤어요.`);
+          }
+          if (err instanceof ApiError && err.status === 403) throw new Error('본인이 당사자인 거래는 조정할 수 없어요.');
+          throw err;
+        }
+        return;
+      }
       try {
         await unwrap(
           api.POST('/api/admin/requests/{requestId}/resolve', {
@@ -844,11 +881,12 @@ function RequestsTab() {
         if (err instanceof ApiError && err.status === 403) throw new Error('본인이 당사자인 거래는 확정할 수 없어요.');
         throw err;
       }
-    }, unverified ? '시도 미확인으로 종결했어요. 안전거래라면 착수비는 지급되지 않고 이용자가 착수비·성공보수를 환불받을 수 있어요(이용료 제외).' : '결과를 확정했어요. 요청이 완료로 바뀌고 정산이 판단돼요.');
+    }, mediating ? '조정안을 보냈어요. 이용자와 도우미가 3일 안에 응답해요.' : unverified ? '시도 미확인으로 종결했어요. 안전거래라면 착수비는 지급되지 않고 이용자가 착수비·성공보수를 환불받을 수 있어요(이용료 제외).' : '결과를 확정했어요. 요청이 완료로 바뀌고 정산이 판단돼요.');
     if (ok) {
       setNote('');
       setResult('');
       setReviewReason('');
+      setMediation('');
       setRequestId('');
       setUpfrontStarted(null);
       setVersion((v) => v + 1);
@@ -859,7 +897,8 @@ function RequestsTab() {
     <>
       <ResultReviewList
         version={version}
-        onPick={(id, started, reason) => {
+        onPick={(id, started, reason, mstat) => {
+          setMediation(mstat);
           setRequestId(String(id));
           setResult(''); // 앞 건의 선택(특히 시도 미확인)이 남지 않게
           setReviewReason(reason);
@@ -869,8 +908,10 @@ function RequestsTab() {
       />
       <NoResultList version={version} onClosed={() => setVersion((v) => v + 1)} />
       <section className="content-card" id="admin-resolve-form">
-        <h2>결과 확정</h2>
-        <p className="record-note">이의가 제기된(DISPUTED) 요청, 또는 도우미 결과 등록 후 24시간 동안 이용자가 답하지 않은 요청의 최종 결과를 정해요. 위 목록에서 '결과 확정'을 누르면 번호가 채워져요. 본인이 당사자인 거래는 확정할 수 없어요.</p>
+        <h2>{mediating ? '결과 조정안 제시' : '결과 확정'}</h2>
+        <p className="record-note">
+          이의가 제기된(DISPUTED) 요청은 운영팀이 결과를 직접 정하지 않고 <strong>조정안</strong>을 제시해요. 이용자와 도우미가 모두 수락하면 확정되고(최대 2회, 응답 3일, 무응답은 거부), 합의가 안 되면 금액이 보류돼요. 조정 불성립 뒤에는 외부 기관 결과를 반영해 직접 확정할 수 있어요. 도우미 결과 등록 후 24시간 동안 이용자가 답하지 않은 요청은 바로 확정해요. 위 목록의 버튼을 누르면 번호가 채워져요. 본인이 당사자인 거래는 처리할 수 없어요.
+        </p>
         <form noValidate onSubmit={resolve}>
           <div className="form-grid">
             <Field label="요청 번호" required>
@@ -882,6 +923,7 @@ function RequestsTab() {
                   setRequestId(e.target.value.replace(/[^0-9]/g, ''));
                   setUpfrontStarted(null);
                   setReviewReason('');
+                  setMediation('');
                 }}
               />
             </Field>
@@ -903,7 +945,7 @@ function RequestsTab() {
           {result === 'UNVERIFIED' && (
             <Notice tone="error">시도 증빙이 미흡하거나 예매를 시도하지 않은 것으로 판단될 때 써요. 안전거래라면 착수비를 도우미에게 지급하지 않고, 이용자는 착수비·성공보수를 환불받아요(이용료 제외). 시도 증빙이 승인됐거나 착수비 지급이 시작된 거래는 확정할 수 없어요.</Notice>
           )}
-          <Field label="확정 사유" required>
+          <Field label={mediating ? '조정 근거(양측에 공개)' : '확정 사유'} required>
             <textarea rows={3} required maxLength={10000} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
           {Number(requestId) > 0 && (
@@ -912,7 +954,7 @@ function RequestsTab() {
             </p>
           )}
           <button type="submit" className="btn primary" disabled={pending || !Number(requestId) || !note.trim() || !result}>
-            결과 확정
+            {mediating ? '조정안 보내기' : reviewReason === 'DISPUTED' ? '외부 결과 반영(확정)' : '결과 확정'}
           </button>
         </form>
       </section>

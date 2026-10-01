@@ -5,6 +5,7 @@ import { list, num, pick, str, type Raw } from '../api/pick';
 import { findPolicy, loadPolicies } from '../api/policies';
 import { PartialSettlementCard, RefundCard, refundCase } from '../transactions/Settlement';
 import { DisputeCard } from '../transactions/Dispute';
+import { MediationCard } from '../transactions/Mediation';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
 import { categoryNames } from '../discovery/agent';
@@ -218,7 +219,7 @@ function ResultModal({ r, upfrontApplies, onClose, onSubmit }: { r: TxRequest; u
             <input type="radio" name="agreed" checked={agreed === false} onChange={() => setAgreed(false)} />
             <span>
               <strong>이의가 있어요</strong>
-              <small>운영팀이 증빙을 보고 최종 결과를 정해요. 증빙이 없으면 도우미에게 제출을 요청해요.</small>
+              <small>운영팀이 증빙을 보고 결과 조정안을 제안해요. 증빙이 없으면 도우미에게 제출을 요청해요.</small>
             </span>
           </label>
         </fieldset>
@@ -534,7 +535,7 @@ export function RequestDetailPage() {
             {go(`/requests/${r.id}/result`, '추가 자료 올리기')}
           </>
         ) : (
-          <Notice>이의를 접수했어요. 아래 분쟁 소명에 자세한 내용과 자료를 남겨 주시면 운영팀이 보고 최종 결과를 정해요.</Notice>
+          <Notice>이의를 접수했어요. 아래 분쟁 소명에 자세한 내용과 자료를 남겨 주시면 운영팀이 보고 결과 조정안을 제안해요. 이용자와 도우미가 모두 수락하면 확정돼요.</Notice>
         );
       case 'matching_completed':
       case 'completed':
@@ -687,6 +688,7 @@ export function RequestDetailPage() {
             </TxCard>
           )}
 
+          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <MediationCard requestId={r.id} kind="RESULT" reloadDetail={reload} />}
           {(r.status === 'DISPUTED' || r.adminResolutionNote) && <DisputeCard requestId={r.id} disputed={r.status === 'DISPUTED'} reloadDetail={reload} />}
 
           {d.resultEvidences.length > 0 && (
@@ -709,7 +711,7 @@ export function RequestDetailPage() {
                   </div>
                 );
               })}
-              <p className="record-note">사진을 누르면 확대해서 볼 수 있어요. 결과에 이의가 있으면 운영팀이 이 증빙을 보고 결과를 정해요.</p>
+              <p className="record-note">사진을 누르면 확대해서 볼 수 있어요. 결과에 이의가 있으면 운영팀이 이 증빙을 보고 결과 조정안을 제안해요.</p>
             </TxCard>
           )}
 
@@ -955,7 +957,7 @@ export function RequestDetailPage() {
             // 24시간이 지나 운영팀이 먼저 확정한 경우 등 409는 useAction이 서버 메시지와 함께 최신 상태로 다시 불러온다.
             act(
               () => unwrap(api.POST('/api/requests/{requestId}/result/confirm', { ...path, body: { agreed, note: note || undefined } })),
-              agreed ? '결과 확인을 완료했어요.' : '이의를 접수했어요. 운영팀이 확인해 결과를 정해요.',
+              agreed ? '결과 확인을 완료했어요.' : '이의를 접수했어요. 운영팀이 확인해 결과 조정안을 제안해요.',
             )
           }
         />
