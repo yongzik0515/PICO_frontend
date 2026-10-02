@@ -1,3 +1,4 @@
+import { clearPlatformCache } from '../discovery/agent';
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
@@ -1443,18 +1444,19 @@ function UsersTab() {
 
 // ── 약관·예매처 ────────────────────────────────────────────
 type PlatformBody = components['schemas']['PlatformInput'];
-const emptyPlatform: PlatformBody = { code: '', name: '', homepageUrl: 'https://', enabled: true, policyAssessment: 'ALLOW', policySourceUrl: '', policyNote: '' };
+const emptyPlatform: PlatformBody = { code: '', name: '', homepageUrl: 'https://', enabled: true, policyAssessment: 'UNKNOWN', policySourceUrl: '', policyNote: '' };
 const assessments: [PlatformBody['policyAssessment'], string][] = [
   ['ALLOW', '허용'],
   ['CONDITIONAL', '조건부 허용'],
   ['BLOCK', '차단'],
-  ['UNKNOWN', '미확인'],
+  ['UNKNOWN', '미입력 (미확인)'],
 ];
 
 function SetupTab() {
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/platforms')));
   const { pending, run } = useAction();
   const [platform, setPlatform] = useState<{ id?: number; body: PlatformBody } | null>(null);
+  const [deletingPlatform, setDeletingPlatform] = useState<{ id: number; name: string } | null>(null);
   const [policy, setPolicy] = useState({ type: 'TERMS' as components['schemas']['PolicyDocumentType'], version: '', contentUrl: 'https://', contentSha256: '', effectiveAt: '' });
 
   async function savePlatform(e: FormEvent<HTMLFormElement>) {
@@ -1466,7 +1468,21 @@ function SetupTab() {
       platform.id ? '예매처를 수정했어요.' : '예매처를 등록했어요.',
     );
     if (ok) {
+      clearPlatformCache();
       setPlatform(null);
+      reload();
+    }
+  }
+
+  async function deletePlatform() {
+    if (!deletingPlatform) return;
+    const ok = await run(
+      () => unwrap(api.DELETE('/api/admin/platforms/{platformId}', { params: { path: { platformId: deletingPlatform.id } } })),
+      '예매처를 삭제했어요.',
+    );
+    if (ok) {
+      clearPlatformCache();
+      setDeletingPlatform(null);
       reload();
     }
   }
@@ -1498,7 +1514,7 @@ function SetupTab() {
             예매처 등록
           </button>
         </div>
-        <p className="record-note">요청서·도우미 신청의 예매처 선택지예요. 대리 신청 정책이 허용·조건부 허용이어야 수락·착수할 수 있어요.</p>
+        <p className="record-note">요청서·도우미 신청의 예매처 선택지예요. 예매처 정책은 선택 사항이에요. 미입력해도 사용을 켜면 거래할 수 있고, 차단한 예매처는 사용할 수 없어요.</p>
         {load.status === 'loading' ? (
           <p className="prose">불러오는 중이에요.</p>
         ) : load.status === 'error' ? (
@@ -1512,7 +1528,7 @@ function SetupTab() {
               rows={[
                 ['홈페이지', s(row, 'homepageUrl')],
                 ['정책', assessments.find(([v]) => v === s(row, 'policyAssessment'))?.[1] ?? s(row, 'policyAssessment')],
-                ['사용', pick(row, 'enabled') === false ? '꺼짐' : '켜짐'],
+                ['사용', pick(row, 'isEnabled', 'enabled') === false ? '꺼짐' : '켜짐'],
                 ['근거', s(row, 'policySourceUrl')],
                 ['메모', s(row, 'policyNote')],
               ]}
@@ -1527,7 +1543,7 @@ function SetupTab() {
                       code: s(row, 'code'),
                       name: s(row, 'name'),
                       homepageUrl: s(row, 'homepageUrl'),
-                      enabled: pick(row, 'enabled') !== false,
+                      enabled: pick(row, 'isEnabled', 'enabled') !== false,
                       policyAssessment: (s(row, 'policyAssessment') || 'UNKNOWN') as PlatformBody['policyAssessment'],
                       policySourceUrl: s(row, 'policySourceUrl'),
                       policyNote: s(row, 'policyNote'),
@@ -1536,6 +1552,9 @@ function SetupTab() {
                 }
               >
                 수정
+              </button>
+              <button type="button" className="btn ghost tx-danger" disabled={pending} onClick={() => setDeletingPlatform({ id: n(row, 'platformId', 'id')!, name: s(row, 'name') })}>
+                삭제
               </button>
             </Item>
           ))
@@ -1581,6 +1600,15 @@ function SetupTab() {
         </form>
       </section>
 
+      {deletingPlatform && (
+        <Modal title="예매처 삭제" onClose={() => { if (!pending) setDeletingPlatform(null); }}>
+          <p className="prose">{deletingPlatform.name} 예매처를 삭제할까요? 선택 목록에서 제거되며 기존 거래 기록은 보존돼요.</p>
+          <div className="modal-actions">
+            <button type="button" className="btn secondary" disabled={pending} onClick={() => setDeletingPlatform(null)}>취소</button>
+            <button type="button" className="btn primary tx-danger" disabled={pending} onClick={deletePlatform}>삭제</button>
+          </div>
+        </Modal>
+      )}
       {platform && (
         <Modal title={platform.id ? '예매처 수정' : '예매처 등록'} onClose={() => setPlatform(null)}>
           <form noValidate onSubmit={savePlatform}>
@@ -1595,7 +1623,7 @@ function SetupTab() {
             <Field label="홈페이지" required>
               <input type="url" required pattern="https?://.+" maxLength={1000} value={platform.body.homepageUrl} onChange={(e) => setPlatform({ ...platform, body: { ...platform.body, homepageUrl: e.target.value } })} />
             </Field>
-            <Field label="대리 신청 정책" required>
+            <Field label="예매처 정책 (선택)" helper="미입력해도 활성화할 수 있어요. 차단을 선택하면 사용을 꺼 주세요.">
               <select value={platform.body.policyAssessment} onChange={(e) => setPlatform({ ...platform, body: { ...platform.body, policyAssessment: e.target.value as PlatformBody['policyAssessment'] } })}>
                 {assessments.map(([v, t]) => (
                   <option key={v} value={v}>

@@ -318,7 +318,11 @@ export interface paths {
          */
         put: operations["editPlatform"];
         post?: never;
-        delete?: never;
+        /**
+         * 예매처 삭제
+         * @description 관리자 전용. 선택·관리 목록에서 제거하고 비활성화합니다. 기존 거래와 프로필의 참조 기록은 보존하며 반복 삭제는 성공으로 처리합니다. 삭제된 예매처는 수정할 수 없습니다.
+         */
+        delete: operations["deletePlatform"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2873,7 +2877,8 @@ export interface components {
             name: string;
             homepageUrl: string;
             enabled?: boolean;
-            policyAssessment: components["schemas"]["PolicyAssessment"];
+            /** @description 선택 사항. 미입력 시 UNKNOWN(미확인)으로 저장합니다. */
+            policyAssessment?: components["schemas"]["PolicyAssessment"];
             policySourceUrl?: string;
             policyNote?: string;
         };
@@ -6352,6 +6357,55 @@ export interface operations {
             };
             /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    deletePlatform: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                platformId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

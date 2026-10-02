@@ -106,6 +106,11 @@ let platformCache: Promise<Platform[]> | null = null;
 // 한 번 받은 목록. 나중에 열리는 필터 모달이 첫 렌더부터 예매처를 알 수 있게 한다.
 let platformList: Platform[] = [];
 /** GET /api/platforms. 관리자가 등록한 예매처 목록(필터 선택지와 platformIds 변환에 쓴다) */
+export function clearPlatformCache() {
+  platformCache = null;
+  platformList = [];
+}
+
 export function loadPlatforms() {
   platformCache ??= unwrap<Raw[]>(api.GET('/api/platforms'))
     .then((list) => list.map((p) => ({ id: num(p.id) ?? 0, name: str(p.name) || '' })).filter((p) => p.id && p.name))
