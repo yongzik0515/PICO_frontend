@@ -2017,6 +2017,67 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "admin-controller"
+        ],
+        "summary": "예매처 삭제",
+        "description": "관리자 전용. 선택·관리 목록에서 제거하고 비활성화합니다. 기존 거래와 프로필의 참조 기록은 보존하며 반복 삭제는 성공으로 처리합니다. 삭제된 예매처는 수정할 수 없습니다.",
+        "operationId": "deletePlatform",
+        "parameters": [
+          {
+            "name": "platformId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/webhooks/payments": {
@@ -15066,7 +15127,8 @@
             "type": "boolean"
           },
           "policyAssessment": {
-            "$ref": "#/components/schemas/PolicyAssessment"
+            "$ref": "#/components/schemas/PolicyAssessment",
+            "description": "선택 사항. 미입력 시 UNKNOWN(미확인)으로 저장합니다."
           },
           "policySourceUrl": {
             "type": "string",
@@ -15083,8 +15145,7 @@
         "required": [
           "code",
           "homepageUrl",
-          "name",
-          "policyAssessment"
+          "name"
         ]
       },
       "PolicyAssessment": {
