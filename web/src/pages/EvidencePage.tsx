@@ -60,11 +60,10 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     );
 
   const { request: r, stage, agreements, resultEvidences, evidences } = load.data;
-  // 분쟁 중에는 도우미가 결과 증빙만 추가할 수 있다(운영팀 판단 자료).
-  const disputed = isResult && stage === 'disputed';
   // 결과를 낸 뒤 이용자 확인 중에도 추가 자료(결과 증빙)를 올릴 수 있다. 반려된 시도 증빙에 답할 때 쓴다.
   const confirming = isResult && stage === 'result_submitted';
-  if (stage !== 'in_progress' && !disputed && !confirming) return <Navigate to={`/requests/${requestId}`} replace />;
+  // 분쟁 중 자료는 요청 상세의 '분쟁 소명·추가 자료'(운영팀만 열람)로 받으므로 이 화면은 열지 않는다.
+  if (stage !== 'in_progress' && !confirming) return <Navigate to={`/requests/${requestId}`} replace />;
   // 도우미 전용 화면이다(서버도 403으로 막는다). 이용자가 주소로 들어오면 상세로 보낸다.
   const myId = myUserId(me);
   if (myId && r.agentId !== myId) return <Navigate to={`/requests/${requestId}`} replace />;
@@ -109,7 +108,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     const ok = await run(async () => {
       const storageKeys = await upload(uploadResultFile);
       await unwrap(api.POST('/api/requests/{requestId}/result/evidence', { ...path, body: { description: description.trim() || undefined, storageKeys } }));
-    }, disputed ? '추가 자료를 올렸어요. 운영팀이 확인해 결과 조정안을 제안해요.' : '추가 자료를 올렸어요. 이용자도 바로 볼 수 있어요.');
+    }, '추가 자료를 올렸어요. 이용자도 바로 볼 수 있어요.');
     setProgress('');
     if (ok) {
       setFiles([]);
@@ -199,19 +198,14 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     )
   );
 
-  // 이용자 확인 중·분쟁 중: 결과는 이미 냈으므로 추가 자료(결과 증빙)만 올린다.
-  if (disputed || confirming)
+  // 이용자 확인 중: 결과는 이미 냈으므로 추가 자료(결과 증빙)만 올린다.
+  if (confirming)
     return (
       <>
         <PageTitle title="추가 자료 올리기" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
         <div className="detail-layout tx-layout">
           <TxCard title="추가 자료">
-            <p className="prose">
-              {disputed
-                ? '이용자가 결과에 이의를 제기했어요. 예매 내역·시도 화면 등 자료를 올리면 운영팀이 보고 결과 조정안을 제안해요.'
-                : '이용자가 결과를 확인하고 있어요. 시도 증빙이 반려됐거나 더 보여 줄 자료가 있으면 올려 주세요. 이용자가 바로 볼 수 있고, 이의가 생기면 운영팀 판단 자료가 돼요.'}
-            </p>
-            {disputed && <Notice>여기 올린 자료는 이용자도 볼 수 있어요. 운영팀에게만 보여 줄 자료는 요청 상세의 분쟁 소명에 첨부해 주세요.</Notice>}
+            <p className="prose">이용자가 결과를 확인하고 있어요. 시도 증빙이 반려됐거나 더 보여 줄 자료가 있으면 올려 주세요. 이용자가 바로 볼 수 있고, 이의가 생기면 운영팀 판단 자료가 돼요.</p>
             {evidenceList}
             {scan === 'blocked' && <Notice tone="error">운영팀이 차단한 파일이 있어요. 다른 파일로 다시 올려 주세요.</Notice>}
             <form noValidate onSubmit={submitResultEvidence}>
@@ -304,16 +298,10 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                 </>
               ) : attemptOnRecord ? (
                 <>
+                  {/* 시도 증빙 단계에서는 추가 자료 업로드를 보이지 않는다. 결과를 낸 뒤 필요하면 요청 상세의 '추가 자료 올리기'로 올린다. */}
                   <Notice tone="success">
-                    {latestAttempt?.revision}차 시도 증빙이 올라가 있어요({latestAttempt?.status === 'APPROVED' ? '이용자 승인' : '확인 대기'}). 더 올릴 자료가 없으면 바로 제출하면 돼요.
+                    {latestAttempt?.revision}차 시도 증빙이 올라가 있어요({latestAttempt?.status === 'APPROVED' ? '이용자 승인' : '확인 대기'}). 이 증빙으로 실패 결과를 제출할 수 있어요.
                   </Notice>
-                  <p className="prose">매진 화면처럼 더 보여 줄 자료가 있으면 추가 자료로 올려 주세요(선택). 이용자가 결과를 확인할 때 함께 봐요.</p>
-                  {evidenceList}
-                  {scan === 'blocked' && <Notice tone="error">운영팀이 차단한 파일이 있어요. 이용자에게 보이지 않으니 다른 파일로 다시 올려 주세요.</Notice>}
-                  <Field label="추가 자료 설명">
-                    <textarea name="evidenceDescription" rows={2} maxLength={10000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 20:03 전석 매진 화면" />
-                  </Field>
-                  <FilePicker kind="result" files={files} onChange={setFiles} />
                 </>
               ) : (
                 <>

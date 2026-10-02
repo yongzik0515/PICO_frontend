@@ -6,9 +6,9 @@ import { findPolicy, loadPolicies } from '../api/policies';
 import { PartialSettlementCard, RefundCard, refundCase } from '../transactions/Settlement';
 import { DisputeCard } from '../transactions/Dispute';
 import { MediationCard } from '../transactions/Mediation';
+import { agreementRows, requestRows } from '../transactions/requestRows';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
-import { categoryNames } from '../discovery/agent';
 import {
   fetchDetail,
   latestAgreement,
@@ -22,7 +22,7 @@ import {
   type Role,
   type TxRequest,
 } from '../transactions/model';
-import { EvidenceFileNames, Field, NextStep, Notice, Progress, Rows, StatusBadge, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
+import { EvidenceFileNames, Field, NextStep, Notice, Progress, Rows, StatusBadge, TxCard, useAction, utcToLocal } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
 import { ImagePreview } from '../ui/ImagePreview';
 import { Modal } from '../ui/Modal';
@@ -32,7 +32,6 @@ import { money } from '../ui/format';
 // 프로토타입 transactions.js의 detailPage()/actions()/comparison()/progress()
 // 상태 전환은 모두 명세의 요청·합의·증빙·결과 API를 쓴다. 어떤 버튼이 보일지는 model.ts의 stageOf()가 정한다.
 
-const roundNames: Record<string, string> = { PRESALE: '선예매', GENERAL: '일반 예매', ADDITIONAL: '추가 예매' };
 const evidenceNames: Record<string, string> = { DRAFT: '작성 중', SUBMITTED: '확인 대기', APPROVED: '승인', REJECTED: '반려' };
 // 결과 증빙은 운영팀 파일 검토 없이 거래 당사자에게 보인다(차단된 파일만 제외).
 const scanNames: Record<string, string> = { PENDING: '첨부됨', CLEAN: '첨부됨', BLOCKED: '차단됨' };
@@ -50,37 +49,6 @@ const paymentNames: Record<string, string> = {
 // 가이드 7장: 이 상태가 아닌 결제가 있으면 합의 변경·요청 취소가 409다.
 const inactivePayment = ['FAILED', 'CANCELLED', 'EXPIRED', 'REFUNDED'];
 
-function requestRows(r: TxRequest): [string, ReactNode][] {
-  const join = (...v: string[]) => v.filter(Boolean).join(' ');
-  return [
-    ['공연명', r.targetName],
-    ['분야', categoryNames[r.serviceCategory] ?? r.serviceCategory],
-    ['공연 일시', join(r.scheduledUseDate, r.scheduledUseTime)],
-    ['티켓 오픈', join(r.applicationOpenDate, r.applicationOpenTime, roundNames[r.applicationRound] ? `· ${roundNames[r.applicationRound]}` : '')],
-    ['예매처', r.platformName || r.otherPlatformName],
-    ['공연장·위치', r.locationNote],
-    ['매수', r.requestedQuantity ? `${r.requestedQuantity}매` : ''],
-    ['희망 좌석·요청 내용', r.requirements],
-    ['성공 요건', r.successConditions],
-    ['희망 수고비', won(r.agencyBudgetDesired)],
-    ['최대 수고비', won(r.agencyBudgetMax)],
-    ['기타 사항', r.additionalNote],
-    ['도우미 응답 기한', utcToLocal(r.expiresAt)],
-  ];
-}
-
-function agreementRows(a: Agreement): [string, ReactNode][] {
-  return [
-    ['착수비', won(a.upfrontFeeKrw)],
-    ['수고비(성공보수)', won(a.successFeeKrw)],
-    ['거래 방식', a.safePayment ? `안전거래 · 수수료 ${won(a.safetyFeeKrw)}` : '직접 거래(수수료 없음)'],
-    ['희망 좌석·요청 내용', a.requirements],
-    ['성공 요건', a.successConditions],
-    ['예매 시도 방식', a.attemptRule],
-    ['실패·환불 처리', a.refundRule],
-    ['결과 연락 기한', a.contactDeadlineRule],
-  ];
-}
 
 /** 최초 요청과 양측이 제안한 최종 조건을 나란히 보여 준다(프로토타입 comparison()). */
 function Comparison({ r, a }: { r: TxRequest; a: Agreement }) {
@@ -218,13 +186,13 @@ function ResultModal({ r, upfrontApplies, onClose, onSubmit }: { r: TxRequest; u
           <label>
             <input type="radio" name="agreed" checked={agreed === false} onChange={() => setAgreed(false)} />
             <span>
-              <strong>이의가 있어요</strong>
+              <strong>이의 제기할게요</strong>
               <small>운영팀이 증빙을 보고 결과 조정안을 제안해요. 증빙이 없으면 도우미에게 제출을 요청해요.</small>
             </span>
           </label>
         </fieldset>
         {agreed === true && r.agentResult === 'FAILURE' && upfrontApplies && (
-          <Notice>동의하면 결과가 확정돼 착수비는 도우미 몫이 되고 환불되지 않아요. 도우미가 예매를 시도하지 않았다고 생각되면 '이의가 있어요'를 골라 주세요.</Notice>
+          <Notice>동의하면 결과가 확정돼 착수비는 도우미 몫이 되고 환불되지 않아요. 도우미가 예매를 시도하지 않았다고 생각되면 '이의 제기할게요'를 골라 주세요.</Notice>
         )}
         {agreed !== null && (
         <Field
@@ -248,7 +216,7 @@ function ResultModal({ r, upfrontApplies, onClose, onSubmit }: { r: TxRequest; u
   );
 }
 
-type Dialog = '' | 'accept' | 'reject' | 'cancel' | 'agree' | 'revision' | 'start' | 'result' | 'deleteReview' | { reject: number };
+type Dialog = '' | 'accept' | 'reject' | 'cancel' | 'agree' | 'revision' | 'start' | 'result' | 'deleteReview' | 'withdraw' | { reject: number };
 
 export function RequestDetailPage() {
   const { id } = useParams();
@@ -260,6 +228,7 @@ export function RequestDetailPage() {
   const [hasContact, setHasContact] = useState<boolean | null>(null);
   const [dialog, setDialog] = useState<Dialog>('');
   const [balance, setBalance] = useState<number | null>(null);
+  const [withdrawNote, setWithdrawNote] = useState('');
   // 거래 동작이 409면 상대방 진행·기한 경과 등으로 상태가 바뀐 것이다. 서버 메시지를 보여 주고 최신 상세를 다시 불러온다.
   const { pending, run } = useAction({
     onConflict: () => {
@@ -531,11 +500,14 @@ export function RequestDetailPage() {
       case 'disputed':
         return agent ? (
           <>
-            <Notice>이용자가 결과에 이의를 제기해 운영팀이 확인하고 있어요. 아래 분쟁 소명에 설명을 남기고, 예매 내역이 있으면 결과 증빙도 올려 주세요.</Notice>
-            {go(`/requests/${r.id}/result`, '추가 자료 올리기')}
+            <Notice>이용자가 결과에 이의를 제기해 운영팀이 확인하고 있어요. 아래 '분쟁 소명·추가 자료'에 설명과 예매 내역 등 자료를 함께 올려 주세요. 운영팀만 볼 수 있어요.</Notice>
           </>
         ) : (
-          <Notice>이의를 접수했어요. 아래 분쟁 소명에 자세한 내용과 자료를 남겨 주시면 운영팀이 보고 결과 조정안을 제안해요. 이용자와 도우미가 모두 수락하면 확정돼요.</Notice>
+          <>
+            <Notice>이의를 접수했어요. 아래 '분쟁 소명·추가 자료'에 자세한 내용과 자료를 남겨 주시면 운영팀이 보고 결과 조정안을 제안해요. 이용자와 도우미가 모두 수락하면 확정돼요.</Notice>
+            {/* POST /dispute/withdraw: 안전거래 이용자만, DISPUTED에서. 도우미가 등록한 결과로 확정된다. */}
+            {finalized?.safePayment && r.agentResult && btn('이의 철회하고 도우미 결과에 동의', () => setDialog('withdraw'), 'secondary')}
+          </>
         );
       case 'matching_completed':
       case 'completed':
@@ -688,8 +660,8 @@ export function RequestDetailPage() {
             </TxCard>
           )}
 
-          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <MediationCard requestId={r.id} kind="RESULT" reloadDetail={reload} />}
-          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <DisputeCard requestId={r.id} disputed={r.status === 'DISPUTED'} reloadDetail={reload} />}
+          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <MediationCard key={r.status} requestId={r.id} kind="RESULT" reloadDetail={reload} />}
+          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <DisputeCard key={r.status} requestId={r.id} disputed={r.status === 'DISPUTED'} reloadDetail={reload} />}
 
           {d.resultEvidences.length > 0 && (
             <TxCard title="결과 증빙">
@@ -765,7 +737,16 @@ export function RequestDetailPage() {
           )}
 
           {d.review && (
-            <TxCard title="거래 후기">
+            <TxCard
+              title="거래 후기"
+              actions={
+                !agent && (
+                  <button type="button" className="text-link" disabled={pending} onClick={() => setDialog('deleteReview')}>
+                    후기 삭제
+                  </button>
+                )
+              }
+            >
               <div className="review-rating-date">
                 <span className="stars" aria-label={`${d.review.rating}점`}>
                   {'★'.repeat(d.review.rating)}
@@ -776,16 +757,6 @@ export function RequestDetailPage() {
               {d.review.bookingResult && <p className="record-note">이용자가 후기에 남긴 예매 결과: {resultNames[d.review.bookingResult]}</p>}
               {d.review.comment && <p className="prose">{d.review.comment}</p>}
               {d.review.imageUrl && <ImagePreview src={d.review.imageUrl} alt="후기 인증 사진" className="review-photo" />}
-              {!agent && (
-                <button
-                  type="button"
-                  className="text-link"
-                  disabled={pending}
-                  onClick={() => setDialog('deleteReview')}
-                >
-                  후기 삭제
-                </button>
-              )}
             </TxCard>
           )}
 
@@ -961,6 +932,27 @@ export function RequestDetailPage() {
             )
           }
         />
+      )}
+      {dialog === 'withdraw' && (
+        <ConfirmModal
+          title="이의를 철회할까요?"
+          submitText="이의 철회하고 동의하기"
+          onClose={close}
+          onConfirm={() =>
+            act(async () => {
+              await unwrap(api.POST('/api/requests/{requestId}/dispute/withdraw', { ...path, body: { note: withdrawNote.trim() || undefined } }));
+              setWithdrawNote('');
+            }, '이의를 철회했어요. 도우미가 등록한 결과로 거래가 확정됐어요.')
+          }
+        >
+          <p className="prose">
+            도우미가 등록한 결과(<strong>{r.agentResult ? resultNames[r.agentResult] : '-'}</strong>)로 거래가 <strong>최종 확정</strong>돼요. 확정된 뒤에는 다시 이의를 제기하거나 되돌릴 수 없어요.
+          </p>
+          <Notice>진행 중인 운영팀 조정안은 철회와 함께 종료돼요. 정산·환불은 확정된 결과와 합의 조건에 따라 처리되며, 거래 완료가 지급·환불 완료를 뜻하지는 않아요.</Notice>
+          <Field label="철회 사유">
+            <textarea rows={3} maxLength={10000} value={withdrawNote} onChange={(e) => setWithdrawNote(e.target.value)} placeholder="선택 입력" />
+          </Field>
+        </ConfirmModal>
       )}
       {dialog === 'deleteReview' && (
         <ConfirmModal

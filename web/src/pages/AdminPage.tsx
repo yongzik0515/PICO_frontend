@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import type { components } from '../api/schema';
-import { useLoad } from '../transactions/model';
+import { toRequest, useLoad } from '../transactions/model';
+import { requestRows } from '../transactions/requestRows';
 import { EvidenceFileNames, Field, MoneyInput, Notice, useAction, utcToLocal, won } from '../transactions/ui';
 import { Modal } from '../ui/Modal';
 import { ImagePreview, ImageViewer } from '../ui/ImagePreview';
@@ -77,6 +78,46 @@ function useAdminList(fetcher: () => Promise<unknown>) {
   );
 }
 
+// 후기·신고 응답에는 회원 번호만 있어서 관리자 회원 목록(GET /api/admin/users)으로 닉네임을 찾아 붙인다. 한 번 받아 탭끼리 같이 쓴다.
+let memberNameCache: Promise<Map<number, string>> | null = null;
+function loadMemberNames() {
+  memberNameCache ??= (async () => {
+    const names = new Map<number, string>();
+    // 회원이 많아도 끝없이 받지 않도록 100명씩 최대 20페이지까지만 받는다.
+    for (let page = 0; page < 20; page++) {
+      const rows = list(await unwrap<unknown>(api.GET('/api/admin/users', { params: { query: { page, size: 100 } } })));
+      for (const row of rows) {
+        const id = n(row, 'userId', 'id');
+        const name = s(row, 'nickname', 'name');
+        if (id != null && name) names.set(id, name);
+      }
+      if (rows.length < 100) break;
+    }
+    return names;
+  })().catch((e) => {
+    memberNameCache = null;
+    throw e;
+  });
+  return memberNameCache;
+}
+
+/** 회원 번호를 "닉네임 (#번호)"로 보여 준다. 목록을 못 받았거나 없는 회원이면 "회원 #번호". */
+function useMemberName() {
+  const [names, setNames] = useState<Map<number, string> | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadMemberNames().then((m) => alive && setNames(m), () => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return (id: number | undefined) => {
+    if (id == null) return '';
+    const name = names?.get(id);
+    return name ? `${name} (#${id})` : `회원 #${id}`;
+  };
+}
+
 /** 항목 한 줄: 요약 + 원본 응답 + 동작 버튼 */
 function Item({ title, rows, raw, children }: { title: ReactNode; rows: [string, ReactNode][]; raw: Raw; children?: ReactNode }) {
   return (
@@ -104,7 +145,7 @@ function Item({ title, rows, raw, children }: { title: ReactNode; rows: [string,
 }
 
 /** 사유(필수)를 받아 실행하는 모달 */
-function NoteModal({ title, fields, submitText, danger, onClose, onSubmit }: { title: string; fields: { name: string; label: string; required?: boolean; type?: string; helper?: string; initial?: string; maxLength?: number }[]; submitText: string; danger?: boolean; onClose: () => void; onSubmit: (v: Record<string, string>) => Promise<unknown> }) {
+function NoteModal({ title, message, fields, submitText, danger, onClose, onSubmit }: { title: string; message?: ReactNode; fields: { name: string; label: string; required?: boolean; type?: string; helper?: string; initial?: string; maxLength?: number }[]; submitText: string; danger?: boolean; onClose: () => void; onSubmit: (v: Record<string, string>) => Promise<unknown> }) {
   const [values, setValues] = useState<Record<string, string>>(Object.fromEntries(fields.map((f) => [f.name, f.initial ?? ''])));
   const [pending, setPending] = useState(false);
   const missing = fields.some((f) => f.required && !values[f.name]?.trim());
@@ -120,6 +161,7 @@ function NoteModal({ title, fields, submitText, danger, onClose, onSubmit }: { t
           setPending(false);
         }}
       >
+        {message && <p className="prose">{message}</p>}
         {fields.map((f) => (
           <Field key={f.name} label={f.label} required={f.required} helper={f.helper}>
             {f.type === 'textarea' ? (
@@ -142,7 +184,7 @@ function NoteModal({ title, fields, submitText, danger, onClose, onSubmit }: { t
   );
 }
 
-type Dialog = { title: string; fields: Parameters<typeof NoteModal>[0]['fields']; submitText: string; danger?: boolean; action: (v: Record<string, string>) => Promise<unknown>; success: string } | null;
+type Dialog = { title: string; message?: ReactNode; fields: Parameters<typeof NoteModal>[0]['fields']; submitText: string; danger?: boolean; action: (v: Record<string, string>) => Promise<unknown>; success: string } | null;
 
 function useDialog(reload: () => void) {
   const { pending, run } = useAction();
@@ -150,6 +192,7 @@ function useDialog(reload: () => void) {
   const modal = dialog && (
     <NoteModal
       title={dialog.title}
+      message={dialog.message}
       fields={dialog.fields}
       submitText={dialog.submitText}
       danger={dialog.danger}
@@ -171,6 +214,7 @@ const noteField = (label: string, maxLength: number) => ({ name: 'note', label, 
 
 // ── 요청 정책 검토 ─────────────────────────────────────────
 function PolicyTab() {
+  const member = useMemberName();
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/requests/policy-pending', { params: { query: { page: 0, size: 100 } } })));
   const { open, modal, pending } = useDialog(reload);
   const decide = (row: Raw, allowed: boolean) =>
@@ -191,12 +235,11 @@ function PolicyTab() {
               key={String(n(row, 'requestId', 'id'))}
               raw={row}
               title={`#${n(row, 'requestId', 'id')} ${s(row, 'submittedTargetName', 'targetName')}`}
+              // 요청서 전체 항목(요청 상세와 같은 순서)에 정책 판단에 필요한 정보를 더한다.
               rows={[
-                ['분야', categoryNames[s(row, 'serviceCategory')] ?? s(row, 'serviceCategory')],
-                ['예매처', s(row, 'platformName', 'platform.name', 'otherPlatformName')],
-                ['티켓 오픈', [s(row, 'applicationOpenDate'), s(row, 'applicationOpenTime')].filter(Boolean).join(' ')],
+                ['이용자 → 도우미', `${member(n(row, 'requesterUserId', 'requesterId'))} → ${member(n(row, 'agentUserId', 'agentId'))}`],
+                ...requestRows(toRequest(row)),
                 ['공식 신청 URL', s(row, 'officialApplicationUrl')],
-                ['요청 내용', s(row, 'requirements')],
                 ['요청 시각', utcToLocal(s(row, 'createdAt'))],
               ]}
             >
@@ -1123,7 +1166,8 @@ function ReportResolveModal({ row, onClose, onDone }: { row: Raw; onClose: () =>
   const actions = (Object.keys(reportActionNames) as ReportAction[]).filter((a) => a !== 'HIDE_REVIEW' || hasRequest);
   const needReason = action !== 'NONE';
   const missing = !note.trim() || (needReason && !reason.trim());
-  const target = `회원 #${n(row, 'reportedUserId')}`;
+  const member = useMemberName();
+  const target = member(n(row, 'reportedUserId'));
   return (
     <Modal title={`신고 #${n(row, 'reportId')} 처리 완료`} onClose={onClose}>
       <form
@@ -1183,6 +1227,7 @@ function ReportResolveModal({ row, onClose, onDone }: { row: Raw; onClose: () =>
 
 function ReportsTab() {
   const [status, setStatus] = useState<ReportStatus | ''>('OPEN');
+  const member = useMemberName();
   const [load, reload] = useLoad<Raw[]>(
     () =>
       unwrap(api.GET('/api/admin/reports', { params: { query: { status: status || undefined, page: 0, size: 100 } } })).then(list, (e) => {
@@ -1196,7 +1241,9 @@ function ReportsTab() {
   const [resolving, setResolving] = useState<Raw | null>(null);
   const update = (row: Raw, next: ReportStatus) =>
     open({
-      title: `신고 #${n(row, 'reportId')} ${reportStatusNames[next]}`,
+      title: next === 'INVESTIGATING' ? `신고 #${n(row, 'reportId')} 조사 시작` : `신고 #${n(row, 'reportId')} ${reportStatusNames[next]}`,
+      // 조사 시작은 입력할 내용이 없어(서버가 메모를 받지 않음) 무엇이 바뀌는지만 안내한다.
+      message: next === 'INVESTIGATING' ? '신고 상태를 "조사 중"으로 바꿔요. 신고자에게 조사 중으로 보이고, 조사를 마치면 처리 완료나 처리 안 함으로 닫을 수 있어요.' : undefined,
       fields: next === 'INVESTIGATING' ? [] : [{ name: 'note', label: '처리 사유 (신고자에게 공개)', required: true, type: 'textarea', maxLength: 2000 }],
       submitText: next === 'INVESTIGATING' ? '조사 시작' : reportStatusNames[next],
       danger: next === 'DISMISSED',
@@ -1218,7 +1265,7 @@ function ReportsTab() {
                 raw={row}
                 title={`#${n(row, 'reportId')} ${reportReasonNames[s(row, 'reason')] ?? s(row, 'reason')} · ${reportStatusNames[st] ?? st}`}
                 rows={[
-                  ['신고자 → 대상', `회원 #${n(row, 'reporterUserId')} → 회원 #${n(row, 'reportedUserId')}`],
+                  ['신고자 → 대상', `${member(n(row, 'reporterUserId'))} → ${member(n(row, 'reportedUserId'))}`],
                   ['관련 거래', n(row, 'requestId') ? `#${n(row, 'requestId')}` : ''],
                   ['내용', s(row, 'description')],
                   ['처리 사유', s(row, 'resolutionNote')],
@@ -1322,6 +1369,7 @@ const reviewStatusNames: [ReviewStatus, string][] = [
 
 function ReviewsTab() {
   const [status, setStatus] = useState<ReviewStatus | ''>('VISIBLE');
+  const member = useMemberName();
   const [load, reload] = useLoad<Raw[]>(
     () =>
       unwrap(api.GET('/api/admin/reviews', { params: { query: { status: status || undefined, page: 0, size: 100 } } })).then(list, (e) => {
@@ -1344,7 +1392,7 @@ function ReviewsTab() {
                 raw={row}
                 title={`거래 #${n(row, 'requestId')} · ${'★'.repeat(n(row, 'rating') ?? 0)} · ${hidden ? '숨김' : '공개'}`}
                 rows={[
-                  ['작성자 → 도우미', `회원 #${n(row, 'requesterId')} → 회원 #${n(row, 'agentId')}`],
+                  ['작성자 → 도우미', `${member(n(row, 'requesterId'))} → ${member(n(row, 'agentId'))}`],
                   ['내용', s(row, 'comment')],
                   [
                     '사진',

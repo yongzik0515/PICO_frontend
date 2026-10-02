@@ -2,6 +2,11 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 
+const outside = (el: Element, x: number, y: number) => {
+  const r = el.getBoundingClientRect();
+  return x < r.left || x > r.right || y < r.top || y > r.bottom;
+};
+
 // 프로토타입 openModal()의 <dialog class="modal"> 마크업을 그대로 쓴다.
 export function Modal({
   title,
@@ -18,6 +23,7 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const headingId = useId();
+  const pressedOutside = useRef(false);
 
   useEffect(() => {
     const dialog = ref.current!;
@@ -41,10 +47,14 @@ export function Modal({
         e.stopPropagation();
         onClose();
       }}
+      // 창 안에서 누른 채(글자 선택 드래그 등) 바깥에서 떼도 click은 dialog에서 나므로, 누르기 시작한 곳도 바깥일 때만 닫는다.
+      onPointerDown={(e) => {
+        pressedOutside.current = e.target === e.currentTarget && outside(e.currentTarget, e.clientX, e.clientY);
+      }}
       onClick={(e) => {
-        if (e.target !== e.currentTarget) return;
-        const r = e.currentTarget.getBoundingClientRect();
-        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) onClose();
+        const started = pressedOutside.current;
+        pressedOutside.current = false;
+        if (started && e.target === e.currentTarget && outside(e.currentTarget, e.clientX, e.clientY)) onClose();
       }}
     >
       <header className="modal-header">

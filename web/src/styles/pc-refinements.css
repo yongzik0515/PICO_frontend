@@ -183,3 +183,47 @@ form[data-account-form="application"] .account-form-footer{border-top:1px solid 
 
 /* 예매 가능 날짜 달력: 이전 달 화살표를 왼쪽으로(필터 달력과 같은 규칙, 프로토타입에서 빠져 있던 부분) */
 .availability-month-nav button:first-child svg{transform:rotate(180deg)}
+
+/* 버튼형 선택(예: 후기의 예매 결과). fieldset 기본 테두리를 없애고 legend를 다른 입력 제목과 맞춘다. */
+.choice-field{border:0;padding:0;min-width:0}
+.choice-field legend{font-size:13px;font-weight:600;padding:0;margin-bottom:10px}
+.choice-field legend small{font-size:11px;font-weight:400;color:var(--ink-400);margin-left:5px}
+.choice-field .field-helper{display:block;margin-top:8px}
+
+/* 창 모드(좁은 PC 창). 프로토타입의 모바일 규칙이 1023px 이하에서 이용자/도우미 전환과(767px 이하는) 메뉴·프로필 버튼까지 숨기는데,
+   React 앱에는 대신할 모바일 메뉴가 없어 이동·모드 전환·로그아웃을 할 수 없었다. PC 웹 기준으로 줄여서 계속 보이게 한다. */
+@media (max-width:1023px){
+  .header-right>.mode-switch{display:flex}
+  .header-right>.support-link{display:none}
+  .nav-wrap{gap:20px}
+  .desktop-nav{gap:18px}
+}
+@media (max-width:767px){
+  .desktop-nav{display:flex}
+  .header-right>.my-avatar{display:inline-flex;align-items:center;justify-content:center}
+  .nav-wrap{gap:12px}
+  .desktop-nav{gap:12px}
+  .desktop-nav button{font-size:14px}
+  .header-right{gap:6px}
+  .mode-switch button{padding:6px 9px;font-size:12px}
+}
+
+/* 로그인: 1023px 이하에서는 소개(왼쪽)와 로그인 카드가 두 칸에 끼어 소개 문구가 한 단어씩 줄바꿈되고 티켓 그림이 카드와 겹쳤다. 한 칸으로 바꾸고 소개는 숨긴다. */
+@media (max-width:1023px){
+  .login-with-intro{grid-template-columns:minmax(0,470px);justify-content:center;gap:0;min-height:0}
+  .login-with-intro .account-auth-aside{display:none}
+}
+
+/* 좁은 창(768~1023px)에서 거래 화면의 오른쪽 칸(320px)이 고정이라 본문이 370px 정도로 좁아졌다. 오른쪽 칸을 줄여 본문 폭을 확보한다.
+   한 칸으로 바꾸면 매칭권 충전처럼 오른쪽 칸에 실행 버튼이 있는 화면에서 버튼이 목록 아래로 밀려나서 두 칸은 유지한다. */
+@media (min-width:768px) and (max-width:1023px){
+  .tx-layout{grid-template-columns:minmax(0,1fr) 260px;gap:20px}
+  .page{padding-left:20px;padding-right:20px}
+}
+
+/* 좁은 창(767px 이하)의 모달: '.modal-body .field:first-child{margin-top:0}'가 두 칸 줄(form-grid)의 첫 칸에도 걸려
+   예매처 등록의 '코드'만 위로 올라가 '이름'과 어긋났다. 두 칸 줄 안의 칸들은 위 여백을 똑같이 맞춘다. */
+@media (max-width:767px){
+  .modal-body .form-grid>.field,
+  .modal-body .form-grid>.field:first-child{margin-top:0}
+}

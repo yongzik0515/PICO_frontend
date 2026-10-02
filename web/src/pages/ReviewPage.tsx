@@ -13,6 +13,11 @@ import { useToast } from '../ui/Toast';
 // 명세: POST /api/requests/{id}/review {rating 1~5, comment ≤400, imageKey?} — COMPLETED 거래의 이용자만, 한 번.
 // 사진은 서버가 JPEG·PNG만 공개본으로 다시 만든다(WebP·HEIC는 업로드는 되지만 후기에 보이지 않음). 그래서 JPG·PNG만 받는다.
 const REVIEW_IMAGE_TYPES = ['image/jpeg', 'image/png'];
+const bookingResults: [RequestResult, string][] = [
+  ['SUCCESS', '성공'],
+  ['PARTIAL', '부분 성공'],
+  ['FAILURE', '실패'],
+];
 function StarField({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
     <fieldset className="field star-field">
@@ -105,16 +110,21 @@ export function ReviewPage() {
           <p className="prose">{r.agentName} 도우미와 함께한 경험을 다른 이용자에게 알려 주세요.</p>
           <form id="review-form" noValidate onSubmit={submit}>
             <StarField value={rating} onChange={setRating} />
-            <label className="field">
-              <span>예매 결과 <small>선택</small></span>
-              <select value={bookingResult} onChange={(e) => setBookingResult(e.target.value as RequestResult | '')}>
-                <option value="">선택하지 않음</option>
-                <option value="SUCCESS">성공</option>
-                <option value="PARTIAL">부분 성공</option>
-                <option value="FAILURE">실패</option>
-              </select>
-              <small className="field-helper">이용자가 후기에 남기는 정보예요. 결제·정산의 확정 결과에는 영향을 주지 않아요.</small>
-            </label>
+            <fieldset className="field choice-field">
+              <legend>
+                예매 결과 <small>선택</small>
+              </legend>
+              <div className="account-choice-chips">
+                {bookingResults.map(([value, label]) => (
+                  <label key={value}>
+                    {/* 선택 항목이라 같은 버튼을 다시 누르면 선택을 해제한다(라디오는 다시 눌러도 change가 없어 click으로 처리). */}
+                    <input type="radio" name="bookingResult" value={value} checked={bookingResult === value} onChange={() => undefined} onClick={() => setBookingResult(bookingResult === value ? '' : value)} />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+              <small className="field-helper">이용자가 후기에 남기는 정보예요. 다시 누르면 선택이 풀려요. 결제·정산의 확정 결과에는 영향을 주지 않아요.</small>
+            </fieldset>
             <label className="field">
               <span>
                 후기 <small>선택</small>

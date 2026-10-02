@@ -105,13 +105,15 @@ export interface Platform {
 let platformCache: Promise<Platform[]> | null = null;
 // 한 번 받은 목록. 나중에 열리는 필터 모달이 첫 렌더부터 예매처를 알 수 있게 한다.
 let platformList: Platform[] = [];
-/** GET /api/platforms. 관리자가 등록한 예매처 목록(필터 선택지와 platformIds 변환에 쓴다) */
+/** 관리자가 예매처를 등록·수정·삭제하면 다음 화면에서 새 목록을 받도록 캐시를 비운다. */
 export function clearPlatformCache() {
   platformCache = null;
   platformList = [];
 }
 
-export function loadPlatforms() {
+/** GET /api/platforms. 관리자가 등록한 예매처 목록(필터 선택지와 platformIds 변환에 쓴다). 삭제한 예매처는 서버가 빼고 준다. */
+export function loadPlatforms(fresh = false) {
+  if (fresh) platformCache = null;
   platformCache ??= unwrap<Raw[]>(api.GET('/api/platforms'))
     .then((list) => list.map((p) => ({ id: num(p.id) ?? 0, name: str(p.name) || '' })).filter((p) => p.id && p.name))
     .then((list) => (platformList = list))
@@ -123,11 +125,19 @@ export function loadPlatforms() {
 }
 
 export function usePlatforms() {
-  const [platforms, setPlatforms] = useState<Platform[]>(platformList);
+  return useFreshPlatforms(false).platforms;
+}
+
+/** fresh: 화면을 열 때마다 새로 받는다(도우미 신청처럼 삭제된 예매처를 바로 빼야 하는 화면). loaded는 서버 목록을 받았는지. */
+export function useFreshPlatforms(fresh = true) {
+  const [state, setState] = useState({ platforms: platformList, loaded: !fresh && platformList.length > 0, failed: false });
   useEffect(() => {
-    loadPlatforms().then(setPlatforms, () => {});
-  }, []);
-  return platforms;
+    loadPlatforms(fresh).then(
+      (platforms) => setState({ platforms, loaded: true, failed: false }),
+      () => setState((s) => ({ ...s, failed: true })),
+    );
+  }, [fresh]);
+  return state;
 }
 
 // 명세에 착수비 높은순(PRICE_DESC)이 없어 high는 PRICE_ASC 결과를 뒤집는다(한 페이지 100명 안에서만 정확).

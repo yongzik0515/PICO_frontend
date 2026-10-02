@@ -20,11 +20,12 @@ import {
 } from '../agent/profile';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
-import { categoryNames, usePlatforms } from '../discovery/agent';
-import { useLoad } from '../transactions/model';
+import { categoryNames, useFreshPlatforms } from '../discovery/agent';
+import { myUserId, useLoad } from '../transactions/model';
 import { FilePicker, MoneyInput, kstDay, useAction } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
 import { ImagePreview } from '../ui/ImagePreview';
+import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
 import { Verification } from '../ui/account';
 import { money } from '../ui/format';
@@ -82,7 +83,8 @@ function Progress({ step }: { step: number }) {
 }
 
 /** 공개 프로필 미리보기(프로토타입 publicPreview) */
-function PublicPreview({ p, platformNames, image }: { p: ProfileBody; platformNames: string[]; image?: string }) {
+/** stats: 신규 신청자용 '기록 없음' 통계 칸. 이미 활동 중인 도우미의 공개 프로필 미리보기에서는 실제 통계와 달라 숨긴다. */
+function PublicPreview({ p, platformNames, image, stats = true }: { p: ProfileBody; platformNames: string[]; image?: string; stats?: boolean }) {
   return (
     <div className="account-public-preview">
       <section className="content-card">
@@ -98,6 +100,8 @@ function PublicPreview({ p, platformNames, image }: { p: ProfileBody; platformNa
             <p>{p.headline || '한 줄 소개를 입력해 주세요.'}</p>
           </div>
         </div>
+        {stats && (
+        <>
         <div className="account-preview-stats">
           <div>
             <span>플랫폼 거래</span>
@@ -113,6 +117,8 @@ function PublicPreview({ p, platformNames, image }: { p: ProfileBody; platformNa
           </div>
         </div>
         <p className="account-caption left">플랫폼에서 확인된 거래 기록이 쌓이면 표시돼요. 직접 입력한 경력은 거래 통계에 포함하지 않습니다.</p>
+        </>
+        )}
       </section>
       <Card title="도우미 소개">
         <p className="account-prewrap prose">{p.bio || '상세 소개를 입력해 주세요.'}</p>
@@ -158,26 +164,14 @@ function PublicPreview({ p, platformNames, image }: { p: ProfileBody; platformNa
   );
 }
 
-function StatusView({ state, onResume, reload }: { state: AgentState; onResume: () => void; reload: () => void }) {
-  const navigate = useNavigate();
+/** 공개 설정(도우미 찾기 목록 공개·새 요청 받기). 신청 현황과 공개 프로필 화면이 같이 쓴다. */
+function VisibilityCard({ reload }: { reload: () => void }) {
   const toast = useToast();
   const { me, reloadMe } = useAuth();
-  const latest = state.latest!;
-  // 게시된(승인) 버전이 있으면 새로 고친 버전이 심사 중이거나 반려돼도 공개 프로필은 그대로 공개 중이다.
-  const s: ProfileStatus = state.approved ? 'approved' : latest.status;
-  const revision = state.approved && latest.id !== state.approved.id ? latest.status : undefined;
   // 공개 설정의 현재 값은 GET /api/me(isListed·acceptsRequests)에 있다. 하나를 바꿀 때 다른 하나를 그대로 보내야 한다.
   const flag = (v: unknown) => v === true || v === 1;
   const [changed, setVisibility] = useState<{ listed: boolean; acceptsRequests: boolean } | null>(null);
   const visibility = changed ?? { listed: flag(me?.isListed), acceptsRequests: flag(me?.acceptsRequests) };
-  const data: Record<ProfileStatus, [string, string, 'clock' | 'check' | 'info']> = {
-    archived: ['이전 게시본이에요', '새 버전이 게시되어 이 버전은 보관됐어요.', 'info'],
-    draft: ['신청서를 작성하고 있어요', '이어서 작성하고 제출해 주세요.', 'info'],
-    review: ['신청 내용을 확인하고 있어요', '공개 프로필과 인증·경력 자료를 확인한 뒤 알림으로 안내할게요. 승인 전에는 받은 요청과 매칭 관리를 이용할 수 없어요.', 'clock'],
-    approved: ['도우미 활동을 시작할 수 있어요', '공개 프로필로 직접 도착한 요청을 확인하고, 수락한 거래는 매칭 관리에서 이어가세요.', 'check'],
-    rejected: ['신청이 승인되지 않았어요', latest.reviewNote || '활동 기준을 확인한 뒤 프로필과 경력 자료를 보완하여 다시 신청할 수 있어요.', 'info'],
-  };
-  const [title, text, icon] = data[s];
 
   async function saveVisibility(next: typeof visibility) {
     const before = changed;
@@ -192,6 +186,36 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
       toast(e instanceof Error ? e.message : '공개 설정을 저장하지 못했어요.');
     }
   }
+
+  return (
+    <Card title="공개 설정">
+      <label className="check-row">
+        <input type="checkbox" disabled={!me} checked={visibility.listed} onChange={(e) => void saveVisibility({ ...visibility, listed: e.target.checked })} />
+        도우미 찾기 목록에 내 프로필 공개
+      </label>
+      <label className="check-row">
+        <input type="checkbox" disabled={!me} checked={visibility.acceptsRequests} onChange={(e) => void saveVisibility({ ...visibility, acceptsRequests: e.target.checked })} />
+        새 요청 받기
+      </label>
+      <p className="record-note">잠시 쉬고 싶을 때 끄면 목록에서 숨겨지거나 새 요청을 받지 않아요. 진행 중인 거래는 그대로 이어져요.</p>
+    </Card>
+  );
+}
+
+function StatusView({ state, onResume, reload }: { state: AgentState; onResume: () => void; reload: () => void }) {
+  const navigate = useNavigate();
+  const latest = state.latest!;
+  // 게시된(승인) 버전이 있으면 새로 고친 버전이 심사 중이거나 반려돼도 공개 프로필은 그대로 공개 중이다.
+  const s: ProfileStatus = state.approved ? 'approved' : latest.status;
+  const revision = state.approved && latest.id !== state.approved.id ? latest.status : undefined;
+  const data: Record<ProfileStatus, [string, string, 'clock' | 'check' | 'info']> = {
+    archived: ['이전 게시본이에요', '새 버전이 게시되어 이 버전은 보관됐어요.', 'info'],
+    draft: ['신청서를 작성하고 있어요', '이어서 작성하고 제출해 주세요.', 'info'],
+    review: ['신청 내용을 확인하고 있어요', '공개 프로필과 인증·경력 자료를 확인한 뒤 알림으로 안내할게요. 승인 전에는 받은 요청과 매칭 관리를 이용할 수 없어요.', 'clock'],
+    approved: ['도우미 활동을 시작할 수 있어요', '공개 프로필로 직접 도착한 요청을 확인하고, 수락한 거래는 매칭 관리에서 이어가세요.', 'check'],
+    rejected: ['신청이 승인되지 않았어요', latest.reviewNote || '활동 기준을 확인한 뒤 프로필과 경력 자료를 보완하여 다시 신청할 수 있어요.', 'info'],
+  };
+  const [title, text, icon] = data[s];
 
   return (
     <div className="account-contained">
@@ -218,7 +242,7 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
               {/* 심사 중인 수정본이 있으면 서버가 새 수정을 받지 않는다(409). */}
               {revision !== 'review' && (
                 <button type="button" className="btn secondary full" onClick={() => navigate('/helper-profile')}>
-                  공개 프로필 수정
+                  공개 프로필 관리
                 </button>
               )}
             </>
@@ -235,19 +259,7 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
         {state.approved?.careerSourceProfileId && <Note>공개 내용은 수정해 바로 게시한 버전이에요. 인증·경력은 기존에 승인된 자료를 유지하고 있어요.</Note>}
         {latest.submittedAt && <small className="account-caption">신청일 {kstDay(latest.submittedAt)}</small>}
       </section>
-      {s === 'approved' && (
-        <Card title="공개 설정">
-          <label className="check-row">
-            <input type="checkbox" disabled={!me} checked={visibility.listed} onChange={(e) => void saveVisibility({ ...visibility, listed: e.target.checked })} />
-            도우미 찾기 목록에 내 프로필 공개
-          </label>
-          <label className="check-row">
-            <input type="checkbox" disabled={!me} checked={visibility.acceptsRequests} onChange={(e) => void saveVisibility({ ...visibility, acceptsRequests: e.target.checked })} />
-            새 요청 받기
-          </label>
-          <p className="record-note">잠시 쉬고 싶을 때 끄면 목록에서 숨겨지거나 새 요청을 받지 않아요. 진행 중인 거래는 그대로 이어져요.</p>
-        </Card>
-      )}
+      {s === 'approved' && <VisibilityCard reload={reload} />}
     </div>
   );
 }
@@ -257,7 +269,8 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
   const toast = useToast();
   const { me, reloadMe } = useAuth();
   const [, setApp] = useAppState();
-  const platforms = usePlatforms();
+  // 관리자가 예매처를 삭제(사용 중지)했을 수 있어 신청 화면을 열 때마다 새로 받는다.
+  const { platforms, loaded: platformsLoaded, failed: platformsFailed } = useFreshPlatforms();
   const [load, reload] = useLoad(fetchAgentState, []);
   const [started, setStarted] = useState(false);
   const [step, setStep] = useState(0);
@@ -268,6 +281,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
   const [career, setCareer] = useState<Record<number, { files: File[]; description: string }>>({});
   const [business, setBusiness] = useState('');
   const [agreed, setAgreed] = useState({ rules: false, contact: false });
+  const [previewOpen, setPreviewOpen] = useState(false);
   const { pending, run } = useAction();
 
   if (load.status === 'loading')
@@ -288,9 +302,10 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
   const { latest } = state;
   // /helper-profile(헤더 '프로필 수정')로 들어와도 승인된 프로필이 없으면 수정이 아니라 신규 신청 흐름이다.
   const edit = editRoute && !!state.approved;
-  const inForm = started || edit || latest?.status === 'draft';
+  // 승인된 도우미에게 예전 흐름의 초안이 남아 있어도 신청 단계 화면을 띄우지 않는다. 공개 내용 수정은 /helper-profile에서 바로 반영한다.
+  const inForm = started || edit || (latest?.status === 'draft' && !state.approved);
 
-  if (!inForm && latest && latest.status !== 'draft') return <StatusView state={state} reload={reload} onResume={() => setStarted(true)} />;
+  if (!inForm && latest && (latest.status !== 'draft' || state.approved)) return <StatusView state={state} reload={reload} onResume={() => setStarted(true)} />;
 
   if (!inForm)
     return (
@@ -337,7 +352,10 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
 
   // 작성 중이던 초안 → 반려·수정이면 마지막 버전 → 처음이면 빈 양식
   const base = (edit ? state.approved?.body : latest?.body) ?? { ...emptyProfile(), activityName: str(me?.nickname) ?? '' };
-  const p = draft ?? base;
+  const saved = draft ?? base;
+  // 이전에 골랐지만 지금 목록에 없는 예매처(관리자가 삭제)는 선택에서 빼고 저장한다. 목록을 받기 전에는 판단하지 않는다.
+  const removedPlatforms = platformsLoaded ? saved.platformIds.filter((id) => !platforms.some((x) => x.id === id)) : [];
+  const p = removedPlatforms.length ? { ...saved, platformIds: saved.platformIds.filter((id) => !removedPlatforms.includes(id)) } : saved;
   const set = (patch: Partial<ProfileBody>) => setDraft({ ...p, ...patch });
   const caseStates = careerCaseStates(state.evidence);
   const submittedCases = caseStates.map((c) => c.caseNumber);
@@ -367,9 +385,13 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
         const saved = await saveDraft(body);
         if (image && saved.id) await uploadProfileImage(saved.id, image.file);
       }
-    }, edit ? '공개 프로필을 수정했어요.' : '공개 프로필을 임시저장했어요.');
+    }, edit ? '공개 프로필을 저장했어요. 바로 반영돼요.' : '공개 프로필을 임시저장했어요.');
     if (ok) {
-      if (edit) return navigate('/application', { replace: true });
+      if (edit) {
+        setDraft(null);
+        setImage(null);
+        return reload();
+      }
       setDraft(body);
       setStep(1);
       reload();
@@ -453,137 +475,183 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
     </>
   );
 
+  const profileForm = (
+      <form noValidate onSubmit={saveStep0}>
+        <Card title={edit ? '프로필 정보' : '공개 프로필'}>
+          <div className="account-image-picker">
+            <span className="avatar blue">
+              {image || (edit ? state.approved?.imageUrl : latest?.imageUrl) ? <img src={image?.url ?? (edit ? state.approved?.imageUrl : latest?.imageUrl)} alt="" /> : p.activityName[0] || '나'}
+              <span className="avatar-spark">✦</span>
+            </span>
+            <div>
+              <strong>
+                프로필 이미지 <small className="account-required">선택</small>
+              </strong>
+              <p>나를 표현하는 사진을 등록해 주세요.</p>
+              <div className="account-inline">
+                <label className="btn secondary account-file-label">
+                  {image ? '이미지 변경' : '이미지 선택'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!f) return;
+                      if (f.size > 3 * 1024 * 1024) return toast('이미지는 3MB까지 올릴 수 있어요.');
+                      setImage({ file: f, url: URL.createObjectURL(f) });
+                    }}
+                  />
+                </label>
+                {image && (
+                  <button type="button" className="btn ghost" onClick={() => setImage(null)}>
+                    삭제
+                  </button>
+                )}
+              </div>
+              <small>JPG · PNG / 최대 3MB</small>
+            </div>
+          </div>
+          <Note>이 화면의 소개와 활동 정보는 공개 프로필에 표시돼요. 연락처와 인증 제출 자료는 공개하지 않습니다.</Note>
+          <Field label="활동 닉네임" required>
+            <input required maxLength={50} value={p.activityName} onChange={(e) => set({ activityName: e.target.value })} placeholder="활동할 이름을 입력해 주세요" />
+          </Field>
+          <Field label="한 줄 소개" required helper="도우미 목록과 공개 프로필에 표시돼요. 최대 150자">
+            <input required maxLength={150} value={p.headline} onChange={(e) => set({ headline: e.target.value })} placeholder="어떤 도움을 드릴 수 있는지 소개해 주세요" />
+          </Field>
+          <Field label="상세 소개" required helper="경험과 진행 방식을 직접 소개해 주세요. 직접 작성한 경력은 검증된 실적으로 표시되지 않아요.">
+            <textarea rows={5} required maxLength={10000} value={p.bio} onChange={(e) => set({ bio: e.target.value })} />
+          </Field>
+          <fieldset className="account-fieldset">
+            <legend>
+              가능한 예매처 <small className="account-required">필수 · 복수 선택</small>
+            </legend>
+            <div className="account-choice-chips">
+              {platforms.map((x) => (
+                <label key={x.id}>
+                  <input
+                    type="checkbox"
+                    checked={p.platformIds.includes(x.id)}
+                    onChange={(e) => set({ platformIds: e.target.checked ? [...p.platformIds, x.id] : p.platformIds.filter((id) => id !== x.id) })}
+                  />
+                  <span>{x.name}</span>
+                </label>
+              ))}
+            </div>
+            {removedPlatforms.length > 0 && <p className="record-note">이전에 선택한 예매처 중 {removedPlatforms.length}곳이 삭제되어 선택에서 빠졌어요. 저장하면 공개 프로필에도 반영돼요.</p>}
+            {!platforms.length && <p className="record-note">{platformsLoaded ? '선택할 수 있는 예매처가 없어요.' : platformsFailed ? '예매처 목록을 불러오지 못했어요.' : '예매처 목록을 불러오는 중이에요.'}</p>}
+          </fieldset>
+          <fieldset className="account-fieldset">
+            <legend>
+              공연 분야 <small className="account-required">필수 · 복수 선택</small>
+            </legend>
+            <div className="account-choice-chips">
+              {categories.map((c) => (
+                <label key={c}>
+                  <input
+                    type="checkbox"
+                    checked={p.categories.includes(c)}
+                    onChange={(e) => {
+                      const next = e.target.checked ? [...p.categories, c] : p.categories.filter((x) => x !== c);
+                      set({ categories: next, primaryCategory: next.includes(p.primaryCategory) ? p.primaryCategory : (next[0] ?? 'CONCERT') });
+                    }}
+                  />
+                  <span>{categoryNames[c]}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="form-grid">
+            <Field label="주로 맡는 공연 분야" required>
+              <select required value={p.primaryCategory} onChange={(e) => set({ primaryCategory: e.target.value as Category })}>
+                {(p.categories.length ? p.categories : categories).map((c) => (
+                  <option key={c} value={c}>
+                    {categoryNames[c]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="활동 가능 시간·일정" required>
+              <input required maxLength={500} value={p.contactHoursNote ?? ''} onChange={(e) => set({ contactHoursNote: e.target.value })} placeholder="평일 18:00~23:00, 주말 오후" />
+            </Field>
+          </div>
+          <Field label="최소 착수비 (원)" required helper="예매에 착수하는 비용이에요. 공개 프로필에 최소 착수비로 표시합니다.">
+            <MoneyInput required value={p.upfrontFeeKrw} onChange={(n) => set({ upfrontFeeKrw: n })} />
+          </Field>
+          <div className="form-grid">
+            <Field label="수고비 최소 (원)" required>
+              <MoneyInput required value={p.successFeeMin} onChange={(n) => set({ successFeeMin: n })} />
+            </Field>
+            <Field label="수고비 최대 (원)" required>
+              <MoneyInput required value={p.successFeeMax} onChange={(n) => set({ successFeeMax: n })} />
+            </Field>
+          </div>
+          <p className="account-caption left">
+            수고비는 협의한 성공 조건을 충족했을 때의 비용이에요.
+            <br />
+            공개 금액은 안내용이며, 거래별 최종 조건에서 금액을 확정합니다.
+          </p>
+          {footer(edit ? '변경 사항 저장' : '다음')}
+        </Card>
+      </form>
+  );
+
+  if (edit) {
+    const myId = myUserId(me);
+    return (
+      <>
+        <PageTitle title="공개 프로필" crumbs={[{ label: '마이페이지', to: '/my' }]} />
+        <p className="prose">이용자가 도우미 찾기와 프로필 화면에서 보는 정보예요. 저장하면 심사 없이 바로 반영돼요.</p>
+        <div className="detail-layout public-profile-layout">
+          <div>{profileForm}</div>
+          <aside className="public-profile-side">
+            <Card title="공개 상태">
+              {me?.isListed === true || me?.isListed === 1 ? <span className="badge verified">공개 중</span> : <span className="badge neutral">도우미 찾기 목록에서 숨김</span>}
+              <p className="prose">이미 승인된 인증과 경력 자료는 그대로 유지돼요. 소개·활동 정보·비용만 고칠 수 있어요.</p>
+              <div className="account-status-actions">
+                <button type="button" className="btn secondary full" onClick={() => setPreviewOpen(true)}>
+                  저장 전 미리보기
+                </button>
+                {myId && (
+                  <button type="button" className="btn ghost full" onClick={() => navigate(`/agents/${myId}`)}>
+                    내 공개 프로필 보기
+                  </button>
+                )}
+              </div>
+            </Card>
+            <VisibilityCard reload={reload} />
+          </aside>
+        </div>
+        {previewOpen && (
+          <Modal title="공개 프로필 미리보기" wide onClose={() => setPreviewOpen(false)}>
+            <PublicPreview p={p} platformNames={platformNames} image={image?.url ?? state.approved?.imageUrl} stats={false} />
+          </Modal>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="account-form-layout">
       <aside className="account-form-aside">
-        <span className="tiny-label">{edit ? '공개 프로필 수정' : '도우미 신청'}</span>
-        <h2>{edit ? '내 공개 정보를 새롭게 알려요.' : <>프로필부터<br />차근차근 준비해요.</>}</h2>
-        <p>{edit ? '소개와 활동 정보, 비용을 수정하고 저장하면 바로 반영돼요.' : <>단계마다 서버에 임시저장돼요.<br />잠시 나갔다 와도 이어서 작성할 수 있어요.</>}</p>
-        {edit ? <Note>소개·활동 정보·비용을 수정하면 바로 반영돼요. 이미 승인된 인증과 경력 자료는 다시 제출하지 않아도 돼요.</Note> : <Progress step={step} />}
-        <span className="badge neutral">{edit ? '수정 중' : '작성 중'}</span>
+        <span className="tiny-label">도우미 신청</span>
+        <h2>
+          프로필부터
+          <br />
+          차근차근 준비해요.
+        </h2>
+        <p>
+          단계마다 서버에 임시저장돼요.
+          <br />
+          잠시 나갔다 와도 이어서 작성할 수 있어요.
+        </p>
+        <Progress step={step} />
+        <span className="badge neutral">작성 중</span>
       </aside>
       <div>
-        <PageTitle title={edit ? '공개 프로필 수정' : titles[0]} crumbs={[{ label: '마이페이지', to: '/my' }]} />
+        <PageTitle title={titles[0]} crumbs={[{ label: '마이페이지', to: '/my' }]} />
         <p className="prose">{titles[1]}</p>
-        {step === 0 && (
-          <form noValidate onSubmit={saveStep0}>
-            <Card title="공개 프로필">
-              <div className="account-image-picker">
-                <span className="avatar blue">
-                  {image || (edit ? state.approved?.imageUrl : latest?.imageUrl) ? <img src={image?.url ?? (edit ? state.approved?.imageUrl : latest?.imageUrl)} alt="" /> : p.activityName[0] || '나'}
-                  <span className="avatar-spark">✦</span>
-                </span>
-                <div>
-                  <strong>
-                    프로필 이미지 <small className="account-required">선택</small>
-                  </strong>
-                  <p>나를 표현하는 사진을 등록해 주세요.</p>
-                  <div className="account-inline">
-                    <label className="btn secondary account-file-label">
-                      {image ? '이미지 변경' : '이미지 선택'}
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          e.target.value = '';
-                          if (!f) return;
-                          if (f.size > 3 * 1024 * 1024) return toast('이미지는 3MB까지 올릴 수 있어요.');
-                          setImage({ file: f, url: URL.createObjectURL(f) });
-                        }}
-                      />
-                    </label>
-                    {image && (
-                      <button type="button" className="btn ghost" onClick={() => setImage(null)}>
-                        삭제
-                      </button>
-                    )}
-                  </div>
-                  <small>JPG · PNG / 최대 3MB</small>
-                </div>
-              </div>
-              <Note>이 화면의 소개와 활동 정보는 공개 프로필에 표시돼요. 연락처와 인증 제출 자료는 공개하지 않습니다.</Note>
-              <Field label="활동 닉네임" required>
-                <input required maxLength={50} value={p.activityName} onChange={(e) => set({ activityName: e.target.value })} placeholder="활동할 이름을 입력해 주세요" />
-              </Field>
-              <Field label="한 줄 소개" required helper="도우미 목록과 공개 프로필에 표시돼요. 최대 150자">
-                <input required maxLength={150} value={p.headline} onChange={(e) => set({ headline: e.target.value })} placeholder="어떤 도움을 드릴 수 있는지 소개해 주세요" />
-              </Field>
-              <Field label="상세 소개" required helper="경험과 진행 방식을 직접 소개해 주세요. 직접 작성한 경력은 검증된 실적으로 표시되지 않아요.">
-                <textarea rows={5} required maxLength={10000} value={p.bio} onChange={(e) => set({ bio: e.target.value })} />
-              </Field>
-              <fieldset className="account-fieldset">
-                <legend>
-                  가능한 예매처 <small className="account-required">필수 · 복수 선택</small>
-                </legend>
-                <div className="account-choice-chips">
-                  {platforms.map((x) => (
-                    <label key={x.id}>
-                      <input
-                        type="checkbox"
-                        checked={p.platformIds.includes(x.id)}
-                        onChange={(e) => set({ platformIds: e.target.checked ? [...p.platformIds, x.id] : p.platformIds.filter((id) => id !== x.id) })}
-                      />
-                      <span>{x.name}</span>
-                    </label>
-                  ))}
-                </div>
-                {!platforms.length && <p className="record-note">예매처 목록을 불러오지 못했어요.</p>}
-              </fieldset>
-              <fieldset className="account-fieldset">
-                <legend>
-                  공연 분야 <small className="account-required">필수 · 복수 선택</small>
-                </legend>
-                <div className="account-choice-chips">
-                  {categories.map((c) => (
-                    <label key={c}>
-                      <input
-                        type="checkbox"
-                        checked={p.categories.includes(c)}
-                        onChange={(e) => {
-                          const next = e.target.checked ? [...p.categories, c] : p.categories.filter((x) => x !== c);
-                          set({ categories: next, primaryCategory: next.includes(p.primaryCategory) ? p.primaryCategory : (next[0] ?? 'CONCERT') });
-                        }}
-                      />
-                      <span>{categoryNames[c]}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <div className="form-grid">
-                <Field label="주로 맡는 공연 분야" required>
-                  <select required value={p.primaryCategory} onChange={(e) => set({ primaryCategory: e.target.value as Category })}>
-                    {(p.categories.length ? p.categories : categories).map((c) => (
-                      <option key={c} value={c}>
-                        {categoryNames[c]}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="활동 가능 시간·일정" required>
-                  <input required maxLength={500} value={p.contactHoursNote ?? ''} onChange={(e) => set({ contactHoursNote: e.target.value })} placeholder="평일 18:00~23:00, 주말 오후" />
-                </Field>
-              </div>
-              <Field label="최소 착수비 (원)" required helper="예매에 착수하는 비용이에요. 공개 프로필에 최소 착수비로 표시합니다.">
-                <MoneyInput required value={p.upfrontFeeKrw} onChange={(n) => set({ upfrontFeeKrw: n })} />
-              </Field>
-              <div className="form-grid">
-                <Field label="수고비 최소 (원)" required>
-                  <MoneyInput required value={p.successFeeMin} onChange={(n) => set({ successFeeMin: n })} />
-                </Field>
-                <Field label="수고비 최대 (원)" required>
-                  <MoneyInput required value={p.successFeeMax} onChange={(n) => set({ successFeeMax: n })} />
-                </Field>
-              </div>
-              <p className="account-caption left">
-                수고비는 협의한 성공 조건을 충족했을 때의 비용이에요.
-                <br />
-                공개 금액은 안내용이며, 거래별 최종 조건에서 금액을 확정합니다.
-              </p>
-              {footer(edit ? '변경 사항 저장' : '다음')}
-            </Card>
-          </form>
-        )}
+        {step === 0 && profileForm}
         {step === 1 && (
           <form noValidate onSubmit={saveStep1}>
             <Card title="계정 인증">
