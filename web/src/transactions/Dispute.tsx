@@ -46,10 +46,10 @@ export function DisputeCard({ requestId, disputed, reloadDetail }: { requestId: 
 
   return (
     <TxCard title="분쟁 소명">
-      <p className="prose">운영팀이 최종 결과를 정할 때 참고해요. 여기 적은 내용과 파일은 운영팀만 보고, 상대방에게는 보이지 않아요.</p>
+      <p className="prose">운영팀이 결과 조정안을 만들 때 참고해요. 여기 적은 내용과 파일은 운영팀만 보고, 상대방에게는 보이지 않아요.</p>
       {openQuestion && (
         <Notice tone="error">
-          운영팀이 추가 자료를 요청했어요{str(pick(openQuestion, 'replyDueAt')) ? ` (${utcToLocal(str(pick(openQuestion, 'replyDueAt'))!)}까지)` : ''}. 기한이 지나면 있는 자료로 결과를 정해요.
+          운영팀이 추가 자료를 요청했어요{str(pick(openQuestion, 'replyDueAt')) ? ` (${utcToLocal(str(pick(openQuestion, 'replyDueAt'))!)}까지)` : ''}. 기한이 지나면 있는 자료로 조정안을 만들어요.
         </Notice>
       )}
       {messages.length > 0 && (

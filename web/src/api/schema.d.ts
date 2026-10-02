@@ -447,7 +447,7 @@ export interface paths {
         put?: never;
         /**
          * 대행자가 처리 결과 제출
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다. 안전거래의 도우미만 IN_PROGRESS에서 한 번 제출합니다. 결과 증빙은 선택이고, FAILURE는 최신 시도 증빙이 SUBMITTED·APPROVED·REJECTED 중 하나여야 합니다(반려돼도 결과 제출 가능, 이용자 불복 시 운영팀이 판단). 제출 후 24시간 동안 이용자가 답하지 않으면 관리자가 확정할 수 있습니다. 결과 제출 뒤 도우미가 결과 증빙을 추가하면 그 시각부터 다시 24시간입니다(요청 상세 resultConfirmDueAt).
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다. 안전거래의 도우미만 IN_PROGRESS에서 한 번 제출합니다. 결과 증빙은 선택이고, FAILURE는 최신 시도 증빙이 SUBMITTED·APPROVED·REJECTED 중 하나여야 합니다(반려돼도 결과 제출 가능, 이용자 불복 시 운영팀이 판단). 제출 후 72시간(3일) 동안 이용자가 답하지 않으면 관리자가 확정할 수 있습니다. 결과 제출 뒤 도우미가 결과 증빙을 추가하면 그 시각부터 다시 72시간입니다(요청 상세 resultConfirmDueAt).
          */
         post: operations["result"];
         delete?: never;
@@ -535,7 +535,7 @@ export interface paths {
         put?: never;
         /**
          * 부분성공 정산 금액 제안
-         * @description 지정 도우미만, 최종 결과 PARTIAL(COMPLETED)인 안전거래에서 한 번 제안합니다. 금액은 0 이상 합의 성공보수 이하이며 최종 합의안의 부분성공 조건을 근거로 적습니다. 이미 제안됐거나 결제·성공보수가 없으면 409입니다.
+         * @description 지정 도우미만, 최종 결과 PARTIAL(COMPLETED)인 안전거래에서 제안합니다. 처음이거나 이용자가 이전 제안을 반려한 뒤에는 몇 번이든 새 금액을 제안할 수 있고(회차가 올라감), 응답 대기 중인 제안이 있거나 이미 확정됐거나 운영팀에 넘어간 정산은 409입니다. 금액은 0 이상 합의 성공보수 이하이며 최종 합의안의 부분성공 조건을 근거로 적습니다. 결제·성공보수가 없으면 409입니다(성공보수 0원은 NO_SUCCESS_FEE_TO_SETTLE).
          */
         post: operations["proposePartialSettlement"];
         delete?: never;
@@ -554,10 +554,30 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 부분성공 정산 제안 거절
-         * @description 이용자만 PROPOSED 제안을 거절합니다. 거절하면 금액 분쟁(REJECTED)이 되고 관리자가 금액을 결정합니다. 요청 상태는 바꾸지 않습니다.
+         * 부분성공 정산 제안 반려
+         * @description 이용자만 PROPOSED 제안을 반려합니다. 반려해도 바로 운영팀에 넘어가지 않고 협의 중(REJECTED)이 되며 도우미가 새 금액을 제안할 수 있습니다. 반려 사유는 필수이고 바라는 도우미 몫(counterAmountKrw)은 선택(참고용)입니다. 요청 상태는 바꾸지 않습니다.
          */
         post: operations["rejectPartialSettlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/requests/{requestId}/partial-settlement/escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 부분성공 정산을 운영팀에 넘기기
+         * @description 도우미와 이용자 누구나, 제안 전이든 협의 중이든 정산을 운영팀에 넘기도록 요청할 수 있습니다(거래당 한 번). 넘기면 운영팀이 24시간을 기다리지 않고 금액을 결정할 수 있고, 도우미는 더 이상 새 금액을 제안할 수 없습니다(이미 온 제안에 대한 이용자의 동의·반려는 가능). 상대방에게 알림이 갑니다.
+         */
+        post: operations["escalatePartialSettlement"];
         delete?: never;
         options?: never;
         head?: never;
@@ -578,6 +598,26 @@ export interface paths {
          * @description 이용자만 PROPOSED 제안에 동의합니다. 확정 금액을 도우미에게 자동 지급 요청하고, 나머지(성공보수 - 확정 금액)는 입력한 계좌로 환불을 요청합니다. 환불 금액이 있으면 수취 계좌 3개 필드가 필수(없으면 400)이며 저장하지 않습니다. 지급·환불이 PG 사정으로 지연돼도 동의는 유지되며 지급은 주기 작업이, 환불은 환불 API 재요청으로 처리합니다.
          */
         post: operations["acceptPartialSettlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/requests/{requestId}/mediation/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 조정안 수락·거부
+         * @description 이용자와 도우미가 각자 현재 조정안에 응답합니다. 한쪽이라도 거부하면 그 회차가 끝나고(2회 미만이면 운영팀이 새 조정안을 제시), 양측이 모두 수락하면 확정되어 결과 확정 또는 성공보수 지급·환불로 이어집니다. 이미 응답했거나 응답 대기 중인 조정안이 없으면 409입니다.
+         */
+        post: operations["respond"];
         delete?: never;
         options?: never;
         head?: never;
@@ -979,7 +1019,7 @@ export interface paths {
         put?: never;
         /**
          * 매칭권 구매 생성
-         * @description 인증된 회원의 희망 수량을 서버 판매 정책과 대조하고 서버가 가격·유효기간·주문번호를 결정합니다. 현재 판매 패키지는 10회 5,000원(회당 500원)이며 유효기간은 없습니다(validDays=null). 정책에 없는 수량은 400입니다. pass_purchases와 PENDING 결제 주문을 함께 생성하며 결제 승인 전에는 사용 권리(grantedAt)가 없습니다. 이용 정지·탈퇴·도우미 정지 계정은 403입니다.
+         * @description 인증된 회원의 희망 수량을 서버 판매 정책과 대조하고 서버가 가격·유효기간·주문번호를 결정합니다. 현재 판매 패키지는 10회 5,000원(회당 500원) 한 가지이며 유효기간은 없습니다(validDays=null). 1회 단건은 KG이니시스 최소 결제 금액(1,000원) 때문에 판매하지 않습니다. 정책에 없는 수량은 400입니다. pass_purchases와 PENDING 결제 주문을 함께 생성하며 결제 승인 전에는 사용 권리(grantedAt)가 없습니다. 이용 정지·탈퇴·도우미 정지 계정은 403입니다.
          */
         post: operations["createPurchase"];
         delete?: never;
@@ -1279,7 +1319,7 @@ export interface paths {
         put?: never;
         /**
          * 분쟁·이용자 무응답 결과 확정
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청, 또는 도우미 결과 제출 후 24시간이 지나도록 이용자가 답하지 않은 IN_PROGRESS 요청의 최종 결과를 정합니다. 관리자가 그 거래의 당사자면 403입니다. body={result,note(필수, 확정 사유),attemptUnverified}. attemptUnverified=true는 FAILURE에만 쓸 수 있고(아니면 400) 예매 시도를 확인하지 못한 종결입니다: 착수비를 도우미에게 지급하지 않고 이용자가 착수비·성공보수를 환불받습니다(이용료 비환불). 착수비가 도우미 몫으로 확정됐으면(지급 요청·진행·완료, 또는 현재 결제 이후 최신 시도 증빙 승인) 409입니다. reviewReason(DISPUTED|CONFIRMATION_OVERDUE, 선택)에 관리자가 목록에서 본 계기를 보내면, 그 사이 상태가 바뀐 경우(예: 무응답 건에 이용자가 이의 제기) 409입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청, 또는 도우미 결과 제출 후 72시간이 지나도록 이용자가 답하지 않은 IN_PROGRESS 요청의 최종 결과를 정합니다. 관리자가 그 거래의 당사자면 403입니다. body={result,note(필수, 확정 사유),attemptUnverified}. attemptUnverified=true는 FAILURE에만 쓸 수 있고(아니면 400) 예매 시도를 확인하지 못한 종결입니다: 착수비를 도우미에게 지급하지 않고 이용자가 착수비·성공보수를 환불받습니다(이용료 비환불). 착수비가 도우미 몫으로 확정됐으면(지급 요청·진행·완료, 또는 현재 결제 이후 최신 시도 증빙 승인) 409입니다. reviewReason(DISPUTED|CONFIRMATION_OVERDUE, 선택)에 관리자가 목록에서 본 계기를 보내면, 그 사이 상태가 바뀐 경우(예: 무응답 건에 이용자가 이의 제기) 409입니다.
          */
         post: operations["resolve"];
         delete?: never;
@@ -1319,9 +1359,33 @@ export interface paths {
         put?: never;
         /**
          * 부분성공 정산 관리자 결정
-         * @description 이용자가 거절(REJECTED)했거나 제안 후 24시간 응답이 없거나, 결과 확정 후 24시간 동안 도우미가 제안하지 않은 부분성공 거래의 도우미 몫을 관리자가 정합니다(0 이상 성공보수 이하). 기한 전·이미 확정은 409, 관리자 본인이 당사자인 거래는 403입니다. 결정 금액은 자동 지급 요청하며, 잔액 환불은 이용자가 수취 계좌를 입력해 환불 API로 요청합니다.
+         * @description 마지막 제안·반려 후 24시간 동안 변화가 없거나 당사자가 운영팀에 넘기기를 요청한 부분성공 정산(결과 확정 후 도우미가 제안하지 않은 거래 포함)의 도우미 몫을 관리자가 정합니다(0 이상 성공보수 이하). 당사자끼리 협의 중이면 409(SETTLEMENT_NEGOTIATING), 이미 확정은 409, 관리자 본인이 당사자인 거래는 403입니다. 결정 금액은 자동 지급 요청하며, 잔액 환불은 이용자가 수취 계좌를 입력해 환불 API로 요청합니다.
          */
         post: operations["decidePartialSettlement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/{requestId}/mediation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관리자 분쟁 조정 조회
+         * @description 운영팀이 조정 내역을 조회합니다. ADMIN 권한이 필요합니다.
+         */
+        get: operations["getMediationAsAdmin"];
+        put?: never;
+        /**
+         * 조정안 제시
+         * @description 운영팀이 결과 분쟁(RESULT: DISPUTED 요청) 또는 부분성공 정산(SETTLEMENT)의 조정안을 제시합니다. 응답 대기 중인 조정안이 있으면 409(MEDIATION_IN_PROGRESS), 이미 2회 제시했거나 합의가 안 됐으면 409(MEDIATION_FAILED), 이미 확정됐으면 409입니다. 관리자 본인이 당사자인 거래는 403입니다. 양측에 알림이 가고 응답 기한은 3일입니다.
+         */
+        post: operations["propose_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1579,7 +1643,7 @@ export interface paths {
         head?: never;
         /**
          * 관리자 신고 상태·처리 사유 기록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. OPEN→INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING→RESOLVED/DISMISSED만 허용합니다. 최종 처리 사유는 신고자에게 공개됩니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. OPEN→INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING→RESOLVED/DISMISSED만 허용합니다. 최종 처리 사유는 신고자에게 공개됩니다. RESOLVED에는 조치(action: RESTRICT_AGENT 도우미 활동 제한, SUSPEND_USER 회원 이용 정지, HIDE_REVIEW 연결된 거래의 후기 숨김)를 함께 실행할 수 있으며 조치 사유(actionReason)는 운영 내부 기록입니다. 조치가 실패하면 신고 상태도 바뀌지 않습니다. 처리자가 그 신고의 신고자이거나 신고 대상이면 403입니다. ADMIN 권한이 필요합니다.
          */
         patch: operations["update"];
         trace?: never;
@@ -1605,6 +1669,26 @@ export interface paths {
          * @description 수신자 본인의 알림인지 확인만 하고 read_at을 변경하지 않습니다. 본문은 없으며 Cache-Control: no-store입니다. 타인·없는 알림은 404입니다.
          */
         head: operations["headNotification"];
+        patch?: never;
+        trace?: never;
+    };
+    "/api/requests/{requestId}/mediation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 분쟁 조정 조회
+         * @description 거래의 이용자와 도우미가 같은 조정 내역(회차별 조정안·응답·진행 상태)을 봅니다. 타인은 404입니다.
+         */
+        get: operations["getMediation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -1800,6 +1884,26 @@ export interface paths {
          * @description 목록의 kopisId(PF숫자)를 사용합니다. bookingLinks는 KOPIS가 제공한 외부 예매 페이지이며 제휴·대행 허용을 의미하지 않습니다. scheduleText는 공연 시간 안내로 예매 오픈 시각이 아닙니다. 응답 텍스트는 HTML로 실행하지 말고 일반 텍스트로 표시하고, 외부 링크는 noopener/noreferrer로 엽니다. 5분 캐시. attribution(KOPIS 표기 문구)을 화면에 반드시 함께 표시합니다.
          */
         get: operations["kopisPerformanceDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/performances/rankings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * KOPIS 집계 공연 순위 조회
+         * @description 인증 없이 조회합니다. 예매처별 순위가 아닌 KOPIS 예매상황판 집계입니다. from/to=yyyy-MM-dd, 최대 31일, 종료일은 한국 오늘 이전입니다. 기본은 어제까지 최근 7일, size=10(1~100). data={source,from,to,basedate,items,attribution}; items={rank,kopisId,name,performancePeriod,venueName,posterUrl,area,genre}. 상세와 예매 링크는 kopisId로 상세 API를 호출합니다. 5분 캐시. 화면에 집계기간과 attribution을 표시합니다. 예매 오픈 일정이나 대행 허용 여부를 의미하지 않습니다.
+         */
+        get: operations["kopisRankings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2272,7 +2376,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 결과 분쟁·이용자 무응답(24시간) 목록
+         * 결과 분쟁·이용자 무응답(72시간) 목록
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다. data=[{id,submittedTargetName,status,reviewReason(DISPUTED|CONFIRMATION_OVERDUE),resultConfirmDueAt,agentResult,agentResultNote,actualOutcomeDescription,agentResultSubmittedAt,requesterResult,requesterResultConfirmedAt,disputeNote,hasResultEvidence,hasAttemptEvidence,statementCount,awaitingRequesterReply,awaitingAgentReply,upfrontPayoutStarted,...}] 오래된 순. upfrontPayoutStarted=true면 착수비가 도우미 몫으로 확정돼(지급 시작 또는 현재 결제 이후 시도 증빙 승인) attemptUnverified 종결을 쓸 수 없습니다. 호출한 관리자가 당사자인 거래는 빠집니다. page=0~10000, size=1~100(범위 밖 400). 증빙은 /api/admin/requests/{requestId}/result/evidence와 /api/admin/requests/{requestId}/attempt-evidences로 봅니다.
          */
         get: operations["resultReview"];
@@ -2413,7 +2517,7 @@ export interface paths {
         };
         /**
          * 도우미 제안 없는 부분성공 거래 목록
-         * @description 최종 결과 PARTIAL 확정 후 24시간 동안 도우미가 정산 금액을 제안하지 않은 안전거래를 완료 시각 순으로 반환합니다(status=NOT_PROPOSED, settlementId=null). ADMIN 권한이 필요합니다.
+         * @description 최종 결과 PARTIAL 확정 후 24시간 동안 도우미가 정산 금액을 제안하지 않았거나 그 전에 당사자가 운영팀에 넘기기를 요청한 안전거래를 완료 시각 순으로 반환합니다(status=NOT_PROPOSED, settlementId=null). ADMIN 권한이 필요합니다.
          */
         get: operations["getUnproposedPartialSettlements"];
         put?: never;
@@ -2433,7 +2537,7 @@ export interface paths {
         };
         /**
          * 관리자 결정 대기 정산 목록
-         * @description 이용자가 거절했거나 제안 후 24시간 동안 응답하지 않은 부분성공 정산을 제안 시각 순으로 반환합니다. ADMIN 권한이 필요합니다.
+         * @description 진행 중(PROPOSED·REJECTED)이면서 마지막 제안·반려 후 24시간 동안 변화가 없거나 당사자가 운영팀에 넘기기를 요청한 부분성공 정산을 마지막 활동이 오래된 순으로 반환합니다. 당사자끼리 협의 중인 정산은 나오지 않습니다. ADMIN 권한이 필요합니다.
          */
         get: operations["getPendingPartialSettlements"];
         put?: never;
@@ -2998,7 +3102,46 @@ export interface components {
             data?: components["schemas"]["PartialSettlementResponse"];
             message?: string;
         };
-        /** @description 부분성공 성공보수 정산. 확정 금액은 도우미에게 지급하고 나머지(성공보수 - 확정 금액)는 이용자에게 환불 */
+        /** @description 부분성공 정산 협의 이력의 한 회차. 도우미 제안과 이용자 응답 */
+        PartialSettlementOfferResponse: {
+            /**
+             * Format: int32
+             * @description 협의 회차(1부터)
+             * @example 1
+             */
+            round: number;
+            /**
+             * Format: int64
+             * @description 도우미가 제안한 도우미 몫(원)
+             * @example 10000
+             */
+            proposedAmountKrw: number;
+            /** @description 제안 근거. 양측에 공개 */
+            proposalNote?: string | null;
+            /**
+             * Format: date-time
+             * @description 제안 시각. UTC
+             */
+            proposedAt: string;
+            /**
+             * @description 응답 결과. PENDING 응답 대기, ACCEPTED 동의, REJECTED 반려, SUPERSEDED 응답 없이 운영팀 결정으로 대체
+             * @example REJECTED
+             */
+            result: string;
+            /** @description 이용자 반려 사유. 양측에 공개 */
+            rejectionNote?: string | null;
+            /**
+             * Format: int64
+             * @description 이용자가 반려하며 적은 희망 도우미 몫(원). 참고용이며 도우미가 따르지 않아도 됩니다
+             */
+            counterAmountKrw?: number | null;
+            /**
+             * Format: date-time
+             * @description 응답 시각. UTC
+             */
+            respondedAt?: string | null;
+        };
+        /** @description 부분성공 성공보수 정산. 확정 금액은 도우미에게 지급하고 나머지(성공보수 - 확정 금액)는 이용자에게 환불. 이용자가 반려하면(REJECTED) 도우미가 새 금액을 계속 제안할 수 있고, 마지막 활동 후 24시간 동안 변화가 없거나 당사자가 운영팀에 넘기기를 요청하면 운영팀이 결정할 수 있음 */
         PartialSettlementResponse: {
             /**
              * Format: int64
@@ -3071,19 +3214,84 @@ export interface components {
              * @description 확정 시각. UTC
              */
             decidedAt?: string | null;
+            /**
+             * Format: int32
+             * @description 협의 회차(도우미가 제안한 횟수). NOT_PROPOSED면 0
+             * @example 1
+             */
+            round: number;
+            /**
+             * Format: int64
+             * @description 이용자가 반려하며 적은 희망 도우미 몫(원). 참고용
+             */
+            counterAmountKrw?: number | null;
+            /**
+             * Format: date-time
+             * @description 마지막 제안·반려 시각. UTC. 결과 확정 후 제안이 없으면 결과 확정 시각
+             */
+            lastActivityAt?: string | null;
+            /**
+             * Format: date-time
+             * @description 이 시각 이후 변화가 없으면 운영팀이 결정할 수 있음(마지막 활동 + 24시간). 확정됐으면 null
+             */
+            adminDecisionAvailableAt?: string | null;
+            /**
+             * @description 운영팀이 지금 결정할 수 있는지(24시간 경과 또는 운영팀에 넘기기 요청)
+             * @example false
+             */
+            adminDecisionAvailable: boolean;
+            /**
+             * Format: date-time
+             * @description 운영팀에 넘기기를 요청한 시각. UTC. 요청 전 null
+             */
+            escalatedAt?: string | null;
+            /**
+             * @description 운영팀에 넘기기를 요청한 쪽. REQUESTER 이용자, AGENT 도우미
+             * @example AGENT
+             */
+            escalatedByRole?: string | null;
+            /** @description 운영팀에 넘기며 남긴 말. 양측과 운영팀에 공개 */
+            escalationNote?: string | null;
+            /** @description 회차별 제안·응답 이력(오래된 순) */
+            offers: components["schemas"]["PartialSettlementOfferResponse"][];
+            /**
+             * @description 운영팀 분쟁 조정 상태. NONE 조정 없음, OPEN 응답 대기 중, WAITING_NEXT 다음 조정안 대기, AGREED 합의, FAILED 조정 불성립(분쟁 금액 보류·외부 기관 안내). 자세한 내용은 GET /api/requests/{id}/mediation?kind=SETTLEMENT
+             * @example NONE
+             */
+            mediationStatus: string;
+            /**
+             * Format: int32
+             * @description 제시된 조정안 수
+             * @example 0
+             */
+            mediationRounds: number;
         };
         /**
          * @description partial_success_settlements.status. PROPOSED 도우미 제안, ACCEPTED 이용자 동의, REJECTED 이용자 거절(금액 분쟁), ADMIN_DECIDED 관리자 결정. NOT_PROPOSED는 관리자 목록에서만 쓰는 파생값(도우미 제안 없음, DB에 저장하지 않음)
          * @enum {string}
          */
         PartialSettlementStatus: "PROPOSED" | "ACCEPTED" | "REJECTED" | "ADMIN_DECIDED" | "NOT_PROPOSED";
-        /** @description 부분성공 정산 제안 거절. 거절하면 관리자가 금액을 결정 */
+        /** @description 부분성공 정산 제안 반려. 반려해도 바로 운영팀에 넘어가지 않고 도우미가 새 금액을 제안할 수 있음 */
         PartialSettlementRejectRequest: {
             /**
-             * @description 거절 사유. 도우미·관리자에게 공개
+             * @description 반려 사유. 도우미·운영팀에 공개
              * @example 합의 조건상 30%가 맞습니다
              */
             note: string;
+            /**
+             * Format: int64
+             * @description 이용자가 바라는 도우미 몫(원, 선택). 0 이상 합의 성공보수 이하. 도우미가 참고하는 값이며 확정되지 않음
+             * @example 6000
+             */
+            counterAmountKrw?: number | null;
+        };
+        /** @description 부분성공 정산을 운영팀에 넘기기. 도우미와 이용자 누구나 요청할 수 있음 */
+        PartialSettlementEscalateRequest: {
+            /**
+             * @description 운영팀에 전할 말(선택). 양측과 운영팀에 공개
+             * @example 금액에 합의가 되지 않아요
+             */
+            note?: string | null;
         };
         /** @description 부분성공 정산 제안 동의. 이용자 환불 대상 금액이 있으면(가상계좌 결제) 환불 수취 계좌 3개 필드가 필수이며 저장하지 않음 */
         PartialSettlementAcceptRequest: {
@@ -3102,6 +3310,123 @@ export interface components {
              * @example 홍길동
              */
             refundAccountHolder?: string | null;
+        };
+        /**
+         * @description 조정 대상. RESULT는 분쟁(DISPUTED) 거래의 결과, SETTLEMENT는 부분성공 성공보수 정산의 도우미 몫
+         * @enum {string}
+         */
+        MediationKind: "RESULT" | "SETTLEMENT";
+        /** @description 조정안에 대한 이용자·도우미 각자의 응답. 한쪽이라도 거부하면 그 회차는 끝나고, 양쪽이 모두 수락하면 확정됩니다. */
+        MediationRespondRequest: {
+            /** @description 조정 대상 */
+            kind: components["schemas"]["MediationKind"];
+            /** @description true 수락, false 거부 */
+            accept: boolean;
+            /** @description 응답에 덧붙일 말(선택). 거부 사유로 적으면 다음 조정안에 참고됩니다. 양측과 운영팀에 공개 */
+            note?: string | null;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseMediationResponse: {
+            success?: boolean;
+            data?: components["schemas"]["MediationResponse"];
+            message?: string;
+        };
+        /** @description 조정안 한 회차 */
+        MediationProposalResponse: {
+            /**
+             * Format: int32
+             * @description 회차(1~2)
+             * @example 1
+             */
+            round: number;
+            /**
+             * Format: int64
+             * @description SETTLEMENT 조정안의 도우미 몫(원)
+             */
+            proposedAmountKrw?: number | null;
+            /** @description RESULT 조정안의 최종 결과(SUCCESS·PARTIAL·FAILURE) */
+            proposedResult?: string | null;
+            /**
+             * @description RESULT 조정안이 시도 미확인 종결인지
+             * @example false
+             */
+            attemptUnverified: boolean;
+            /** @description 조정 근거. 양측에 공개 */
+            note: string;
+            /**
+             * Format: date-time
+             * @description 제시 시각. UTC
+             */
+            proposedAt: string;
+            /**
+             * Format: date-time
+             * @description 응답 기한. UTC. 제시 후 3일
+             */
+            responseDueAt: string;
+            /**
+             * @description 이용자 응답. PENDING·ACCEPTED·REJECTED
+             * @example PENDING
+             */
+            requesterResponse: string;
+            /** @description 이용자가 응답에 남긴 말 */
+            requesterNote?: string | null;
+            /**
+             * @description 도우미 응답. PENDING·ACCEPTED·REJECTED
+             * @example PENDING
+             */
+            agentResponse: string;
+            /** @description 도우미가 응답에 남긴 말 */
+            agentNote?: string | null;
+            /**
+             * @description 회차 결과. PENDING 응답 대기, AGREED 합의, REJECTED 한쪽이 거부, EXPIRED 기한 내 무응답(거부로 처리)
+             * @example PENDING
+             */
+            outcome: string;
+            /**
+             * Format: date-time
+             * @description 회차 종료 시각. UTC
+             */
+            closedAt?: string | null;
+        };
+        /** @description 거래의 분쟁 조정 현황(이용자·도우미·운영팀이 같은 내용을 봅니다) */
+        MediationResponse: {
+            kind: components["schemas"]["MediationKind"];
+            /**
+             * @description NONE 조정 없음, OPEN 응답 대기 중인 조정안 있음, WAITING_NEXT 조정안이 거부돼 다음 조정안을 기다림(최대 2회), AGREED 합의, FAILED 2회 모두 합의되지 않음(조정 불성립)
+             * @example OPEN
+             */
+            status: string;
+            /**
+             * Format: int32
+             * @description 제시된 조정안 수
+             * @example 1
+             */
+            roundsUsed: number;
+            /**
+             * Format: int32
+             * @description 최대 조정안 수
+             * @example 2
+             */
+            maxRounds: number;
+            /**
+             * Format: int32
+             * @description 응답 기한(일). 기한 안에 응답하지 않으면 거부로 처리
+             * @example 3
+             */
+            responseDays: number;
+            /** @description 응답 대기 중인 조정안. 없으면 null */
+            active?: components["schemas"]["MediationProposalResponse"];
+            /**
+             * @description 호출한 회원이 지금 응답할 수 있는지(응답 대기 중이고 아직 응답하지 않음). 운영팀 조회는 false
+             * @example true
+             */
+            canRespond: boolean;
+            /** @description 호출한 회원이 이미 한 응답. PENDING이면 아직 */
+            yourResponse?: string | null;
+            /** @description 조정 불성립(FAILED) 시 외부 분쟁 조정 기관 안내. 그 밖에는 null */
+            externalGuidance?: string | null;
+            /** @description 회차별 이력(오래된 순, 진행 중인 회차 포함) */
+            proposals: components["schemas"]["MediationProposalResponse"][];
         };
         DisputeStatement: {
             body: string;
@@ -3840,6 +4165,26 @@ export interface components {
              */
             note: string;
         };
+        /** @description 운영팀의 조정안. kind=RESULT면 result(필수), kind=SETTLEMENT면 amountKrw(필수)를 보냅니다. 같은 거래·종류에 최대 2회까지 제시할 수 있고 양측이 모두 수락해야 확정됩니다. */
+        MediationProposeRequest: {
+            /** @description 조정 대상 */
+            kind: components["schemas"]["MediationKind"];
+            /**
+             * Format: int64
+             * @description SETTLEMENT: 도우미 몫(원). 0 이상 합의 성공보수 이하
+             * @example 9000
+             */
+            amountKrw?: number | null;
+            /** @description RESULT: 조정안의 최종 결과 */
+            result?: components["schemas"]["RequestResult"];
+            /** @description RESULT: FAILURE일 때 시도 미확인 종결(착수비 미지급·이용자 환불). 착수비가 이미 도우미 몫으로 확정됐으면 불가 */
+            attemptUnverified?: boolean | null;
+            /**
+             * @description 조정 근거. 양측에 공개
+             * @example 제출된 증빙 기준으로 2매 중 1매 확보로 판단
+             */
+            note: string;
+        };
         DisputeQuestion: {
             party: string;
             body: string;
@@ -3952,11 +4297,20 @@ export interface components {
          * @enum {string}
          */
         UserMode: "REQUESTER" | "AGENT";
-        /** @description 관리자 신고 처리. INVESTIGATING에는 메모를 넣지 않고, RESOLVED/DISMISSED에는 공개 처리 사유를 입력합니다. */
+        /** @description 관리자 신고 처리. INVESTIGATING에는 메모를 넣지 않고, RESOLVED/DISMISSED에는 공개 처리 사유를 입력합니다. 조치(action)는 RESOLVED에서만 쓸 수 있고, 조치를 지정하면 운영 내부용 조치 사유(actionReason)가 필요합니다. */
         AdminReportUpdateRequest: {
             status: components["schemas"]["ReportStatus"];
             resolutionNote?: string;
+            /** @description 함께 실행할 조치. 생략하면 NONE(기록만) */
+            action?: components["schemas"]["ReportAction"];
+            /** @description 조치 사유(운영 내부 기록, 신고자에게 비공개). action이 NONE이 아닐 때 필수 */
+            actionReason?: string;
         };
+        /**
+         * @description 신고를 처리 완료(RESOLVED)할 때 함께 실행하는 조치. reports.action_taken의 DDL CHECK 허용값. NONE=기록만, RESTRICT_AGENT=신고 대상의 도우미 활동 제한, SUSPEND_USER=신고 대상 회원 이용 정지, HIDE_REVIEW=신고에 연결된 거래의 후기 숨김
+         * @enum {string}
+         */
+        ReportAction: "NONE" | "RESTRICT_AGENT" | "SUSPEND_USER" | "HIDE_REVIEW";
         /** @description 관리자 전용 신고 내역. 신고자·처리자 식별자를 포함합니다. */
         AdminReportResponse: {
             /** Format: int64 */
@@ -3978,6 +4332,10 @@ export interface components {
             resolvedAt?: string | null;
             /** Format: date-time */
             createdAt?: string;
+            /** @description 처리와 함께 실행한 조치 */
+            actionTaken?: components["schemas"]["ReportAction"];
+            /** @description 조치 사유(운영 내부 기록) */
+            actionReason?: string | null;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseAdminReportResponse: {
@@ -4052,6 +4410,33 @@ export interface components {
             success?: boolean;
             data?: components["schemas"]["Performance"];
             message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseRanking: {
+            success?: boolean;
+            data?: components["schemas"]["Ranking"];
+            message?: string;
+        };
+        RankedPerformance: {
+            /** Format: int32 */
+            rank?: number;
+            kopisId?: string;
+            name?: string;
+            performancePeriod?: string;
+            venueName?: string;
+            posterUrl?: string;
+            area?: string;
+            genre?: string;
+        };
+        Ranking: {
+            source?: string;
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            basedate?: string;
+            items?: components["schemas"]["RankedPerformance"][];
+            attribution?: string[];
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseVirtualAccountResponse: {
@@ -7124,7 +7509,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description PARTIAL 확정 전·이미 제안·정산 대상 없음 */
+            /** @description PARTIAL 확정 전·응답 대기 중인 제안 있음·이미 확정·운영팀에 넘어감·정산 대상 없음 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7219,6 +7604,81 @@ export interface operations {
             };
         };
     };
+    escalatePartialSettlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description requests.id
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PartialSettlementEscalateRequest"];
+            };
+        };
+        responses: {
+            /** @description 넘기기 완료 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePartialSettlementResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 당사자 아님 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description PARTIAL 확정 안전거래 아님·이미 확정·이미 넘김·정산할 성공보수 없음 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     acceptPartialSettlement: {
         parameters: {
             query?: never;
@@ -7284,6 +7744,81 @@ export interface operations {
                 };
             };
             /** @description 응답 대기 중인 제안이 아님 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    respond: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description requests.id
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediationRespondRequest"];
+            };
+        };
+        responses: {
+            /** @description 응답 반영 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMediationResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 당사자 아님 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 응답할 조정안 없음·이미 응답함·기한 만료 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10621,7 +11156,159 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 기한 전·이미 확정 */
+            /** @description 당사자 협의 중(24시간 전·넘기기 요청 없음)·이미 확정 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    getMediationAsAdmin: {
+        parameters: {
+            query: {
+                /**
+                 * @description 조정 대상
+                 * @example RESULT
+                 */
+                kind: components["schemas"]["MediationKind"];
+            };
+            header?: never;
+            path: {
+                /**
+                 * @description requests.id
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조정 내역 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMediationResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description ADMIN 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 요청 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    propose_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description requests.id
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediationProposeRequest"];
+            };
+        };
+        responses: {
+            /** @description 조정안 제시 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMediationResponse"];
+                };
+            };
+            /** @description kind에 맞지 않는 입력·금액 범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description ADMIN 권한 없음 또는 본인 거래 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 요청 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 조정 대상 아님·응답 대기 중·조정 불성립·이미 확정 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11987,6 +12674,74 @@ export interface operations {
             };
         };
     };
+    getMediation: {
+        parameters: {
+            query: {
+                /**
+                 * @description 조정 대상
+                 * @example RESULT
+                 */
+                kind: components["schemas"]["MediationKind"];
+            };
+            header?: never;
+            path: {
+                /**
+                 * @description requests.id
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 조정 내역 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMediationResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 당사자 아님 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     history: {
         parameters: {
             query?: never;
@@ -12587,6 +13342,48 @@ export interface operations {
             };
             /** @description 조회된 공연 없음 */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description KOPIS_SERVICE_KEY 미설정 또는 외부 API 통신·인증·응답 오류 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    kopisRankings: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 날짜·조회 개수 범위 오류 */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

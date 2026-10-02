@@ -109,7 +109,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     const ok = await run(async () => {
       const storageKeys = await upload(uploadResultFile);
       await unwrap(api.POST('/api/requests/{requestId}/result/evidence', { ...path, body: { description: description.trim() || undefined, storageKeys } }));
-    }, disputed ? '추가 자료를 올렸어요. 운영팀이 확인해 결과를 정해요.' : '추가 자료를 올렸어요. 이용자도 바로 볼 수 있어요.');
+    }, disputed ? '추가 자료를 올렸어요. 운영팀이 확인해 결과 조정안을 제안해요.' : '추가 자료를 올렸어요. 이용자도 바로 볼 수 있어요.');
     setProgress('');
     if (ok) {
       setFiles([]);
@@ -208,7 +208,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
           <TxCard title="추가 자료">
             <p className="prose">
               {disputed
-                ? '이용자가 결과에 이의를 제기했어요. 예매 내역·시도 화면 등 자료를 올리면 운영팀이 보고 최종 결과를 정해요.'
+                ? '이용자가 결과에 이의를 제기했어요. 예매 내역·시도 화면 등 자료를 올리면 운영팀이 보고 결과 조정안을 제안해요.'
                 : '이용자가 결과를 확인하고 있어요. 시도 증빙이 반려됐거나 더 보여 줄 자료가 있으면 올려 주세요. 이용자가 바로 볼 수 있고, 이의가 생기면 운영팀 판단 자료가 돼요.'}
             </p>
             {disputed && <Notice>여기 올린 자료는 이용자도 볼 수 있어요. 운영팀에게만 보여 줄 자료는 요청 상세의 분쟁 소명에 첨부해 주세요.</Notice>}
@@ -263,7 +263,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
         reload();
       }
       await unwrap(api.POST('/api/requests/{requestId}/result', { ...path, body: { result, note: d.note, actualOutcomeDescription: d.outcome || undefined } }));
-    }, '예매 결과를 등록했어요. 이용자가 24시간 안에 확인해요.');
+    }, '예매 결과를 등록했어요. 이용자가 3일 안에 확인해요.');
     setProgress('');
     if (ok) navigate(`/requests/${requestId}`, { replace: true });
     else reload();
@@ -346,7 +346,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                 <input name="outcome" maxLength={10000} placeholder="예: 1층 5구역 8열, 연석 2매" />
               </Field>
             )}
-            <Notice>결과는 한 번만 제출할 수 있어요. 이용자가 동의하면 거래가 완료되고, 이의를 제기하면 운영팀이 증빙을 보고 정해요. 이용자가 24시간 동안 답하지 않으면 운영팀이 확정해요.</Notice>
+            <Notice>결과는 한 번만 제출할 수 있어요. 이용자가 동의하면 거래가 완료되고, 이의를 제기하면 운영팀이 증빙을 보고 정해요. 이용자가 3일 동안 답하지 않으면 운영팀이 확정할 수 있어요.</Notice>
             <div className="tx-form-footer">
               <span role="status">{progress || (needAttemptFile && !files.length ? '실패 결과는 시도 증빙 파일을 첨부해야 제출할 수 있어요.' : '')}</span>
               <button type="submit" className="btn primary" disabled={pending || (needAttemptFile && !files.length)}>
