@@ -231,7 +231,7 @@ export function MoneyInput({ value, onChange, ...rest }: { value: number | undef
     <input
       type="number"
       min={0}
-      step={1000}
+      step={100}
       inputMode="numeric"
       placeholder="0"
       {...rest}

@@ -73,8 +73,8 @@ export function MyPage() {
 
   const items: [string, string, string][] = [
     [agent ? '도우미 프로필' : '이용자 프로필', '닉네임 · 프로필 이미지 · 연락처 관리', '/user-profile'],
-    // 신청 현황(/application)에 승인 후 '공개 프로필 수정' 버튼과 공개 설정(목록 공개·새 요청 받기)이 함께 있다.
-    ...(agent ? ([['공개 프로필', '도우미 소개와 활동 정보 · 공개 설정', '/application']] as [string, string, string][]) : []),
+    // 승인된 도우미는 공개 프로필 화면(/helper-profile: 바로 수정·공개 설정)으로, 아직이면 신청 현황(/application)으로 간다.
+    ...(agent ? ([['공개 프로필', '도우미 소개와 활동 정보 · 공개 설정', approved ? '/helper-profile' : '/application']] as [string, string, string][]) : []),
     ['계정·인증', '이메일 · 비밀번호 · 본인인증 · 정산 계좌', '/account'],
     ...(agent ? ([['거래 내역', '매칭권 충전 · 사용 · 정산', '/history']] as [string, string, string][]) : []),
     ['좋아요한 도우미', '저장한 도우미 보기', '/favorites'],

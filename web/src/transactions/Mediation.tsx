@@ -12,7 +12,7 @@ export type MediationKind = 'RESULT' | 'SETTLEMENT';
 
 const resultNames: Record<string, string> = { SUCCESS: '성공', PARTIAL: '부분 성공', FAILURE: '실패' };
 const responseNames: Record<string, string> = { PENDING: '응답 전', ACCEPTED: '수락', REJECTED: '거부' };
-const outcomeNames: Record<string, string> = { PENDING: '응답 대기', AGREED: '합의', REJECTED: '거부로 종료', EXPIRED: '기한 지나 거부 처리' };
+const outcomeNames: Record<string, string> = { PENDING: '응답 대기', AGREED: '합의', REJECTED: '거부로 종료', EXPIRED: '기한 지나 거부 처리', WITHDRAWN: '이용자 이의 철회로 종료' };
 
 /** 조정안 한 건의 내용을 한 줄로 */
 function proposalText(kind: MediationKind, p: Raw, feeKrw?: number) {
@@ -44,7 +44,8 @@ export function MediationCard({ requestId, kind, feeKrw, reloadDetail }: { reque
   const days = num(m.responseDays) ?? 3;
   const active = (m.active ?? undefined) as Raw | undefined;
   const history = list(m.proposals);
-  const canRespond = m.canRespond === true;
+  // RESOLVED(이의 철회 등으로 결과가 따로 확정)면 active=null·canRespond=false로 온다. 응답 영역은 OPEN일 때만 보인다.
+  const canRespond = status === 'OPEN' && m.canRespond === true;
   const mine = str(m.yourResponse);
   const obj = kind === 'RESULT' ? '결과를' : '정산 금액을';
 
@@ -66,7 +67,7 @@ export function MediationCard({ requestId, kind, feeKrw, reloadDetail }: { reque
       <p className="prose">
         운영팀이 {obj} 직접 정하지 않고 조정안을 제안해요. 이용자와 도우미가 <strong>모두 수락</strong>하면 확정돼요. 조정안은 최대 {max}회, 응답은 {days}일 안에 해야 하고 응답이 없으면 거부로 처리돼요.
       </p>
-      {active && (
+      {active && status === 'OPEN' && (
         <>
           <Rows
             rows={[
@@ -92,6 +93,7 @@ export function MediationCard({ requestId, kind, feeKrw, reloadDetail }: { reque
         </>
       )}
       {status === 'WAITING_NEXT' && <Notice>조정안이 확정되지 않았어요. 운영팀이 새 조정안을 보낼 수 있어요(남은 횟수 {Math.max(0, max - used)}회).</Notice>}
+      {status === 'RESOLVED' && <Notice tone="success">{kind === 'RESULT' ? '결과가 따로 확정돼 조정이 끝났어요(예: 이용자가 이의를 철회해 도우미 결과로 확정).' : '정산이 따로 확정돼 조정이 끝났어요.'}</Notice>}
       {status === 'AGREED' && <Notice tone="success">{kind === 'RESULT' ? '조정이 합의돼 결과가 확정됐어요.' : '조정이 합의돼 정산 금액이 확정됐어요.'}</Notice>}
       {status === 'FAILED' && (
         <Notice tone="error">
@@ -112,7 +114,7 @@ export function MediationCard({ requestId, kind, feeKrw, reloadDetail }: { reque
             ))}
         </details>
       )}
-      {dialog && active && (
+      {dialog && active && canRespond && (
         <Modal title={dialog === 'accept' ? '조정안을 수락할까요?' : '조정안을 거부할까요?'} onClose={() => setDialog('')}>
           <Rows rows={[['조정안', proposalText(kind, active, feeKrw)]]} />
           <p className="prose">

@@ -91,13 +91,19 @@ export function AppLayout() {
   }
 
   // 로그인하면 서버에 저장된 기본 모드(GET /api/me의 preferredMode)로 시작한다. 한 계정에 한 번만 맞춘다(/api/me의 계정 번호는 id).
+  // 모드만 바꾸면 로그인 직후 보던 첫 화면('/' 도우미 찾기)과 버튼이 어긋나므로, 다른 모드의 첫 화면에 있으면 이 모드의 첫 화면으로 옮긴다.
   const synced = useRef<unknown>(null);
+  const path = useRef(pathname);
+  path.current = pathname;
   useEffect(() => {
     const preferred = me?.preferredMode;
     if (!me || synced.current === me.id || (preferred !== 'REQUESTER' && preferred !== 'AGENT')) return;
     synced.current = me.id;
-    setState((s) => ({ ...s, mode: preferred === 'AGENT' ? 'agent' : 'user' }));
-  }, [me, setState]);
+    const next: Mode = preferred === 'AGENT' ? 'agent' : 'user';
+    setState((s) => ({ ...s, mode: next }));
+    if (next === 'agent' && path.current === '/') navigate('/leads', { replace: true });
+    else if (next === 'user' && (path.current === '/leads' || path.current === '/matches')) navigate('/', { replace: true });
+  }, [me, setState, navigate]);
 
   function switchMode(next: Mode) {
     if (next === mode) return;

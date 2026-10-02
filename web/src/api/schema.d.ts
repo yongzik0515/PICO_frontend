@@ -318,7 +318,11 @@ export interface paths {
          */
         put: operations["editPlatform"];
         post?: never;
-        delete?: never;
+        /**
+         * 예매처 삭제
+         * @description 관리자 전용. 선택·관리 목록에서 제거하고 비활성화합니다. 기존 거래와 프로필의 참조 기록은 보존하며 반복 삭제는 성공으로 처리합니다. 삭제된 예매처는 수정할 수 없습니다.
+         */
+        delete: operations["deletePlatform"];
         options?: never;
         head?: never;
         patch?: never;
@@ -642,6 +646,26 @@ export interface paths {
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. DISPUTED 요청의 분쟁 소명입니다. 당사자는 자기 대화(운영팀 질문 QUESTION과 자기 소명 STATEMENT)만 보고, 상대방 소명은 볼 수 없습니다. 소명은 body(최대 5000자)와 storageKeys(최대 10개, /api/evidence-files/upload-url purpose=DISPUTE로 발급)입니다. 관리자 질문은 party=REQUESTER|AGENT에게 보내며 48시간 답변 기한(replyDueAt)과 알림이 붙습니다. 기한은 안내용이며 관리자는 언제든 확정할 수 있습니다. 관리자는 그 거래의 당사자면 질문도 조회도 할 수 없습니다(403).
          */
         post: operations["submit_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/requests/{requestId}/dispute/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 이용자가 결과 이의 철회
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 안전거래의 이용자 본인만 DISPUTED 상태에서 호출합니다. body는 생략 가능하며 note(최대 10,000자)는 선택입니다. 서버에 저장된 도우미 결과로 requesterResult·finalResult를 확정하고 COMPLETED로 전환합니다. 대기 중인 RESULT 조정안은 WITHDRAWN으로 닫고 기존 제안·응답 이력은 보존합니다. 조정 현황은 RESOLVED, canRespond=false가 됩니다. 도우미·타인은 403, 분쟁 아님·이미 철회됨·직접 거래·도우미 결과 없음은 409, 없는 거래는 404입니다. 정산·지급·환불 완료를 의미하지 않으며 기존 처리 조건을 따릅니다.
+         */
+        post: operations["withdrawDispute"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2688,6 +2712,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        WithdrawDispute: {
+            note?: string;
+        };
         /**
          * @description requests.application_round의 DDL CHECK 허용값
          * @enum {string}
@@ -2873,7 +2900,8 @@ export interface components {
             name: string;
             homepageUrl: string;
             enabled?: boolean;
-            policyAssessment: components["schemas"]["PolicyAssessment"];
+            /** @description 선택 사항. 미입력 시 UNKNOWN(미확인)으로 저장합니다. */
+            policyAssessment?: components["schemas"]["PolicyAssessment"];
             policySourceUrl?: string;
             policyNote?: string;
         };
@@ -3378,7 +3406,7 @@ export interface components {
             /** @description 도우미가 응답에 남긴 말 */
             agentNote?: string | null;
             /**
-             * @description 회차 결과. PENDING 응답 대기, AGREED 합의, REJECTED 한쪽이 거부, EXPIRED 기한 내 무응답(거부로 처리)
+             * @description 회차 결과. PENDING 응답 대기, AGREED 합의, REJECTED 한쪽이 거부, EXPIRED 기한 내 무응답(거부로 처리), WITHDRAWN 이용자가 이의를 철회하여 결과 조정 종료
              * @example PENDING
              */
             outcome: string;
@@ -3392,7 +3420,7 @@ export interface components {
         MediationResponse: {
             kind: components["schemas"]["MediationKind"];
             /**
-             * @description NONE 조정 없음, OPEN 응답 대기 중인 조정안 있음, WAITING_NEXT 조정안이 거부돼 다음 조정안을 기다림(최대 2회), AGREED 합의, FAILED 2회 모두 합의되지 않음(조정 불성립)
+             * @description NONE 조정 없음, OPEN 응답 대기 중인 조정안 있음, WAITING_NEXT 조정안이 거부돼 다음 조정안을 기다림(최대 2회), AGREED 합의, FAILED 2회 모두 합의되지 않음(조정 불성립), RESOLVED 결과가 별도 확정되어 조정 종료
              * @example OPEN
              */
             status: string;
@@ -6361,6 +6389,55 @@ export interface operations {
             };
         };
     };
+    deletePlatform: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                platformId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     receiveWebhook: {
         parameters: {
             query?: never;
@@ -7966,6 +8043,95 @@ export interface operations {
                 };
             };
             /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    withdrawDispute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["WithdrawDispute"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 이용자 본인 아님 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 거래 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 결과 이의 철회 불가 상태 */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -4,7 +4,8 @@ import { list, num, pick, str, type Raw } from '../api/pick';
 import { uploadDisputeFile, useLoad } from './model';
 import { EvidenceFileNames, Field, FilePicker, Notice, TxCard, useAction, utcToLocal } from './ui';
 
-// 분쟁 소명: 이의 제기(DISPUTED) 동안 운영팀 질문과 내 소명만 보인다. 상대방은 내 소명을 볼 수 없다.
+// 분쟁 소명·추가 자료: 이의 제기(DISPUTED) 동안 설명과 자료를 올리는 단 하나의 창구다. 운영팀만 보고 상대방은 볼 수 없다.
+// (분쟁 중에는 이용자에게도 보이는 결과 증빙 '추가 자료 올리기'를 쓰지 않는다.)
 // GET/POST /api/requests/{requestId}/dispute/messages (첨부는 purpose=DISPUTE 업로드)
 export function DisputeCard({ requestId, disputed, reloadDetail }: { requestId: number; disputed: boolean; reloadDetail?: () => void }) {
   // 운영팀 질문 알림을 보고 돌아오면 새 질문이 보이도록 창 복귀 때 다시 불러온다.
@@ -35,7 +36,7 @@ export function DisputeCard({ requestId, disputed, reloadDetail }: { requestId: 
       }
       setProgress('');
       await unwrap(api.POST('/api/requests/{requestId}/dispute/messages', { params: { path: { requestId } }, body: { body: body.trim(), storageKeys } }));
-    }, '소명을 제출했어요. 운영팀이 확인해요.');
+    }, '소명과 자료를 제출했어요. 운영팀이 확인해요.');
     setProgress('');
     if (ok) {
       setBody('');
@@ -45,8 +46,8 @@ export function DisputeCard({ requestId, disputed, reloadDetail }: { requestId: 
   }
 
   return (
-    <TxCard title="분쟁 소명">
-      <p className="prose">운영팀이 결과 조정안을 만들 때 참고해요. 여기 적은 내용과 파일은 운영팀만 보고, 상대방에게는 보이지 않아요.</p>
+    <TxCard title="분쟁 소명·추가 자료">
+      <p className="prose">설명과 예매 내역·시도 화면 같은 자료를 여기에 함께 올려 주세요. 운영팀이 결과 조정안을 만들 때 참고해요. 여기 올린 내용과 파일은 운영팀만 보고, 상대방에게는 보이지 않아요.</p>
       {openQuestion && (
         <Notice tone="error">
           운영팀이 추가 자료를 요청했어요{str(pick(openQuestion, 'replyDueAt')) ? ` (${utcToLocal(str(pick(openQuestion, 'replyDueAt'))!)}까지)` : ''}. 기한이 지나면 있는 자료로 조정안을 만들어요.
@@ -82,7 +83,7 @@ export function DisputeCard({ requestId, disputed, reloadDetail }: { requestId: 
           <div className="tx-form-footer">
             <span role="status">{progress}</span>
             <button type="submit" className="btn primary" disabled={pending || !body.trim()}>
-              {pending ? '제출 중…' : '소명 제출'}
+              {pending ? '제출 중…' : '소명·자료 제출'}
             </button>
           </div>
         </form>

@@ -220,10 +220,10 @@ export function QuotePage() {
             </Field>
             <div className="form-grid">
               <Field label="희망 수고비" helper="도우미에게 제안하고 싶은 수고비예요. 최종 금액은 서로 합의해요.">
-                <input name="agencyBudgetDesired" type="number" min={0} step={1} defaultValue={edit?.agencyBudgetDesired} />
+                <input name="agencyBudgetDesired" type="number" min={0} step={100} defaultValue={edit?.agencyBudgetDesired} />
               </Field>
               <Field label="최대 수고비" helper="수고비로 지불할 수 있는 최대 금액이에요. 티켓 구매 비용은 포함하지 않아요.">
-                <input name="agencyBudgetMax" type="number" min={0} step={1} defaultValue={edit?.agencyBudgetMax} />
+                <input name="agencyBudgetMax" type="number" min={0} step={100} defaultValue={edit?.agencyBudgetMax} />
               </Field>
             </div>
             <Field label="기타 사항">

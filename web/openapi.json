@@ -2017,6 +2017,67 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "admin-controller"
+        ],
+        "summary": "예매처 삭제",
+        "description": "관리자 전용. 선택·관리 목록에서 제거하고 비활성화합니다. 기존 거래와 프로필의 참조 기록은 보존하며 반복 삭제는 성공으로 처리합니다. 삭제된 예매처는 수정할 수 없습니다.",
+        "operationId": "deletePlatform",
+        "parameters": [
+          {
+            "name": "platformId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/webhooks/payments": {
@@ -4055,6 +4116,118 @@
           },
           "403": {
             "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests/{requestId}/dispute/withdraw": {
+      "post": {
+        "tags": [
+          "request"
+        ],
+        "summary": "이용자가 결과 이의 철회",
+        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 안전거래의 이용자 본인만 DISPUTED 상태에서 호출합니다. body는 생략 가능하며 note(최대 10,000자)는 선택입니다. 서버에 저장된 도우미 결과로 requesterResult·finalResult를 확정하고 COMPLETED로 전환합니다. 대기 중인 RESULT 조정안은 WITHDRAWN으로 닫고 기존 제안·응답 이력은 보존합니다. 조정 현황은 RESOLVED, canRespond=false가 됩니다. 도우미·타인은 403, 분쟁 아님·이미 철회됨·직접 거래·도우미 결과 없음은 409, 없는 거래는 404입니다. 정산·지급·환불 완료를 의미하지 않으며 기존 처리 조건을 따릅니다. ",
+        "operationId": "withdrawDispute",
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawDispute"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMapStringObject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 형식·범위 오류",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "이용자 본인 아님",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "거래 없음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "결과 이의 철회 불가 상태",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14491,6 +14664,16 @@
   },
   "components": {
     "schemas": {
+      "WithdrawDispute": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 0
+          }
+        }
+      },
       "ApplicationRound": {
         "type": "string",
         "description": "requests.application_round의 DDL CHECK 허용값",
@@ -15066,7 +15249,8 @@
             "type": "boolean"
           },
           "policyAssessment": {
-            "$ref": "#/components/schemas/PolicyAssessment"
+            "$ref": "#/components/schemas/PolicyAssessment",
+            "description": "선택 사항. 미입력 시 UNKNOWN(미확인)으로 저장합니다."
           },
           "policySourceUrl": {
             "type": "string",
@@ -15083,8 +15267,7 @@
         "required": [
           "code",
           "homepageUrl",
-          "name",
-          "policyAssessment"
+          "name"
         ]
       },
       "PolicyAssessment": {
@@ -15985,7 +16168,7 @@
           },
           "outcome": {
             "type": "string",
-            "description": "회차 결과. PENDING 응답 대기, AGREED 합의, REJECTED 한쪽이 거부, EXPIRED 기한 내 무응답(거부로 처리)",
+            "description": "회차 결과. PENDING 응답 대기, AGREED 합의, REJECTED 한쪽이 거부, EXPIRED 기한 내 무응답(거부로 처리), WITHDRAWN 이용자가 이의를 철회하여 결과 조정 종료",
             "example": "PENDING"
           },
           "closedAt": {
@@ -16017,7 +16200,7 @@
           },
           "status": {
             "type": "string",
-            "description": "NONE 조정 없음, OPEN 응답 대기 중인 조정안 있음, WAITING_NEXT 조정안이 거부돼 다음 조정안을 기다림(최대 2회), AGREED 합의, FAILED 2회 모두 합의되지 않음(조정 불성립)",
+            "description": "NONE 조정 없음, OPEN 응답 대기 중인 조정안 있음, WAITING_NEXT 조정안이 거부돼 다음 조정안을 기다림(최대 2회), AGREED 합의, FAILED 2회 모두 합의되지 않음(조정 불성립), RESOLVED 결과가 별도 확정되어 조정 종료",
             "example": "OPEN"
           },
           "roundsUsed": {
