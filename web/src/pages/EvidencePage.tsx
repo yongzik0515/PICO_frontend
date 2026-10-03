@@ -110,11 +110,8 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
       await unwrap(api.POST('/api/requests/{requestId}/result/evidence', { ...path, body: { description: description.trim() || undefined, storageKeys } }));
     }, '추가 자료를 올렸어요. 이용자도 바로 볼 수 있어요.');
     setProgress('');
-    if (ok) {
-      setFiles([]);
-      setDescription('');
-    }
-    reload(); // 실패해도 서버에 저장됐을 수 있어 다시 불러온다
+    if (ok) navigate(`/requests/${requestId}`, { replace: true });
+    else reload(); // 실패해도 서버에 저장됐을 수 있어 다시 불러온다
   }
 
   const conditions = (
@@ -215,6 +212,10 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
               <FilePicker kind="result" files={files} onChange={setFiles} />
               <div className="tx-form-footer">
                 <span role="status">{progress}</span>
+                {/* 주소로 바로 들어와 이전 기록이 없으면 요청 상세로 보낸다. */}
+                <button type="button" className="btn secondary" onClick={() => ((window.history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate(`/requests/${requestId}`))}>
+                  돌아가기
+                </button>
                 <button type="submit" className="btn primary" disabled={pending || !files.length}>
                   추가 자료 올리기
                 </button>
@@ -226,7 +227,8 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
       </>
     );
 
-  // 결과 등록: ① 결과 선택 → ② 결과별 증빙(성공·부분성공은 선택, 실패는 시도 증빙 필수) → ③ 내용 입력 후 한 번에 제출
+  // 결과 등록: ① 결과 선택 → ② 결과 설명과 결과별 증빙(성공·부분성공은 선택, 실패는 시도 증빙 필수)을 한 번에 제출
+  // ②는 프로토타입 attachmentPage()의 '예매 결과' 카드 구성(설명 → 증빙 제목 → 첨부 → 안내 → 제출)을 따른다.
   const failure = result === 'FAILURE';
   const needAttemptFile = failure && !attemptOnRecord;
   const resultChoices: [RequestResult, string, string][] = [
@@ -247,13 +249,12 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
         // 시도 증빙은 없거나 반려됐을 때만 새로 낼 수 있다. 확인 대기·승인 상태면 추가 자료는 결과 증빙으로 올린다.
         if (needAttemptFile || (failure && attemptRejected)) {
           const keys = await upload(uploadAttemptFile);
-          await unwrap(api.POST('/api/requests/{requestId}/attempt-evidences', { ...path, body: { description: description.trim() || null, attachments: keys.map((storageKey, sortOrder) => ({ storageKey, sortOrder })) } }));
+          await unwrap(api.POST('/api/requests/{requestId}/attempt-evidences', { ...path, body: { description: d.note || null, attachments: keys.map((storageKey, sortOrder) => ({ storageKey, sortOrder })) } }));
         } else {
           const storageKeys = await upload(uploadResultFile);
-          await unwrap(api.POST('/api/requests/{requestId}/result/evidence', { ...path, body: { description: description.trim() || undefined, storageKeys } }));
+          await unwrap(api.POST('/api/requests/{requestId}/result/evidence', { ...path, body: { description: d.note || undefined, storageKeys } }));
         }
         setFiles([]);
-        setDescription('');
         reload();
       }
       await unwrap(api.POST('/api/requests/{requestId}/result', { ...path, body: { result, note: d.note, actualOutcomeDescription: d.outcome || undefined } }));
@@ -283,58 +284,53 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
             </fieldset>
           </TxCard>
 
-          {failure ? (
-            <TxCard title="2. 시도 증빙 (필수)">
-              {attemptRejected ? (
-                <>
-                  <Notice tone="error">
-                    {latestAttempt?.revision}차 시도 증빙을 이용자가 반려했어요{latestAttempt?.reviewNote ? ` (사유: ${latestAttempt.reviewNote})` : ''}. 반려된 증빙으로도 실패를 등록할 수 있고, 이용자가 동의하지 않으면 운영팀이 반려 사유와 함께 보고 정해요.
-                  </Notice>
-                  <p className="prose">반려 사유를 반박할 자료가 있으면 새 시도 증빙으로 올려 주세요(선택). 결과와 함께 제출돼요.</p>
-                  <Field label="설명">
-                    <textarea name="evidenceDescription" rows={2} maxLength={16000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 20:00 대기열 진입 화면(시각 표시 포함)" />
-                  </Field>
-                  <FilePicker kind="attempt" files={files} onChange={setFiles} />
-                </>
-              ) : attemptOnRecord ? (
-                <>
-                  {/* 시도 증빙 단계에서는 추가 자료 업로드를 보이지 않는다. 결과를 낸 뒤 필요하면 요청 상세의 '추가 자료 올리기'로 올린다. */}
-                  <Notice tone="success">
-                    {latestAttempt?.revision}차 시도 증빙이 올라가 있어요({latestAttempt?.status === 'APPROVED' ? '이용자 승인' : '확인 대기'}). 이 증빙으로 실패 결과를 제출할 수 있어요.
-                  </Notice>
-                </>
-              ) : (
-                <>
-                  <p className="prose">예매 대기·좌석 선택·매진 화면처럼 예매를 시도한 화면을 올려 주세요. 계정정보 등 민감한 내용은 가려 주세요.</p>
-                  <Field label="설명">
-                    <textarea name="evidenceDescription" rows={2} maxLength={16000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 20:00 대기열 진입, 20:03 전석 매진" />
-                  </Field>
-                  <FilePicker kind="attempt" files={files} onChange={setFiles} />
-                </>
-              )}
-            </TxCard>
-          ) : (
-            <TxCard title="2. 성공 증빙 (선택)">
-              <p className="prose">예매 내역 화면을 올려 두면 이용자가 결과를 확인할 때 함께 봐요. 이의가 생기면 운영팀 판단 자료가 돼요.</p>
-              {evidenceList}
-              {scan === 'blocked' && <Notice tone="error">운영팀이 차단한 파일이 있어요. 이용자에게 보이지 않으니 다른 파일로 다시 올려 주세요.</Notice>}
-              <Field label="설명">
-                <textarea name="evidenceDescription" rows={2} maxLength={10000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 예매 완료 화면, 좌석 1층 B구역 8열" />
-              </Field>
-              <FilePicker kind="result" files={files} onChange={setFiles} />
-            </TxCard>
-          )}
-
-          <TxCard title="3. 결과 내용">
+          <TxCard title="2. 결과 설명">
             <Field label={failure ? '실패 사유' : '결과 설명'} required>
               <textarea name="note" rows={3} required maxLength={10000} placeholder={failure ? '예: 오픈 3분 만에 전석 매진됐어요.' : '예: 요청하신 1층 좌석 2매를 예매했어요.'} />
             </Field>
             {!failure && (
-              <Field label="실제 확보 내용">
+              <Field label="확보한 좌석과 수량">
                 <input name="outcome" maxLength={10000} placeholder="예: 1층 5구역 8열, 연석 2매" />
               </Field>
             )}
-            <Notice>결과는 한 번만 제출할 수 있어요. 이용자가 동의하면 거래가 완료되고, 이의를 제기하면 운영팀이 증빙을 보고 정해요. 이용자가 3일 동안 답하지 않으면 운영팀이 확정할 수 있어요.</Notice>
+            <div className="tx-upload-heading">
+              <h3>
+                {failure ? (
+                  <>
+                    시도 증빙 자료 <em>*</em>
+                  </>
+                ) : (
+                  <>
+                    {result === 'SUCCESS' ? '성공 증빙 자료' : '결과 증빙 자료'} <small>선택</small>
+                  </>
+                )}
+              </h3>
+              <span>{failure ? '예매 대기·좌석 선택·매진 화면처럼 예매를 시도한 화면을 1개 이상 첨부해 주세요.' : result === 'SUCCESS' ? '성공한 예매 내역 화면을 첨부할 수 있어요.' : '확보한 만큼의 예매 내역 화면을 첨부할 수 있어요.'}</span>
+            </div>
+            {failure ? (
+              attemptRejected ? (
+                <>
+                  <Notice tone="error">
+                    {latestAttempt?.revision}차 시도 증빙을 이용자가 반려했어요{latestAttempt?.reviewNote ? ` (사유: ${latestAttempt.reviewNote})` : ''}. 반려된 증빙으로도 실패를 등록할 수 있고, 이용자가 동의하지 않으면 운영팀이 반려 사유와 함께 보고 정해요. 반박할 자료가 있으면 새 시도 증빙으로 올려 주세요(선택).
+                  </Notice>
+                  <FilePicker kind="attempt" files={files} onChange={setFiles} />
+                </>
+              ) : attemptOnRecord ? (
+                // 시도 증빙이 이미 있으면 새로 올리지 않는다. 결과를 낸 뒤 필요하면 요청 상세의 '추가 자료 올리기'로 올린다.
+                <Notice tone="success">
+                  {latestAttempt?.revision}차 시도 증빙이 올라가 있어요({latestAttempt?.status === 'APPROVED' ? '이용자 승인' : '확인 대기'}). 이 증빙으로 실패 결과를 제출할 수 있어요.
+                </Notice>
+              ) : (
+                <FilePicker kind="attempt" files={files} onChange={setFiles} />
+              )
+            ) : (
+              <>
+                {evidenceList}
+                {scan === 'blocked' && <Notice tone="error">운영팀이 차단한 파일이 있어요. 이용자에게 보이지 않으니 다른 파일로 다시 올려 주세요.</Notice>}
+                <FilePicker kind="result" files={files} onChange={setFiles} />
+              </>
+            )}
+            <Notice>계정정보 등 민감한 내용은 가려 주세요. 결과는 한 번만 제출할 수 있어요. 이용자가 동의하면 거래가 완료되고, 이의를 제기하면 운영팀이 증빙을 보고 정해요. 이용자가 3일 동안 답하지 않으면 운영팀이 확정할 수 있어요.</Notice>
             <div className="tx-form-footer">
               <span role="status">{progress || (needAttemptFile && !files.length ? '실패 결과는 시도 증빙 파일을 첨부해야 제출할 수 있어요.' : '')}</span>
               <button type="submit" className="btn primary" disabled={pending || (needAttemptFile && !files.length)}>

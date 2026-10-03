@@ -13,3 +13,12 @@
 .admin-actions { display: flex; flex-direction: column; gap: 8px; min-width: 150px; }
 .admin-brand-badge { margin-left: 8px; padding: 3px 8px; border-radius: 6px; background: var(--ink-900); color: #fff; font-size: 12px; font-weight: 600; letter-spacing: 0; }
 .admin-user { font-size: 13px; color: var(--ink-600); }
+
+/* 푸터 사업자 정보(전자상거래법 표기). 한 줄 안의 항목은 ' | '로 구분한다. */
+.footer-biz { list-style: none; margin: 10px 0 0; padding: 0; line-height: 1.9; }
+.footer-biz li { display: flex; flex-wrap: wrap; gap: 0 10px; }
+.footer-biz li > span + span::before { content: '|'; margin-right: 10px; color: var(--line-200); }
+.footer-biz a { text-decoration: underline; text-underline-offset: 2px; }
+.footer-biz a:hover { color: var(--primary-500); }
+/* 개인정보처리방침은 다른 항목보다 눈에 띄게 표기해야 한다. */
+.footer-privacy { font-weight: 700; color: var(--ink-900); }

@@ -1,0 +1,19 @@
+/* 알림 화면 전용 보정.
+   공용 스타일을 건드리지 않으려고 이 화면에서만 쓰는 파일에 둔다.
+   선택자 앞에 .page.notifications를 붙여 알림 화면에만 적용한다. */
+
+/* 제목(알림)과 '안 읽은 알림 N개' 줄 사이 간격을 32px → 16px로 줄인다. */
+.page.notifications .pc-page-title {
+  margin-bottom: 16px;
+}
+
+/* 아이콘과 그 옆 텍스트 사이 간격(18px의 절반 + 4px), 왼쪽 안쪽 여백은 28px → 20px. */
+.page.notifications .notification-item {
+  gap: 13px;
+  padding-left: 20px;
+}
+@media (max-width: 767px) {
+  .page.notifications .notification-item {
+    gap: 10px;
+  }
+}

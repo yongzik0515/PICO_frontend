@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { getTokens, setTokens } from '../api/tokens';
 import { banks, fetchAgentState, verifyIdentity, verifyPayout } from '../agent/profile';
 import { useAppState, type Mode } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
-import { useLoad } from '../transactions/model';
+import { fetchRequests, latestAgreement, toAgreement, useLoad } from '../transactions/model';
 import { Field, useAction, utcToLocal, won } from '../transactions/ui';
 import { AccountCard, AccountInput, AccountNote, Verification } from '../ui/account';
 import { tokenFrom } from '../ui/format';
@@ -72,14 +72,15 @@ export function MyPage() {
   }
 
   const items: [string, string, string][] = [
-    [agent ? '도우미 프로필' : '이용자 프로필', '닉네임 · 프로필 이미지 · 연락처 관리', '/user-profile'],
+    [agent ? '도우미 프로필' : '이용자 프로필', '닉네임 · 연락처 · 계정 인증 · 아이디·비밀번호', '/user-profile'],
     // 승인된 도우미는 공개 프로필 화면(/helper-profile: 바로 수정·공개 설정)으로, 아직이면 신청 현황(/application)으로 간다.
     ...(agent ? ([['공개 프로필', '도우미 소개와 활동 정보 · 공개 설정', approved ? '/helper-profile' : '/application']] as [string, string, string][]) : []),
-    ['계정·인증', '이메일 · 비밀번호 · 본인인증 · 정산 계좌', '/account'],
-    ...(agent ? ([['거래 내역', '매칭권 충전 · 사용 · 정산', '/history']] as [string, string, string][]) : []),
+    ['거래 내역', agent ? '매칭권 충전 · 사용 · 정산' : '안전거래 결제', '/history'],
     ['좋아요한 도우미', '저장한 도우미 보기', '/favorites'],
     ['신고 내역', '접수한 신고와 처리 결과', '/reports'],
     ['이용 방법', '서비스 이용 안내', '/guide'],
+    ['문의 작성', '궁금한 내용 문의하기', '/inquiries'],
+    ['문의 현황', '작성한 문의와 답변 확인', '/inquiries/history'],
     ['이용약관', '서비스 이용 기준', '/terms'],
     ['개인정보 안내', '정보 처리 안내', '/privacy'],
   ];
@@ -170,22 +171,36 @@ export function MyPage() {
 }
 
 // ── 이용자·도우미 프로필(닉네임·이미지·연락처) ────────────────
+// 참고 프로토타입 userProfile(): 카드 하나에 기본 정보·매칭 후 연락 방법·계정 인증을 두고 '변경 내용 저장' 하나로 저장한다.
+// 연락 방법은 공개용(isPrimary) 연락처 하나로 관리한다(PUT /api/me/contacts, 같은 종류는 새 값으로 바뀜).
 export function UserProfilePage() {
   const toast = useToast();
   const { me, reloadMe, avatarUrl: avatar } = useAuth();
   const [{ mode }] = useAppState();
   const [contactsLoad, reloadContacts] = useLoad(() => unwrap<unknown>(api.GET('/api/me/contacts')).then(list), []);
   const [nickname, setNickname] = useState<string | null>(null);
-  const [contact, setContact] = useState({ kind: 'PHONE', value: '', primary: true });
+  const [contact, setContact] = useState<{ kind: string; value: string } | null>(null);
   const { pending, run } = useAction();
   const name = nickname ?? str(me?.nickname) ?? '';
-  const contacts = contactsLoad.status === 'done' ? contactsLoad.data : [];
+  const primary = contactsLoad.status === 'done' ? contactsLoad.data.find((c) => c.isPrimary === true) : undefined;
+  const draft = contact ?? { kind: str(primary?.kind) ?? 'PHONE', value: str(primary?.value) ?? '' };
 
-  async function saveNickname(e: FormEvent<HTMLFormElement>) {
+  async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!e.currentTarget.checkValidity()) return;
+    if (!e.currentTarget.checkValidity()) return e.currentTarget.querySelector<HTMLElement>(':invalid')?.focus();
+    const nameChanged = name.trim() !== (str(me?.nickname) ?? '');
+    const contactChanged = !!contact && (contact.kind !== str(primary?.kind) || contact.value.trim() !== (str(primary?.value) ?? ''));
+    if (!nameChanged && !contactChanged) return toast('바뀐 내용이 없어요.');
     const preferredMode = mode === 'agent' ? 'AGENT' : 'REQUESTER';
-    if (await run(() => unwrap(api.PATCH('/api/me', { body: { nickname: name.trim(), preferredMode } })), '닉네임을 저장했어요.')) void reloadMe();
+    const ok = await run(async () => {
+      if (nameChanged) await unwrap(api.PATCH('/api/me', { body: { nickname: name.trim(), preferredMode } }));
+      if (contactChanged) await unwrap(api.PUT('/api/me/contacts', { body: { kind: draft.kind as 'PHONE', value: draft.value.trim(), primary: true } }));
+    }, '변경 내용을 저장했어요.');
+    if (ok) {
+      setContact(null);
+      if (nameChanged) void reloadMe();
+      if (contactChanged) reloadContacts();
+    }
   }
 
   async function uploadAvatar(file: File) {
@@ -200,24 +215,11 @@ export function UserProfilePage() {
     if (ok) await reloadMe();
   }
 
-  async function saveContact(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!e.currentTarget.checkValidity()) return;
-    const ok = await run(
-      () => unwrap(api.PUT('/api/me/contacts', { body: { kind: contact.kind as 'PHONE', value: contact.value.trim(), primary: contact.primary } })),
-      '연락처를 저장했어요.',
-    );
-    if (ok) {
-      setContact({ ...contact, value: '' });
-      reloadContacts();
-    }
-  }
-
   return (
     <div className="account-contained">
       <PageTitle title={mode === 'agent' ? '도우미 프로필' : '이용자 프로필'} crumbs={[{ label: '마이페이지', to: '/my' }]} />
-      <AccountCard title="기본 정보">
-        <form noValidate onSubmit={saveNickname}>
+      <section className="content-card">
+        <form noValidate onSubmit={save}>
           <div className="account-image-picker">
             <Avatar url={avatar} name={name} />
             <div>
@@ -243,81 +245,50 @@ export function UserProfilePage() {
             </div>
           </div>
           <Field label="닉네임" required helper="요청과 후기에서 사용하는 이름이에요. 최대 50자">
-            <input required maxLength={50} value={name} onChange={(e) => setNickname(e.target.value)} />
+            <input required maxLength={50} value={name} onChange={(e) => setNickname(e.target.value)} placeholder="함께 부를 이름을 알려주세요" />
           </Field>
+          <Field label="로그인 이메일" helper="로그인할 때 사용하는 아이디예요. 아래 '아이디(로그인 이메일) 변경'에서 바꿀 수 있어요.">
+            <input type="email" value={str(me?.email) ?? ''} disabled />
+          </Field>
+          {contactsLoad.status === 'loading' ? (
+            <Loading text="연락처를 불러오는 중이에요." />
+          ) : (
+            <div className="form-grid">
+              <Field label="매칭 후 연락 방법" required>
+                <select value={draft.kind} onChange={(e) => setContact({ ...draft, kind: e.target.value })}>
+                  {Object.entries(kindNames).map(([v, t]) => (
+                    <option key={v} value={v}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="연락처" required>
+                <input required maxLength={250} type={draft.kind === 'EMAIL' ? 'email' : 'text'} value={draft.value} placeholder={kindPlaceholder[draft.kind]} onChange={(e) => setContact({ ...draft, value: e.target.value })} />
+              </Field>
+            </div>
+          )}
+          <AccountNote>선택한 연락처는 요청이 수락된 후 해당 거래 상대방에게만 공개돼요. 도우미의 공개 프로필에는 표시하지 않습니다.</AccountNote>
           <div className="account-form-footer">
             <button type="submit" className="btn primary" disabled={pending || !name.trim()}>
-              닉네임 저장
+              변경 내용 저장
             </button>
           </div>
         </form>
-      </AccountCard>
-      <AccountCard title="연락처">
-        <AccountNote>선택한 연락처는 요청이 수락된 후 해당 거래 상대방에게만 공개돼요. 도우미의 공개 프로필에는 표시하지 않습니다.</AccountNote>
-        {contactsLoad.status === 'loading' ? (
-          <Loading text="연락처를 불러오는 중이에요." />
-        ) : contacts.length ? (
-          <dl className="document-rows">
-            {contacts.map((c) => (
-              <div key={String(pick(c, 'contactId', 'id') ?? c.kind)}>
-                <dt>
-                  {kindNames[str(c.kind) ?? ''] ?? str(c.kind)}
-                  {c.isPrimary === true && <small> · 공개용</small>}
-                </dt>
-                <dd>
-                  {str(c.value)}{' '}
-                  <button
-                    type="button"
-                    className="text-link"
-                    disabled={pending}
-                    onClick={() =>
-                      run(() => unwrap(api.DELETE('/api/me/contacts/{contactId}', { params: { path: { contactId: Number(pick(c, 'contactId', 'id')) } } })), '연락처를 삭제했어요.').then(
-                        (ok) => ok && reloadContacts(),
-                      )
-                    }
-                  >
-                    삭제
-                  </button>
-                </dd>
-              </div>
-            ))}
-          </dl>
-        ) : (
-          <p className="record-note">등록한 연락처가 없어요. 요청을 보내거나 받으려면 연락처가 필요해요.</p>
-        )}
-        <form noValidate onSubmit={saveContact}>
-          <div className="form-grid">
-            <Field label="종류" required>
-              <select value={contact.kind} onChange={(e) => setContact({ ...contact, kind: e.target.value })}>
-                {Object.entries(kindNames).map(([v, t]) => (
-                  <option key={v} value={v}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="연락처" required>
-              <input required maxLength={250} type={contact.kind === 'EMAIL' ? 'email' : 'text'} value={contact.value} placeholder={kindPlaceholder[contact.kind]} onChange={(e) => setContact({ ...contact, value: e.target.value })} />
-            </Field>
-          </div>
-          <label className="check-row">
-            <input type="checkbox" checked={contact.primary} onChange={(e) => setContact({ ...contact, primary: e.target.checked })} />
-            거래 상대방에게 공개할 연락처로 사용
-          </label>
-          <p className="record-note">같은 종류의 연락처는 새 값으로 바뀌어요. 공개용 연락처는 하나만 정할 수 있어요.</p>
-          <div className="account-form-footer">
-            <button type="submit" className="btn primary" disabled={pending || !contact.value.trim()}>
-              연락처 저장
-            </button>
-          </div>
-        </form>
-      </AccountCard>
+      </section>
+      <AccountSections primaryContact={primary} />
     </div>
   );
 }
 
 // ── 계정·인증 ─────────────────────────────────────────────
+/** 예전 계정·인증 화면(/account)은 프로필 화면으로 합쳤다. 예전 주소로 와도 프로필로 보낸다. */
 export function AccountPage() {
+  return <Navigate to="/user-profile" replace />;
+}
+
+// 계정 인증 · 아이디(로그인 이메일)·비밀번호 변경 · 로그아웃/탈퇴. 참고 프로토타입처럼 프로필 화면 아래 카드로 모은다.
+function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
   const navigate = useNavigate();
   const toast = useToast();
   const { me, logout } = useAuth();
@@ -361,35 +332,8 @@ export function AccountPage() {
   }
 
   return (
-    <div className="account-contained">
-      <PageTitle title="계정·인증" crumbs={[{ label: '마이페이지', to: '/my' }]} />
-      <AccountCard title="계정 정보">
-        <dl className="document-rows">
-          <div>
-            <dt>닉네임</dt>
-            <dd>{str(me?.nickname) || '미입력'}</dd>
-          </div>
-          <div>
-            <dt>이메일</dt>
-            <dd>
-              {str(me?.email) || '미입력'}{' '}
-              {emailVerified === true && <span className="badge verified">인증 완료</span>}
-              {emailVerified === false && (
-                <button type="button" className="text-link" disabled={pending} onClick={() => run(() => unwrap(api.POST('/api/me/email-verification')), '인증 메일을 보냈어요. 메일의 링크를 열어 주세요.')}>
-                  인증 메일 받기
-                </button>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt>도우미 신청</dt>
-            <dd>
-              <span className="badge neutral">{statusLabels[applicationStatus]}</span>
-            </dd>
-          </div>
-        </dl>
-      </AccountCard>
-      <AccountCard title="인증 상태">
+    <>
+      <AccountCard title="계정 인증">
         {!state ? (
           <Loading text="인증 상태를 불러오는 중이에요." />
         ) : (
@@ -401,6 +345,12 @@ export function AccountPage() {
                 </button>
               )}
             </Verification>
+            <Verification
+              title="연락처 확인"
+              text="매칭 후 연락받을 방법을 확인해요."
+              done={!!primaryContact}
+              doneText={primaryContact ? `등록 완료 · ${kindNames[str(primaryContact.kind) ?? ''] ?? str(primaryContact.kind)}` : undefined}
+            />
             {applicationStatus !== 'none' && (
               <>
                 <Verification
@@ -412,32 +362,58 @@ export function AccountPage() {
                 {state.payoutVerified && !state.payoutRegistered && (
                   <AccountNote>지급대행 연동 전에 확인한 계좌예요. 착수비·성공보수를 받으려면 계좌를 한 번 다시 등록해 주세요.</AccountNote>
                 )}
-                <div className="form-grid">
-                  <Field label="은행" required>
-                    <select value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
-                      {banks.map(([code, bankName]) => (
-                        <option key={code} value={code}>
-                          {bankName}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="계좌번호" helper="숫자만 입력해 주세요.">
-                    <input inputMode="numeric" value={bank.number} onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
-                  </Field>
+                <Field label="은행" required>
+                  <select value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
+                    {banks.map(([code, bankName]) => (
+                      <option key={code} value={code}>
+                        {bankName}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {/* 도우미 신청 화면과 같은 배치: 계좌번호 입력 오른쪽에 같은 높이의 확인 버튼 */}
+                <div className="field">
+                  <span>
+                    계좌번호 <em>*</em>
+                  </span>
+                  <div className="account-input-action">
+                    <input aria-label="계좌번호" inputMode="numeric" value={bank.number} placeholder="'-' 없이 숫자만 입력" onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
+                    <button
+                      type="button"
+                      className="btn primary"
+                      disabled={pending || !state.identityVerified || bank.number.length < 8}
+                      onClick={() => run(() => verifyPayout(bank.code, bank.number), '정산 계좌를 확인했어요.').then((ok) => ok && reload())}
+                    >
+                      {state.payoutVerified ? '계좌 변경' : '계좌 확인'}
+                    </button>
+                  </div>
+                  <small className="field-helper">{state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
                 </div>
-                <button
-                  type="button"
-                  className="btn secondary"
-                  disabled={pending || !state.identityVerified || bank.number.length < 8}
-                  onClick={() => run(() => verifyPayout(bank.code, bank.number), '정산 계좌를 확인했어요.').then((ok) => ok && reload())}
-                >
-                  {!state.identityVerified ? '본인인증 후 확인할 수 있어요' : state.payoutVerified ? '다른 계좌로 변경' : '계좌 확인'}
-                </button>
               </>
             )}
           </>
         )}
+      </AccountCard>
+      <AccountCard title="아이디(로그인 이메일) 변경">
+        <p className="prose">
+          지금 아이디: <strong>{str(me?.email) || '미입력'}</strong>{' '}
+          {emailVerified === true && <span className="badge verified">인증 완료</span>}
+          {emailVerified === false && (
+            <button type="button" className="text-link" disabled={pending} onClick={() => run(() => unwrap(api.POST('/api/me/email-verification')), '인증 메일을 보냈어요. 메일의 링크를 열어 주세요.')}>
+              인증 메일 받기
+            </button>
+          )}
+        </p>
+        <form noValidate onSubmit={changeEmail}>
+          <AccountInput name="newEmail" label="새 이메일" type="email" required maxLength={191} placeholder="name@example.com" />
+          <AccountInput name="emailPassword" label="현재 비밀번호" type="password" required maxLength={72} autoComplete="current-password" />
+          <AccountNote>새 이메일로 받은 인증 링크를 열 때까지는 지금 이메일로 로그인해요. 변경이 끝나면 다시 로그인해야 해요.</AccountNote>
+          <div className="account-form-footer">
+            <button type="submit" className="btn primary" disabled={pending}>
+              인증 메일 보내기
+            </button>
+          </div>
+        </form>
       </AccountCard>
       <AccountCard title="비밀번호 변경">
         <form noValidate onSubmit={changePassword}>
@@ -448,18 +424,6 @@ export function AccountPage() {
           <div className="account-form-footer">
             <button type="submit" className="btn primary" disabled={pending}>
               비밀번호 변경
-            </button>
-          </div>
-        </form>
-      </AccountCard>
-      <AccountCard title="이메일 변경">
-        <form noValidate onSubmit={changeEmail}>
-          <AccountInput name="newEmail" label="새 이메일" type="email" required maxLength={191} placeholder="name@example.com" />
-          <AccountInput name="emailPassword" label="현재 비밀번호" type="password" required maxLength={72} autoComplete="current-password" />
-          <AccountNote>새 이메일로 받은 인증 링크를 열 때까지는 지금 이메일로 로그인해요. 변경이 끝나면 다시 로그인해야 해요.</AccountNote>
-          <div className="account-form-footer">
-            <button type="submit" className="btn primary" disabled={pending}>
-              인증 메일 보내기
             </button>
           </div>
         </form>
@@ -500,7 +464,7 @@ export function AccountPage() {
           </form>
         </Modal>
       )}
-    </div>
+    </>
   );
 }
 
@@ -604,8 +568,68 @@ function VerifyEmailResult({ token }: { token: string }) {
 const payoutStatus: Record<string, string> = { REQUESTED: '지급 요청', PROCESSING: '지급 중', SUCCEEDED: '지급 완료', FAILED: '지급 실패', CANCELLED: '지급 취소' };
 const componentNames: Record<string, string> = { UPFRONT: '착수비', SUCCESS: '수고비', SAFETY_FEE: '수수료' };
 
-/** 명세에 이용자의 결제 목록 API가 없어 도우미의 매칭권 충전·사용과 정산 내역만 보여 준다. */
 export function HistoryPage() {
+  const [{ mode }] = useAppState();
+  return mode === 'agent' ? <AgentHistory /> : <UserPaymentHistory />;
+}
+
+const paymentNames: Record<string, string> = { PENDING: '입금 대기', PROCESSING: '확인 중', PAID: '결제 완료', CANCEL_REQUESTED: '취소·환불 진행 중', PARTIALLY_REFUNDED: '일부 환불', REFUNDED: '전액 환불', FAILED: '결제 실패', CANCELLED: '입금 전 취소', EXPIRED: '입금 기한 만료' };
+
+/** 이용자 거래 내역(안전거래 결제). 명세에 이용자 결제 목록 API가 없어, 내 요청 중 결제가 있는 거래를 골라 확정 조건의 금액으로 보여 준다(USER_FLOW.md 10번). */
+function UserPaymentHistory() {
+  const navigate = useNavigate();
+  const [load] = useLoad(async () => {
+    const paid = (await fetchRequests('REQUESTER')).filter((r) => r.paymentStatus);
+    return Promise.all(
+      paid.map(async (r) => {
+        const agreements = await unwrap<unknown>(api.GET('/api/requests/{requestId}/agreements', { params: { path: { requestId: r.id } } })).then(list, () => [] as Raw[]);
+        const a = latestAgreement(agreements.map(toAgreement));
+        return { r, amount: a ? a.upfrontFeeKrw + a.successFeeKrw + a.safetyFeeKrw : undefined };
+      }),
+    );
+  }, []);
+  return (
+    <>
+      <PageTitle title="거래 내역" crumbs={[{ label: '마이페이지', to: '/my' }]} />
+      <div className="tx-history">
+        {load.status === 'loading' ? (
+          <Loading text="내역을 불러오는 중이에요." />
+        ) : load.status === 'error' ? (
+          <div className="empty">
+            <h2>내역을 불러오지 못했어요</h2>
+            <p>{load.message}</p>
+          </div>
+        ) : load.data.length ? (
+          load.data.map(({ r, amount }) => (
+            <article key={r.id} className="content-card">
+              <div>
+                <span className={`tx-status ${r.paymentStatus === 'PAID' ? 'blue' : r.paymentStatus === 'PENDING' ? 'amber' : 'muted'}`}>{paymentNames[r.paymentStatus] ?? r.paymentStatus}</span>
+                <h3>{r.targetName || '공연명 미입력'}</h3>
+                <p>
+                  {r.agentName} 도우미 · 안전거래{r.createdAt ? ` · 요청 ${utcToLocal(r.createdAt)}` : ''}
+                </p>
+              </div>
+              <div>
+                <strong>{amount !== undefined ? won(amount) : '금액 확인 중'}</strong>
+                <button type="button" className="btn secondary" onClick={() => navigate(`/requests/${r.id}`)}>
+                  거래 상세 보기
+                </button>
+              </div>
+            </article>
+          ))
+        ) : (
+          <div className="empty">
+            <h2>아직 결제한 거래가 없어요</h2>
+            <p>최종 조건을 확정한 안전거래를 결제하면 이곳에 기록돼요. 환불 내역은 거래 상세에서 확인할 수 있어요.</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** 도우미 거래 내역: 매칭권 충전·사용과 정산 내역. */
+function AgentHistory() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'purchases' | 'usages' | 'payouts'>('purchases');
   const [load] = useLoad(async () => {

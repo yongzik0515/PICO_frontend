@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { num, pick, str, type Raw } from '../api/pick';
-import { fetchDetail, latestAgreement, useLoad } from '../transactions/model';
+import { fetchDetail, latestAgreement, payItemNames, useLoad, type PayItem } from '../transactions/model';
+import { agreementRows } from '../transactions/requestRows';
 import { Notice, Rows, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
 import { PageTitle } from '../ui/PageTitle';
@@ -23,6 +24,10 @@ export function PaymentPage() {
   const [load] = useLoad(() => fetchDetail(requestId), [requestId]);
   const { pending, run } = useAction();
   const [agreed, setAgreed] = useState({ terms: false, consent: false });
+  // 결제할 항목(프로토타입 payItem). 수수료는 수고비를 결제할 때 함께 낸다.
+  // TODO(백엔드): 지금 결제 생성 API는 본문이 없어 항상 착수비+수고비+수수료 전액을 청구한다(USER_FLOW.md 참고).
+  // 선택한 항목은 본문 items로 보내고, 데모 모드는 이를 받아 결제한 항목(paidItems)을 기억한다.
+  const [items, setItems] = useState<Record<PayItem, boolean> | null>(null);
   const [order, setOrder] = useState<{ paymentId: number; account: VirtualAccount | null } | null>(null);
 
   async function loadAccount(paymentId: number) {
@@ -31,8 +36,11 @@ export function PaymentPage() {
   }
 
   // 이미 만든 입금 대기 주문이 있으면(발급받고 나갔다 온 경우) 계좌 안내를 이어서 보여 준다.
-  const existing = load.status === 'done' ? load.data.payment : null;
-  const existingId = str(pick(existing, 'status')) === 'PENDING' ? num(pick(existing, 'paymentId')) : undefined;
+  // 요청·합의 응답에 결제 상태가 있으면 결제 상세를 따로 불러오지 않으므로(fetchDetail) 거기서도 찾는다.
+  const loaded = load.status === 'done' ? load.data : null;
+  const loadedAgreement = loaded ? latestAgreement(loaded.agreements) : undefined;
+  const existingStatus = (str(pick(loaded?.payment ?? null, 'status')) || loadedAgreement?.paymentStatus || loaded?.request.paymentStatus || '').toUpperCase();
+  const existingId = existingStatus === 'PENDING' ? (num(pick(loaded?.payment ?? null, 'paymentId')) ?? loadedAgreement?.paymentId ?? loaded?.request.paymentId) : undefined;
   useEffect(() => {
     if (existingId) void loadAccount(existingId);
   }, [existingId]);
@@ -54,12 +62,21 @@ export function PaymentPage() {
   const { request: r, stage, agreements } = load.data;
   const a = latestAgreement(agreements);
   if (stage !== 'payment' || !a) return <Navigate to={`/requests/${requestId}`} replace />;
-  const total = a.upfrontFeeKrw + a.successFeeKrw + a.safetyFeeKrw;
+  const paid = r.paidItems;
+  // 처음에는 아직 결제하지 않은 항목을 모두 선택해 둔다. 이미 발급한 주문이 있으면 그 주문의 항목을 보여 준다.
+  const ordered = existingId ? r.orderedItems : [];
+  const chosen = ordered.length
+    ? { UPFRONT: ordered.includes('UPFRONT'), SUCCESS_FEE: ordered.includes('SUCCESS_FEE') }
+    : (items ?? { UPFRONT: !paid.includes('UPFRONT'), SUCCESS_FEE: !paid.includes('SUCCESS_FEE') });
+  const selected = (['UPFRONT', 'SUCCESS_FEE'] as const).filter((k) => chosen[k] && !paid.includes(k));
+  const left = (['UPFRONT', 'SUCCESS_FEE'] as const).filter((k) => !paid.includes(k) && !selected.includes(k));
+  const total = (selected.includes('UPFRONT') ? a.upfrontFeeKrw : 0) + (selected.includes('SUCCESS_FEE') ? a.successFeeKrw + a.safetyFeeKrw : 0);
+  const noneSelected = !selected.length;
   const current = order;
 
   async function createOrder() {
     await run(async () => {
-      const p = await unwrap<Raw>(api.POST('/api/agreements/{agreementId}/safe-payment', { params: { path: { agreementId: a!.id } } }));
+      const p = await unwrap<Raw>(api.POST('/api/agreements/{agreementId}/safe-payment', { params: { path: { agreementId: a!.id } }, body: { items: selected } } as never));
       const paymentId = num(pick(p, 'paymentId'));
       if (!paymentId) throw new Error('결제 주문 번호를 받지 못했어요.');
       await loadAccount(paymentId);
@@ -71,7 +88,7 @@ export function PaymentPage() {
       // 명세: 안전거래(가상계좌) 결제 확인은 본문 없이 호출한다.
       const p = await unwrap<Raw>(api.POST('/api/payments/{paymentId}/confirm', { params: { path: { paymentId } } } as never));
       if (str(pick(p, 'status')) === 'PAID') {
-        toast('입금을 확인했어요. 도우미가 예매를 준비해요.');
+        toast(left.length ? `${selected.map((k) => payItemNames[k]).join('·')} 입금을 확인했어요. 남은 ${left.map((k) => payItemNames[k]).join('·')}까지 결제해야 다음 단계로 넘어가요.` : '입금을 확인했어요. 도우미가 예매를 준비해요.');
         navigate(`/requests/${requestId}`, { replace: true });
       } else toast('아직 입금이 확인되지 않았어요. 입금 후 다시 눌러 주세요.');
     });
@@ -96,17 +113,19 @@ export function PaymentPage() {
             <div className="tx-order-items">
               {(
                 [
-                  ['ticket', '착수비', '예매 시도를 위한 비용', a.upfrontFeeKrw],
-                  ['check', '수고비', '확정한 성공 요건을 충족했을 때 지급하는 비용', a.successFeeKrw],
+                  ['UPFRONT', 'ticket', '착수비', '예매 시도를 위한 비용', a.upfrontFeeKrw],
+                  ['SUCCESS_FEE', 'check', '수고비', '확정한 성공 요건을 충족했을 때 지급하는 비용', a.successFeeKrw],
                 ] as const
-              ).map(([icon, name, caption, amount]) => (
+              ).map(([key, icon, name, caption, amount]) => (
                 <article key={name} className="tx-order-item">
+                  <input type="checkbox" aria-label={`${name} 결제 선택`} checked={selected.includes(key)} disabled={!!current || !!existingId || paid.includes(key)} onChange={(e) => setItems({ ...chosen, [key]: e.target.checked })} />
                   <span className="tx-order-icon">
                     <Icon name={icon} size={24} />
                   </span>
                   <div>
                     <h3>{name}</h3>
                     <p>{caption}</p>
+                    {paid.includes(key) && <span>결제 완료</span>}
                   </div>
                   <strong>
                     {won(amount).replace('원', '')}
@@ -117,18 +136,11 @@ export function PaymentPage() {
             </div>
             <p className="tx-order-note">
               <Icon name="shield" size={18} />
-              착수비와 수고비, 수수료를 가상계좌로 한 번에 입금해요.
+              결제할 항목을 선택해 주세요. 안전거래 수수료는 수고비를 결제할 때 함께 내요.
             </p>
             <details className="tx-order-terms">
               <summary>확정한 진행 조건 보기</summary>
-              <Rows
-                rows={[
-                  ['성공 요건', a.successConditions],
-                  ['예매 시도 방식', a.attemptRule],
-                  ['실패·환불 처리', a.refundRule],
-                  ['결과 연락 기한', a.contactDeadlineRule],
-                ]}
-              />
+              <Rows rows={agreementRows(a)} />
             </details>
           </TxCard>
           {va && current && (
@@ -153,15 +165,15 @@ export function PaymentPage() {
             <div className="summary-rows">
               <div>
                 <span>착수비</span>
-                <strong>{won(a.upfrontFeeKrw)}</strong>
+                <strong>{paid.includes('UPFRONT') ? '결제 완료' : won(selected.includes('UPFRONT') ? a.upfrontFeeKrw : 0)}</strong>
               </div>
               <div>
                 <span>수고비</span>
-                <strong>{won(a.successFeeKrw)}</strong>
+                <strong>{paid.includes('SUCCESS_FEE') ? '결제 완료' : won(selected.includes('SUCCESS_FEE') ? a.successFeeKrw : 0)}</strong>
               </div>
               <div>
                 <span>안전거래 수수료</span>
-                <strong>{won(a.safetyFeeKrw)}</strong>
+                <strong>{paid.includes('SUCCESS_FEE') ? '결제 완료' : won(selected.includes('SUCCESS_FEE') ? a.safetyFeeKrw : 0)}</strong>
               </div>
             </div>
             <p className="record-note">수수료는 수고비의 3%(원 단위 올림), 최소 1,000원이에요.</p>
@@ -169,7 +181,9 @@ export function PaymentPage() {
               <span>총 결제 금액</span>
               <strong>{won(total)}</strong>
             </div>
-            {current ? (
+            {!current && existingId ? (
+              <p className="record-note" role="status">발급한 가상계좌를 불러오는 중이에요.</p>
+            ) : current ? (
               <>
                 <button type="button" className="btn primary full" disabled={pending} onClick={() => confirm(current.paymentId)}>
                   {pending ? '확인 중…' : '입금 확인'}
@@ -203,24 +217,34 @@ export function PaymentPage() {
                   </label>
                   {(
                     [
-                      ['terms', '서비스 이용약관', '서비스의 이용 기준과 거래 진행 안내를 확인합니다.'],
-                      ['consent', '안전거래 결제 및 환불 안내', '착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면 도우미에게 정산됩니다(시도 증빙이 승인되지 않은 채 운영팀이 시도 미확인·결과 미제출로 종결하면 착수비도 환불). 수고비는 성공이면 전액, 부분 성공이면 정산한 금액만 정산되고, 실패하면 합의한 환불 조건에 따라 처리됩니다.'],
+                      ['terms', '서비스 이용약관', '/terms'],
+                      // 안전거래 결제·환불 안내 화면은 아직 없다(USER_FLOW.md 코드에서 비어 있는 부분).
+                      ['consent', '안전거래 결제 및 환불 안내', ''],
                     ] as const
-                  ).map(([key, label, body]) => (
+                  ).map(([key, label, to]) => (
                     <div key={key} className="quote-agreement-row">
                       <label className="check-row">
                         <input type="checkbox" required checked={agreed[key]} onChange={(e) => setAgreed({ ...agreed, [key]: e.target.checked })} />
                         {label} (필수)
                       </label>
-                      <details>
-                        <summary>보기</summary>
-                        <p>{body}</p>
-                      </details>
+                      {to ? (
+                        <Link className="quote-terms-view" to={to} aria-label={`${label} 보기`}>
+                          보기
+                        </Link>
+                      ) : (
+                        <button type="button" className="quote-terms-view" aria-label={`${label} 보기`} onClick={() => toast('안전거래 결제 및 환불 안내 화면은 준비 중이에요.')}>
+                          보기
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
-                <button type="button" className="btn primary full" disabled={!agreed.terms || !agreed.consent || pending} onClick={createOrder}>
-                  {pending ? '발급 중…' : `${won(total)} 가상계좌 발급받기`}
+                <button type="button" className="btn primary full" disabled={!agreed.terms || !agreed.consent || noneSelected || pending} onClick={createOrder}>
+                  {pending ? '발급 중…' : noneSelected ? '결제할 항목을 선택해 주세요' : `${won(total)} 가상계좌 발급받기`}
+                </button>
+                {/* 주소로 바로 들어와 이전 기록이 없으면 요청 상세로 보낸다. */}
+                <button type="button" className="btn ghost full" onClick={() => ((window.history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate(`/requests/${requestId}`))}>
+                  돌아가기
                 </button>
               </>
             )}

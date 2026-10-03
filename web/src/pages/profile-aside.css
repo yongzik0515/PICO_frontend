@@ -1,0 +1,11 @@
+/* 도우미 상세 프로필 오른쪽 카드 보정.
+   공용 스타일을 건드리지 않으려고 이 화면에서만 쓰는 파일에 둔다. */
+
+/* 안내 문구가 무슨 내용인지 알 수 있게 제목 줄을 붙인다. */
+.aside-disclaimer > strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-600);
+}

@@ -200,7 +200,7 @@ function ResultModal({ r, upfrontApplies, onClose, onSubmit }: { r: TxRequest; u
           required={!agreed}
           helper={agreed ? undefined : '이의 사유는 도우미에게도 보여요. 도우미에게 보이면 안 되는 내용은 이의 제기 후 분쟁 소명에 남겨 주세요(운영팀만 봐요).'}
         >
-          <textarea rows={3} required={!agreed} maxLength={10000} value={note} onChange={(e) => setNote(e.target.value)} placeholder={agreed ? '선택 입력' : '예: 안내받은 좌석과 실제 예매 좌석이 달라요.'} />
+          <textarea rows={3} required={!agreed} maxLength={10000} value={note} onChange={(e) => setNote(e.target.value)} placeholder={agreed ? '선택 입력' : r.agentResult === 'FAILURE' ? '예: 시도 증빙 화면의 시각이 티켓 오픈 시간과 달라서 실제로 예매를 시도했는지 확인할 수 없어요.' : '예: 안내받은 좌석과 실제 예매 좌석이 달라요.'} />
         </Field>
         )}
         <div className="modal-actions">
@@ -216,7 +216,7 @@ function ResultModal({ r, upfrontApplies, onClose, onSubmit }: { r: TxRequest; u
   );
 }
 
-type Dialog = '' | 'accept' | 'reject' | 'cancel' | 'agree' | 'revision' | 'start' | 'result' | 'deleteReview' | 'withdraw' | { reject: number };
+type Dialog = '' | 'accept' | 'reject' | 'cancel' | 'agree' | 'revision' | 'start' | 'result' | 'deleteReview' | 'withdraw';
 
 export function RequestDetailPage() {
   const { id } = useParams();
@@ -260,6 +260,7 @@ export function RequestDetailPage() {
   const r = d.request;
   const role: Role = roleIn(r, me, mode);
   const agent = role === 'agent';
+  const other = agent ? '이용자' : '도우미';
   const stage = d.stage;
   const latest = latestAgreement(d.agreements);
   const proposalMine = latest?.proposedByRole === (agent ? 'AGENT' : 'REQUESTER');
@@ -333,11 +334,11 @@ export function RequestDetailPage() {
           ? '반려 사유를 반박할 자료가 있으면 다시 올려 주세요(선택). 반려된 증빙으로도 결과를 등록할 수 있어요.' + upfront
           : "반려 사유를 반박할 자료가 있으면 '추가 자료 올리기'로 올려 주세요. 이용자가 바로 보고, 이의가 생기면 운영팀이 함께 판단해요." + upfront;
       return upfrontApplies
-        ? '안전거래라서 착수 후 이용자가 이 증빙을 승인하면 결과 전이라도 착수비 지급을 요청해요. 승인되지 않아도 결과가 확정되면 요청해요. 지급은 정산 계좌가 등록돼 있어야 진행되고, 운영팀이 예매 시도 미확인·결과 미제출로 종결하면 지급하지 않아요.'
+        ? '안전거래라서 결과가 확정되면 착수비 지급을 요청해요. 지급은 정산 계좌가 등록돼 있어야 진행되고, 운영팀이 예매 시도 미확인·결과 미제출로 종결하면 지급하지 않아요.'
         : '실패로 결과를 등록할 때 이 증빙이 근거가 돼요.';
     }
     return upfrontApplies
-      ? '시도 증빙을 승인하면 착수비는 결과 전이라도 도우미 몫으로 확정돼 지급이 요청되고, 이후 환불 대상에서 빠져요. 승인하지 않아도 결과가 확정되면 도우미 몫이 돼요. 승인 전에 운영팀이 예매 시도 미확인·결과 미제출로 종결하면 착수비도 환불돼요.'
+      ? '시도 증빙은 실패 결과의 근거가 돼요. 결과가 확정되면 착수비는 도우미 몫이 되고, 운영팀이 예매 시도 미확인·결과 미제출로 종결하면 착수비도 환불돼요.'
       : '시도 증빙은 실패 결과의 근거가 돼요.';
   }
 
@@ -404,7 +405,7 @@ export function RequestDetailPage() {
         );
       case 'terms_sent':
         return proposalMine ? (
-          <Notice>상대방의 최종 확인을 기다리고 있어요.</Notice>
+          <Notice>{other}의 최종 확인을 기다리고 있어요.</Notice>
         ) : (
           <>
             {btn('확인하고 확정하기', () => setDialog('agree'))}
@@ -415,7 +416,7 @@ export function RequestDetailPage() {
       case 'payment':
         return (
           <>
-            {agent ? <Notice>이용자가 입금하면 알려드릴게요.</Notice> : go(`/requests/${r.id}/payment`, paymentStatus === 'PENDING' ? '입금 안내 보기' : '안전거래 결제하기')}
+            {agent ? <Notice>이용자가 입금하면 알려드릴게요.</Notice> : go(`/requests/${r.id}/payment`, r.paidItems.length ? '남은 금액 결제하기' : '안전거래 결제하기')}
             {repropose}
             {cancelMatched}
           </>
@@ -431,7 +432,7 @@ export function RequestDetailPage() {
             </>
           ) : (
             <>
-              <Notice>조건 변경 요청이 있어 지금은 착수하지 않아요. 양측 모두 새 조건을 제안할 수 있고, 상대방이 보내면 다시 검토해 주세요.</Notice>
+              <Notice>조건 변경 요청이 있어 지금은 착수하지 않아요. 양측 모두 새 조건을 제안할 수 있고, 도우미가 보내면 다시 검토해 주세요.</Notice>
               {cancelMatched}
             </>
           );
@@ -451,15 +452,6 @@ export function RequestDetailPage() {
               </Notice>
             )}
             {go(`/requests/${r.id}/result`, '결과 등록')}
-            {(!latestEvidence || latestEvidence.status === 'REJECTED') && (
-              <>
-                {go(`/requests/${r.id}/evidence`, latestEvidence ? '시도 증빙 다시 올리기' : '시도 증빙 올리기', 'secondary')}
-                <p className="record-note">
-                  실패로 결과를 등록하려면 꼭 필요해요. 성공·부분 성공이면 없어도 돼요.
-                  {upfrontApplies && ' 안전거래라서 이용자가 승인하면 결과 전이라도 착수비 지급을 요청해요(정산 계좌 등록 필요).'}
-                </p>
-              </>
-            )}
           </>
         ) : (
           <>
@@ -520,6 +512,67 @@ export function RequestDetailPage() {
     }
   }
 
+  const resultCardShown = !!finalized?.safePayment && !!r.agentResult;
+  // 부분 성공 정산 카드가 보이면 이용자 환불 요청·내역은 그 카드 맨 아래에 둔다(결제 카드에서는 뺀다).
+  const partialCardShown = r.status === 'COMPLETED' && final === 'PARTIAL' && !!finalized?.safePayment;
+  const refundCard = !agent && paymentId && finalized ? <RefundCard paymentId={paymentId} refunds={d.refunds} can={refundCase(r, final, d.partial, paymentStatus, finalized.upfrontFeeKrw)} reload={reload} /> : null;
+  // 실패 결과의 증빙은 시도 증빙으로 올라간다. 결과 카드에 사진과 승인·반려를 함께 보여 준다.
+  const failureCard = resultCardShown && r.agentResult === 'FAILURE' && d.evidences.length > 0;
+  const attemptEvidenceBody = (
+    <>
+      {d.evidences.map((e: Evidence) => {
+        const files = (e.attachments ?? []) as unknown as Raw[];
+        return (
+          <div key={e.evidenceId} className="tx-file-view">
+            <div>
+              <strong>
+                {e.revision}차 제출 · {evidenceNames[e.status] ?? e.status}
+              </strong>
+              <small>{e.description || '설명 없음'}</small>
+              {e.status === 'REJECTED' && e.reviewNote && <small>반려 사유: {e.reviewNote}</small>}
+              {files.length > 0 && (
+                <small>
+                  <EvidenceFileNames files={files} status={(f) => scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus) ?? ''} />
+                </small>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {agent && latestEvidence?.status === 'REJECTED' && stage === 'in_progress' && (
+        <div className="tx-request-actions">
+          <Link className="btn secondary" to={`/requests/${r.id}/evidence`}>
+            시도 증빙 다시 올리기
+          </Link>
+        </div>
+      )}
+      <p className="record-note">{attemptNote()}</p>
+    </>
+  );
+  const resultEvidenceList = (
+    <>
+      {d.resultEvidences.map((e, i) => {
+        const files = list(pick(e, 'attachments'));
+        return (
+          <div key={String(pick(e, 'evidenceId', 'id') ?? i)} className="tx-file-view">
+            <div>
+              <strong>{num(pick(e, 'revision')) ? `${num(pick(e, 'revision'))}차 제출` : '결과 증빙'}</strong>
+              <small>{str(pick(e, 'description')) || '설명 없음'}</small>
+              <small>
+                {files.length ? (
+                  <EvidenceFileNames files={files} status={(f) => scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus) ?? ''} />
+                ) : (
+                  scanNames[str(pick(e, 'scanStatus')) ?? ''] ?? ''
+                )}
+              </small>
+            </div>
+          </div>
+        );
+      })}
+      <p className="record-note">사진을 누르면 확대해서 볼 수 있어요. 결과에 이의가 있으면 운영팀이 이 증빙을 보고 결과 조정안을 제안해요.</p>
+    </>
+  );
+
   return (
     <>
       <PageTitle title="요청 상세" crumbs={[back]} />
@@ -534,8 +587,41 @@ export function RequestDetailPage() {
             <p>
               {agent ? `${r.requesterName} 이용자` : `${r.agentName} 도우미`} · {r.platformName || r.otherPlatformName || '예매처 미정'}
             </p>
-            <NextStep stage={stage} role={role} />
+            <NextStep stage={stage} role={role} proposedBy={latest?.proposedByRole} myName={String(me?.nickname ?? me?.name ?? '')} />
           </section>
+
+          {/* 결과가 등록되면 가장 중요한 정보라 헤더 바로 아래에 둔다. */}
+          {resultCardShown && r.agentResult && (
+            <TxCard
+              title={
+                <>
+                  예매 <span className={r.agentResult === 'FAILURE' ? 'result-failure' : 'result-success'}>{resultNames[r.agentResult]}</span> · 도우미 등록 결과
+                </>
+              }
+            >
+              <p className="prose" style={{ whiteSpace: 'pre-line' }}>
+                {r.agentResultNote || '등록된 결과 설명이 없어요.'}
+              </p>
+              {r.agentOutcome && <p className="prose">실제 결과: {r.agentOutcome}</p>}
+              {d.resultEvidences.length > 0 && resultEvidenceList}
+              {failureCard && (
+                <>
+                  <div className="tx-upload-heading">
+                    <h3>예매 시도 증빙</h3>
+                  </div>
+                  {attemptEvidenceBody}
+                </>
+              )}
+              {r.requesterResult && (
+                <Notice tone={r.requesterResult === r.agentResult ? 'success' : 'error'}>
+                  이용자 확인 결과: {resultNames[r.requesterResult]}
+                  {r.requesterResultNote ? ` · ${r.requesterResultNote}` : ''}
+                </Notice>
+              )}
+              {r.disputeNote && <Notice tone="error">이용자 이의 사유: {r.disputeNote}</Notice>}
+              {final && r.status === 'COMPLETED' && <Notice tone="success">최종 결과: {resultNames[final]}</Notice>}
+            </TxCard>
+          )}
 
           {(stage === 'revision_requested' || r.agreementChangePending) && d.changeRequests.length > 0 && (
             <TxCard title="조건 수정 요청">
@@ -550,7 +636,7 @@ export function RequestDetailPage() {
               <Notice tone={finalized ? 'success' : ''}>
                 {finalized
                   ? `양측이 ${latest.version}차 제안에 동의해 확정됐어요.${latest.finalizedAt ? ` (${utcToLocal(latest.finalizedAt)})` : ''}`
-                  : `${latest.version}차 제안${latest.createdAt ? ` · ${utcToLocal(latest.createdAt)}` : ''} · ${stage === 'revision_requested' ? '수정 요청됨. 새 조건을 기다리고 있어요.' : '상대방 확인을 기다리고 있어요.'}`}
+                  : `${latest.version}차 제안${latest.createdAt ? ` · ${utcToLocal(latest.createdAt)}` : ''} · ${stage === 'revision_requested' ? '수정 요청됨. 새 조건을 기다리고 있어요.' : `${latest.proposedByRole === 'AGENT' ? '이용자' : '도우미'} 확인을 기다리고 있어요.`}`}
               </Notice>
               {finalized ? <Rows rows={agreementRows(latest)} /> : <Comparison r={r} a={latest} />}
               {previous.length > 0 && (
@@ -575,7 +661,7 @@ export function RequestDetailPage() {
 
           <TxCard title="연락방법">
             {['PENDING', 'REJECTED', 'EXPIRED'].includes(r.status) ? (
-              <Notice>요청을 수락하면 매칭한 상대방의 연락처가 공개돼요.</Notice>
+              <Notice>요청을 수락하면 매칭한 {other}의 연락처가 공개돼요.</Notice>
             ) : ['COMPLETED', 'CANCELLED'].includes(r.status) ? (
               <Notice>거래가 끝나 연락처 공개가 종료됐어요.</Notice>
             ) : contacts.length ? (
@@ -588,24 +674,40 @@ export function RequestDetailPage() {
                     </div>
                   ))}
                 </dl>
-                <p className="record-note">매칭한 상대방에게만 공개되는 정보예요. 예매처 계정정보는 공유하지 마세요.</p>
+                <p className="record-note">매칭한 {other}에게만 공개되는 정보예요. 예매처 계정정보는 공유하지 마세요.</p>
               </>
             ) : (
-              <Notice>상대방이 공개한 연락처가 없어요.</Notice>
+              <Notice>{other}가 공개한 연락처가 없어요.</Notice>
             )}
           </TxCard>
 
           {finalized?.safePayment && (
             <TxCard title="안전거래 결제">
               {stage === 'payment' ? (
-                <Notice>{agent ? '이용자가 확정 금액을 입금할 차례예요.' : paymentStatus === 'PENDING' ? '가상계좌를 발급했어요. 기한 안에 입금해 주세요.' : '아직 결제 전이에요. 확정 금액을 가상계좌로 입금해 주세요.'}</Notice>
+                r.paidItems.length ? (
+                  // 일부 항목만 결제한 상태: 무엇을 냈고 무엇이 남았는지 보여 준다.
+                  <>
+                    <Rows
+                      rows={[
+                        ['착수비', r.paidItems.includes('UPFRONT') ? '결제 완료' : `결제 전 · ${money(finalized.upfrontFeeKrw)}원`],
+                        ['수고비 + 안전거래 수수료', r.paidItems.includes('SUCCESS_FEE') ? '결제 완료' : `결제 전 · ${money(finalized.successFeeKrw + finalized.safetyFeeKrw)}원`],
+                      ]}
+                    />
+                    <Notice tone="error">
+                      {`${r.paidItems.includes('UPFRONT') ? '수고비' : '착수비'}가 아직 결제되지 않았어요. `}
+                      {agent ? '이용자가 남은 금액을 결제해야 착수할 수 있어요.' : paymentStatus === 'PENDING' ? '발급한 가상계좌로 입금해야 다음 단계로 넘어가요.' : '추가 결제를 해야 다음 단계(도우미 착수)로 넘어갈 수 있어요.'}
+                    </Notice>
+                  </>
+                ) : (
+                  <Notice>{agent ? '이용자가 확정 금액을 입금할 차례예요.' : paymentStatus === 'PENDING' ? '가상계좌를 발급했어요. 기한 안에 입금해 주세요.' : '아직 결제 전이에요. 확정 금액을 가상계좌로 입금해 주세요.'}</Notice>
+                )
               ) : paymentStatus && paymentStatus !== 'PAID' ? (
                 <>
                   <div className="title-between">
                     <strong>{paymentNames[paymentStatus] ?? paymentStatus}</strong>
                     <strong>{money(finalized.upfrontFeeKrw + finalized.successFeeKrw + finalized.safetyFeeKrw)}원</strong>
                   </div>
-                  {!agent && paymentId && <RefundCard paymentId={paymentId} refunds={d.refunds} can={refundCase(r, final, d.partial, paymentStatus, finalized.upfrontFeeKrw)} reload={reload} />}
+                  {!partialCardShown && refundCard}
                 </>
               ) : (
                 <>
@@ -624,7 +726,7 @@ export function RequestDetailPage() {
                         ? '결제 금액을 보관하는 단계예요. 착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면 도우미에게 지급을 요청해요(운영팀이 예매 시도 미확인·결과 미제출로 종결하면 지급하지 않고 환불). 성공보수는 성공이면 전액, 부분 성공이면 정산한 금액만 지급돼요. 이용료는 환불되지 않아요.'
                         : '결제 금액을 보관하는 단계예요. 성공보수는 성공이면 전액, 부분 성공이면 정산한 금액만 도우미에게 지급돼요. 이용료는 환불되지 않아요.'}
                   </Notice>
-                  {!agent && paymentId && <RefundCard paymentId={paymentId} refunds={d.refunds} can={refundCase(r, final, d.partial, paymentStatus, finalized.upfrontFeeKrw)} reload={reload} />}
+                  {!partialCardShown && refundCard}
                 </>
               )}
             </TxCard>
@@ -660,80 +762,15 @@ export function RequestDetailPage() {
             </TxCard>
           )}
 
-          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <MediationCard key={r.status} requestId={r.id} kind="RESULT" reloadDetail={reload} />}
-          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <DisputeCard key={r.status} requestId={r.id} disputed={r.status === 'DISPUTED'} reloadDetail={reload} />}
+          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <MediationCard key={r.status} requestId={r.id} kind="RESULT" agent={agent} reloadDetail={reload} />}
+          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <DisputeCard key={r.status} requestId={r.id} disputed={r.status === 'DISPUTED'} agent={agent} reloadDetail={reload} />}
 
-          {d.resultEvidences.length > 0 && (
-            <TxCard title="결과 증빙">
-              {d.resultEvidences.map((e, i) => {
-                const files = list(pick(e, 'attachments'));
-                return (
-                  <div key={String(pick(e, 'evidenceId', 'id') ?? i)} className="tx-file-view">
-                    <div>
-                      <strong>{num(pick(e, 'revision')) ? `${num(pick(e, 'revision'))}차 제출` : '결과 증빙'}</strong>
-                      <small>{str(pick(e, 'description')) || '설명 없음'}</small>
-                      <small>
-                        {files.length ? (
-                          <EvidenceFileNames files={files} status={(f) => scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus) ?? ''} />
-                        ) : (
-                          scanNames[str(pick(e, 'scanStatus')) ?? ''] ?? ''
-                        )}
-                      </small>
-                    </div>
-                  </div>
-                );
-              })}
-              <p className="record-note">사진을 누르면 확대해서 볼 수 있어요. 결과에 이의가 있으면 운영팀이 이 증빙을 보고 결과 조정안을 제안해요.</p>
-            </TxCard>
-          )}
+          {/* 결과 카드가 없을 때(결과 등록 전 등)만 따로 보여 준다. 결과 카드가 있으면 그 안에 함께 보인다. */}
+          {d.resultEvidences.length > 0 && !resultCardShown && <TxCard title="결과 증빙">{resultEvidenceList}</TxCard>}
 
-          {d.evidences.length > 0 && (
-            <TxCard title="예매 시도 증빙">
-              {d.evidences.map((e: Evidence) => {
-                const files = (e.attachments ?? []) as unknown as Raw[];
-                return (
-                  <div key={e.evidenceId} className="tx-file-view">
-                    <div>
-                      <strong>
-                        {e.revision}차 제출 · {evidenceNames[e.status] ?? e.status}
-                      </strong>
-                      <small>{e.description || '설명 없음'}</small>
-                      {e.status === 'REJECTED' && e.reviewNote && <small>반려 사유: {e.reviewNote}</small>}
-                      {files.length > 0 && (
-                        <small>
-                          <EvidenceFileNames files={files} status={(f) => scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus) ?? ''} />
-                        </small>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {!agent && latestEvidence?.status === 'SUBMITTED' && ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status) && (
-                <div className="tx-request-actions">
-                  <button
-                    type="button"
-                    className="btn primary"
-                    disabled={pending}
-                    onClick={() =>
-                      act(() => unwrap(api.POST('/api/attempt-evidences/{evidenceId}/approve', { params: { path: { evidenceId: latestEvidence.evidenceId } }, body: {} })), '시도 증빙을 승인했어요.')
-                    }
-                  >
-                    증빙 승인
-                  </button>
-                  <button type="button" className="btn ghost" disabled={pending} onClick={() => setDialog({ reject: latestEvidence.evidenceId })}>
-                    반려
-                  </button>
-                </div>
-              )}
-              {agent && latestEvidence?.status === 'REJECTED' && stage === 'in_progress' && (
-                <div className="tx-request-actions">
-                  <Link className="btn secondary" to={`/requests/${r.id}/evidence`}>
-                    시도 증빙 다시 올리기
-                  </Link>
-                </div>
-              )}
-              <p className="record-note">{attemptNote()}</p>
-            </TxCard>
+          {/* 실패 결과면 예매 결과 카드 안에 함께 보이므로 따로 보여 주지 않는다. */}
+          {d.evidences.length > 0 && !failureCard && (
+            <TxCard title="예매 시도 증빙">{attemptEvidenceBody}</TxCard>
           )}
 
           {d.review && (
@@ -760,34 +797,11 @@ export function RequestDetailPage() {
             </TxCard>
           )}
 
-          {finalized?.safePayment && r.agentResult && (
-            <TxCard
-              title={
-                <>
-                  예매 <span className={r.agentResult === 'FAILURE' ? 'result-failure' : 'result-success'}>{resultNames[r.agentResult]}</span> · 도우미 등록 결과
-                </>
-              }
-            >
-              <p className="prose" style={{ whiteSpace: 'pre-line' }}>
-                {r.agentResultNote || '등록된 결과 설명이 없어요.'}
-              </p>
-              {r.agentOutcome && <p className="prose">실제 결과: {r.agentOutcome}</p>}
-              {r.requesterResult && (
-                <Notice tone={r.requesterResult === r.agentResult ? 'success' : 'error'}>
-                  이용자 확인 결과: {resultNames[r.requesterResult]}
-                  {r.requesterResultNote ? ` · ${r.requesterResultNote}` : ''}
-                </Notice>
-              )}
-              {r.disputeNote && <Notice tone="error">이용자 이의 사유: {r.disputeNote}</Notice>}
-              {final && r.status === 'COMPLETED' && <Notice tone="success">최종 결과: {resultNames[final]}</Notice>}
-            </TxCard>
-          )}
-
-          {r.status === 'COMPLETED' && final === 'PARTIAL' && finalized?.safePayment && <PartialSettlementCard r={r} a={finalized} partial={d.partial} agent={agent} reload={reload} />}
+          {partialCardShown && finalized && <PartialSettlementCard r={r} a={finalized} partial={d.partial} agent={agent} reload={reload} refund={refundCard} />}
 
           {counterpartId && !['PENDING'].includes(r.status) && (
             <button className="report-link" onClick={() => navigate(`/report?requestId=${r.id}&userId=${counterpartId}&name=${encodeURIComponent(counterpartName)}`)}>
-              거래 상대방에게 문제가 있나요? 신고하기
+              {other}에게 문제가 있나요? 신고하기
             </button>
           )}
         </div>
@@ -795,15 +809,15 @@ export function RequestDetailPage() {
           <section className="content-card tx-progress">
             <h2>진행 상황</h2>
             {/* 도우미가 보낸(또는 확정된) 조건이 직접 거래면 결제 단계가 없다. */}
-            <Progress stage={stage} direct={!!latest && !latest.safePayment} />
+            <Progress stage={stage} direct={!!latest && !latest.safePayment} proposedBy={latest?.proposedByRole} />
             {actions()}
             {finalized && (
               <p className="tx-confirmed">
-                <Icon name="check" size={15} /> 이용자 최종 확인 완료
+                <Icon name="check" size={15} /> {finalized.proposedByRole === 'AGENT' ? '이용자' : '도우미'} 최종 확인 완료
               </p>
             )}
           </section>
-          <p className="aside-disclaimer">양측 모두 조건을 제안할 수 있어요. 받은 상대방이 승인하면 확정되고, 수정을 요청하면 새 조건을 제안할 수 있어요.</p>
+          <p className="aside-disclaimer">이용자와 도우미 모두 조건을 제안할 수 있어요. 도우미가 보낸 조건은 이용자가, 이용자가 보낸 조건은 도우미가 확정하거나 수정을 요청해요.</p>
         </aside>
       </div>
 
@@ -831,7 +845,7 @@ export function RequestDetailPage() {
           )}
           {hasContact === false && (
             <Notice tone="error">
-              수락하려면 거래 상대방에게 공개할 대표 연락처가 필요해요. <Link to="/user-profile">연락처 등록</Link> 후 수락해 주세요.
+              수락하려면 이용자에게 공개할 대표 연락처가 필요해요. <Link to="/user-profile">연락처 등록</Link> 후 수락해 주세요.
             </Notice>
           )}
           <p className="record-note">수락하면 연락처 공유 동의 약관에 동의한 것으로 처리돼요.</p>
@@ -886,7 +900,7 @@ export function RequestDetailPage() {
             act(() => unwrap(api.POST('/api/requests/{requestId}/agreements/{agreementId}/change-requests', { params: { path: { requestId, agreementId: latest.id } }, body: { reason } })), '수정 요청을 보냈어요.')
           }
         >
-          <p className="record-note">수정 요청 후에는 양측 모두 새 조건을 제안할 수 있어요. 상대방이 보내면 먼저 확인하고 승인하거나 다시 수정을 요청해 주세요.</p>
+          <p className="record-note">수정 요청 후에는 이용자와 도우미 모두 새 조건을 제안할 수 있어요. {other}가 보내면 먼저 확인하고 승인하거나 다시 수정을 요청해 주세요.</p>
         </ReasonModal>
       )}
       {dialog === 'start' && (
@@ -968,18 +982,6 @@ export function RequestDetailPage() {
         >
           <p className="prose">거래당 후기는 하나만 쓸 수 있어서, 삭제하면 이 거래의 후기를 다시 작성할 수 없어요.</p>
         </ConfirmModal>
-      )}
-      {typeof dialog === 'object' && (
-        <ReasonModal
-          title="시도 증빙 반려"
-          label="반려 사유"
-          submitText="반려하기"
-          danger
-          onClose={close}
-          onSubmit={(reviewNote) => act(() => unwrap(api.POST('/api/attempt-evidences/{evidenceId}/reject', { params: { path: { evidenceId: dialog.reject } }, body: { reviewNote } })), '증빙을 반려했어요.')}
-        >
-          <p className="prose">도우미가 새 증빙을 다시 올릴 수 있어요.</p>
-        </ReasonModal>
       )}
     </>
   );

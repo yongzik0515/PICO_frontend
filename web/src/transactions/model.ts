@@ -64,6 +64,10 @@ export interface TxRequest {
   requesterResultNote: string;
   paymentId?: number;
   paymentStatus: string;
+  /** 이미 결제한 항목(항목별 결제). 백엔드가 아직 주지 않아 지금은 데모 모드만 채운다(USER_FLOW.md 코드에서 비어 있는 부분 6번). */
+  paidItems: PayItem[];
+  /** 입금 대기 중인 주문에 담긴 항목(항목별 결제). paidItems와 같이 지금은 데모 모드만 채운다. */
+  orderedItems: PayItem[];
   /** 이용자가 최신 조건(확정본 포함)에 변경을 요청했고 도우미가 새 조건을 아직 보내지 않음. 이 동안 착수는 409 */
   agreementChangePending: boolean;
   /** 후기를 이미 썼음(삭제·숨김 포함). 숨겨진 후기는 조회가 404라 이 값으로 다시 쓰기를 막는다. */
@@ -120,6 +124,8 @@ export function toRequest(raw: Raw): TxRequest {
     requesterResultNote: s('requesterResultNote', 'requesterNote', 'result.requesterNote'),
     paymentId: n('paymentId', 'payment.paymentId', 'safePayment.paymentId'),
     paymentStatus: s('paymentStatus', 'payment.status', 'safePayment.status'),
+    paidItems: (Array.isArray(pick(raw, 'paidItems')) ? (pick(raw, 'paidItems') as unknown[]) : []).filter((v): v is PayItem => v === 'UPFRONT' || v === 'SUCCESS_FEE'),
+    orderedItems: (Array.isArray(pick(raw, 'orderedItems')) ? (pick(raw, 'orderedItems') as unknown[]) : []).filter((v): v is PayItem => v === 'UPFRONT' || v === 'SUCCESS_FEE'),
     agreementChangePending: pick(raw, 'agreementChangePending') === true || num(pick(raw, 'agreementChangePending')) === 1,
     reviewWritten: pick(raw, 'reviewWritten') === true || num(pick(raw, 'reviewWritten')) === 1,
     raw,
@@ -203,7 +209,7 @@ export const stageNames: Record<Stage, string> = {
   policy_blocked: '진행할 수 없는 요청',
   pending: '도우미 응답 대기',
   terms_needed: '최종 조건 작성 필요',
-  terms_sent: '상대방 확인 대기',
+  terms_sent: '최종 조건 확인 대기',
   revision_requested: '조건 수정 요청',
   payment: '안전거래 결제 대기',
   ready: '착수 대기',
@@ -248,6 +254,9 @@ const serverStages: Record<string, Stage> = {
 export function latestAgreement(agreements: Agreement[]) {
   return [...agreements].sort((a, b) => b.version - a.version || b.id - a.id)[0];
 }
+
+export type PayItem = 'UPFRONT' | 'SUCCESS_FEE';
+export const payItemNames: Record<PayItem, string> = { UPFRONT: '착수비', SUCCESS_FEE: '수고비' };
 
 export function stageOf(r: TxRequest, agreements: Agreement[] = [], changeRequests: Raw[] = []): Stage {
   const server = r.serverStage.toUpperCase();

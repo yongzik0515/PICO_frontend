@@ -1,0 +1,18 @@
+/* 회원가입 화면 전용 보정.
+   공용 스타일을 건드리지 않으려고 이 화면에서만 쓰는 파일에 둔다.
+
+   .signup-field-action은 `입력란 | 버튼` 2칸 그리드라, 안내 문구를 세 번째 자식으로 두면
+   자동 배치로 둘째 줄 왼쪽 칸 — 즉 입력란 바로 아래에 놓인다. */
+.signup-field-action > .signup-status {
+  grid-column: 1;
+  margin: -12px 0 0; /* 입력란 아래 간격 4px 추가 */
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--danger-500);
+}
+.signup-field-action > .signup-status.is-ok {
+  color: var(--trust-500);
+}
+.signup-field-action > .signup-status:empty {
+  display: none;
+}

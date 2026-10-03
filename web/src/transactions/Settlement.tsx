@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { api, unwrap } from '../api/client';
 import { list, num, str, type Raw } from '../api/pick';
 import { banks } from '../agent/profile';
@@ -54,7 +54,8 @@ const offerResultNames: Record<string, string> = { PENDING: '응답 대기', ACC
  * 운영팀은 마지막 활동 후 24시간 동안 변화가 없거나 도우미·이용자가 '운영팀에 넘기기'를 눌렀을 때 조정안을 제시할 수 있다.
  * 조정이 시작되면 당사자끼리의 직접 제안·동의·반려는 막히고, 조정안에 양측이 수락해야 확정된다(최대 2회).
  */
-export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxRequest; a: Agreement; partial: Raw | null; agent: boolean; reload: () => void }) {
+/** refund: 이용자의 남은 성공보수 환불 요청·내역. 정산 결과 바로 아래(카드 맨 아래)에 둔다. */
+export function PartialSettlementCard({ r, a, partial, agent, reload, refund }: { r: TxRequest; a: Agreement; partial: Raw | null; agent: boolean; reload: () => void; refund?: ReactNode }) {
   const [amountInput, setAmountInput] = useState<number | null>(null);
   const [amountMissing, setAmountMissing] = useState(false);
   const [note, setNote] = useState('');
@@ -161,8 +162,9 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
                 ['도우미 제안', proposed !== undefined ? `${won(proposed)}${partial?.proposalNote ? ` · ${str(partial.proposalNote)}` : ''}` : '-'],
                 ...(status === 'REJECTED' ? ([['반려 사유', str(partial?.rejectionNote) ?? '']] as [string, string][]) : []),
                 ...(status === 'REJECTED' && counter !== undefined ? ([['이용자가 바라는 금액', won(counter)]] as [string, string][]) : []),
-                ...(decided !== undefined ? ([['확정된 도우미 몫', won(decided)]] as [string, string][]) : []),
-                ...(refundAmount !== undefined ? ([['이용자 환불', won(refundAmount)]] as [string, string][]) : []),
+                // 정산의 결론이라 다른 줄보다 굵게·강조색으로 보여 준다.
+                ...(decided !== undefined ? ([['확정된 도우미 몫', <strong key="decided" className="settlement-key">{won(decided)}</strong>]] as [string, ReactNode][]) : []),
+                ...(refundAmount !== undefined ? ([['이용자 환불', <strong key="refund" className="settlement-key">{won(refundAmount)}</strong>]] as [string, ReactNode][]) : []),
                 ...(partial?.decisionNote ? ([['조정·결정 사유', str(partial.decisionNote) ?? '']] as [string, string][]) : []),
                 ...(partial?.decidedAt ? ([['확정 시각', utcToLocal(str(partial.decidedAt) ?? '')]] as [string, string][]) : []),
               ]}
@@ -314,7 +316,7 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
             noValidate
             onSubmit={async (e) => {
               e.preventDefault();
-              done('')(await run(() => unwrap(api.POST('/api/requests/{requestId}/partial-settlement/escalate', { ...path, body: { note: escalateNote.trim() || undefined } })), '운영팀에 넘겼어요. 상대방에게 알림이 가요.'));
+              done('')(await run(() => unwrap(api.POST('/api/requests/{requestId}/partial-settlement/escalate', { ...path, body: { note: escalateNote.trim() || undefined } })), `운영팀에 넘겼어요. ${agent ? '이용자' : '도우미'}에게 알림이 가요.`));
               setEscalateNote('');
             }}
           >
@@ -324,7 +326,7 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
             <Field label="운영팀에 전할 말">
               <textarea rows={3} maxLength={1000} value={escalateNote} onChange={(e) => setEscalateNote(e.target.value)} placeholder="예: 서로 금액이 맞지 않아요." />
             </Field>
-            <p className="record-note">남긴 말은 상대방과 운영팀에 공개돼요.</p>
+            <p className="record-note">남긴 말은 {agent ? '이용자' : '도우미'}와 운영팀에 공개돼요.</p>
             <div className="modal-actions">
               <button type="button" className="btn secondary" onClick={() => setDialog('')}>
                 돌아가기
@@ -336,8 +338,9 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
           </form>
         </Modal>
       )}
+      {refund && <div className="settlement-refund">{refund}</div>}
     </TxCard>
-    {mediating && <MediationCard requestId={r.id} kind="SETTLEMENT" feeKrw={a.successFeeKrw} reloadDetail={reload} />}
+    {mediating && <MediationCard requestId={r.id} kind="SETTLEMENT" feeKrw={a.successFeeKrw} agent={agent} reloadDetail={reload} />}
     </>
   );
 }
