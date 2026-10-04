@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppState } from '../AppState';
 import { useAgentSearch } from '../discovery/agent';
 import { AgentCard } from '../discovery/AgentCard';
 import { FilterModal, QuickFilter } from '../discovery/FilterControls';
 import { emptyFilters, filterLabels, removeFilter, sortOptions, type Filters, type Sort } from '../discovery/filters';
+import { TicketCarousel } from '../home/TicketCarousel';
+import '../home/home-layout.css';
 import { Icon } from '../ui/Icon';
 import { Modal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
@@ -47,20 +49,12 @@ export function HomePage() {
   return (
     <>
       <section className="page-heading home-heading pc-hero">
-        <div>
-          <h1>
-            좋아하는 공연에,
-            <br />한 걸음 <em>더 가까이.</em>
-          </h1>
-          <p>믿을 수 있는 티켓팅 도우미와 설레는 순간을 함께 준비해요.</p>
-        </div>
-        <div className="ticket-outline" aria-hidden="true">
-          <img src="/home-ticket.svg" alt="" width="420" height="240" />
-        </div>
+        {/* 화면에는 캐러셀을 띄우고, 페이지 대표 제목은 검색엔진·스크린리더용으로 남긴다. */}
+        <h1 className="tsb-visually-hidden">좋아하는 공연에, 한 걸음 더 가까이.</h1>
+        <TicketCarousel />
       </section>
       <div className="pc-search-row">
         <div className="search-container">
-          <Icon name="search" size={23} />
           <input
             id="search"
             type="search"
@@ -68,8 +62,12 @@ export function HomePage() {
             placeholder="공연명, 도우미 이름, 예매처를 검색해 보세요"
             aria-label="도우미 검색"
             onChange={(e) => setState((s) => ({ ...s, query: e.target.value }))}
+            onKeyDown={(e) => e.key === 'Enter' && setReload((n) => n + 1)}
           />
-          <span className="search-hint">원하는 공연이 있나요?</span>
+          {/* 돋보기를 입력란 오른쪽 끝의 누를 수 있는 칩으로 둔다. 목록은 입력하는 대로 갱신되고, 이 버튼은 다시 불러온다. */}
+          <button type="button" className="search-chip" aria-label="검색" onClick={() => setReload((n) => n + 1)}>
+            <Icon name="search" size={20} />
+          </button>
         </div>
         <div className="popular-shows">
           <span>인기 검색</span>
@@ -80,6 +78,15 @@ export function HomePage() {
           ))}
           <small>예시</small>
         </div>
+        {/* 검색창 오른쪽 빈 자리를 광고 자리로 쓴다(화면 1024px 이상에서만 보인다).
+            아직 실제 광고가 없어 광고 문의 안내를 띄운다. 광고가 생기면 문구와 이동 주소만 바꾸면 된다. */}
+        <Link className="home-ad" to="/inquiries">
+          <span className="home-ad-badge">광고</span>
+          <strong>공연·굿즈 소식을 팬들에게 알려 보세요</strong>
+          <span className="home-ad-more">
+            광고 문의 <Icon name="arrow" size={14} />
+          </span>
+        </Link>
       </div>
       <div className="pc-discovery-header">
         <div>
@@ -195,23 +202,6 @@ export function HomePage() {
             </ol>
             <button className="guide-link" onClick={() => navigate('/guide')}>
               이용 방법 자세히 보기 <Icon name="arrow" size={17} />
-            </button>
-          </div>
-          <div className="trust-note">
-            <Icon name="shield" size={22} />
-            <div>
-              <strong>확인할 수 있는 신뢰</strong>
-              <p>
-                인증 정보와 플랫폼 거래 후기를
-                <br />
-                함께 확인하고 선택하세요.
-              </p>
-            </div>
-          </div>
-          <div className="help-card">
-            <span>궁금한 점이 있나요?</span>
-            <button onClick={() => navigate('/help')}>
-              고객센터 <Icon name="chevron" size={14} />
             </button>
           </div>
         </aside>

@@ -1,10 +1,17 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { api, unwrap } from '../api/client';
 import type { components } from '../api/schema';
 import { useAuth } from '../auth/AuthContext';
+import { fetchRequests } from '../transactions/model';
 
 // 알림: GET /api/notifications, 개별 조회 시 자동 읽음(GET /api/notifications/{id}), PATCH /api/notifications/read-all
 export type Notification = components['schemas']['NotificationResponse'];
+
+/** 알림을 눌렀을 때 갈 곳. 운영팀이 보낸 안내(ANNOUNCEMENT)는 길 수 있어 문의 현황에서 이어 본다(문의 API 연결 전, USER_FLOW.md 7번). */
+export function notificationTarget(n: Notification) {
+  if (n.kind === 'ANNOUNCEMENT') return `/inquiries/history?notification=${n.notificationId}`;
+  return n.requestId ? `/requests/${n.requestId}` : undefined;
+}
 
 const POLL_MS = 30_000;
 /** 창으로 돌아올 때 focus와 visibilitychange가 함께 와도 한 번만 요청한다. */
@@ -114,4 +121,35 @@ export function useNotifications(key: string) {
   }
   const reload = () => load(true);
   return { items: current, unread: current.filter((n) => !n.readAt).length, open, readAll, reload };
+}
+
+export type NotificationRole = 'user' | 'agent' | 'common';
+export const notificationRoleNames: Record<NotificationRole, string> = { user: '이용자', agent: '도우미', common: '공통' };
+
+/**
+ * 알림이 이용자·도우미 중 어느 쪽 활동인지 판단한다. 알림 응답에 역할이 없어 내 요청 목록(이용자로 보낸 요청·도우미로 받은 요청)과 대조한다.
+ * 도우미 신청(APPLICATION)은 도우미, 검색 조건 알림(SEARCH_MATCH)은 이용자, 운영팀 안내 등 거래와 무관한 알림은 공통이다.
+ * 목록에 없는 요청 번호가 오면(새 요청) 요청 목록을 다시 받는다.
+ */
+export function useNotificationRoles(list: Notification[]) {
+  const { userKey } = useAuth();
+  const [ids, setIds] = useState<{ user: Set<number>; agent: Set<number> } | null>(null);
+  const missing = ids ? list.filter((n) => n.requestId && !ids.user.has(n.requestId) && !ids.agent.has(n.requestId)).map((n) => n.requestId).join(',') : '';
+  useEffect(() => {
+    if (!userKey) return;
+    let alive = true;
+    void Promise.all([fetchRequests('REQUESTER').catch(() => []), fetchRequests('AGENT').catch(() => [])]).then(([u, a]) => {
+      if (alive) setIds({ user: new Set(u.map((r) => r.id)), agent: new Set(a.map((r) => r.id)) });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userKey, missing]);
+  return (n: Notification): NotificationRole => {
+    if (n.kind === 'APPLICATION') return 'agent';
+    if (n.kind === 'SEARCH_MATCH') return 'user';
+    if (n.requestId && ids?.agent.has(n.requestId)) return 'agent';
+    if (n.requestId && ids?.user.has(n.requestId)) return 'user';
+    return 'common';
+  };
 }

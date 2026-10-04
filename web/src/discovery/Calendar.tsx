@@ -27,6 +27,10 @@ export function Calendar({ dates, onChange }: { dates: string[]; onChange: (date
         <button type="button" aria-label="다음 달" onClick={() => setMonth(new Date(y, m + 1, 1))}>
           <Icon name="chevron" size={14} />
         </button>
+        {/* 선택 해제는 달 표시 줄의 맨 오른쪽에 둔다(달 표시는 가운데에 그대로 남는다). */}
+        <button type="button" className="calendar-clear" onClick={() => onChange([])}>
+          선택 해제
+        </button>
       </div>
       <div className="filter-calendar-grid">
         {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
@@ -55,12 +59,6 @@ export function Calendar({ dates, onChange }: { dates: string[]; onChange: (date
             </button>
           );
         })}
-      </div>
-      <div className="calendar-selection">
-        <span>{dates.length ? dates.length + '일 선택' : '날짜 전체'}</span>
-        <button type="button" onClick={() => onChange([])}>
-          선택 해제
-        </button>
       </div>
     </div>
   );

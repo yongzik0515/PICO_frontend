@@ -17,9 +17,10 @@ import { PageTitle } from '../ui/PageTitle';
 // 권한은 서버가 검사한다(ROLE_ADMIN이 아니면 403). 메뉴에는 노출하지 않고 /admin 주소로 들어온다.
 // 목록 응답 필드가 명세에 없는 API가 많아(data: object) pick()으로 찾고, 항목마다 원본 응답을 펼쳐 볼 수 있게 했다.
 
-type Tab = 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'payments' | 'reports' | 'reviews' | 'users' | 'setup';
+type Tab = 'inquiries' | 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'payments' | 'reports' | 'reviews' | 'users' | 'setup';
 const tabs: [Tab, string][] = [
   ['policy', '요청 정책 검토'],
+  ['inquiries', '문의 답변'],
   ['files', '증빙 파일 검토'],
   ['profiles', '도우미 심사'],
   ['attempts', '시도 증빙 대리 승인'],
@@ -322,10 +323,54 @@ function FilesTab() {
 }
 
 // ── 도우미 심사 ────────────────────────────────────────────
+const correctionFields: Record<string, string> = {
+  image: '프로필 사진', activityName: '활동명', headline: '한 줄 소개', bio: '소개', platformIds: '가능 예매처',
+  categories: '활동 분야', primaryCategory: '대표 분야', contactHoursNote: '연락 가능 시간', upfrontFeeKrw: '착수비',
+  successFee: '수고비', payout: '정산 계좌', contact: '연락 방법', careerDescription: '경력 요약', career: '경력 인증', business: '사업자 정보',
+};
+function ProfileCorrectionModal({ profileId, onClose, onDone }: { profileId: number; onClose: () => void; onDone: () => void }) {
+  const [note, setNote] = useState('');
+  const [fields, setFields] = useState<string[]>([]);
+  const { pending, run } = useAction();
+  return <Modal title="도우미 신청 보완 요청" onClose={onClose}>
+    <form onSubmit={async (e) => {
+      e.preventDefault();
+      if (!note.trim() || !fields.length || pending) return;
+      const ok = await run(() => unwrap(api.POST('/api/admin/agent-profiles/{profileId}/change-request', { params: { path: { profileId } }, body: { note: note.trim(), changeFields: fields } })), '보완을 요청했어요.');
+      if (ok) onDone();
+    }}>
+      <Field label="보완 사유" required><textarea required maxLength={2000} rows={4} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+      <fieldset><legend>보완할 항목 (하나 이상)</legend>{Object.entries(correctionFields).map(([key, label]) => <label key={key} className="check-row">
+        <input type="checkbox" checked={fields.includes(key)} onChange={(e) => setFields(e.target.checked ? [...fields, key] : fields.filter((f) => f !== key))} />{label}
+      </label>)}</fieldset>
+      <div className="modal-actions"><button type="button" className="btn ghost" onClick={onClose}>닫기</button><button type="submit" className="btn primary" disabled={pending || !note.trim() || !fields.length}>보완 요청 보내기</button></div>
+    </form>
+  </Modal>;
+}
+
+function InquiriesTab() {
+  const [page, setPage] = useState(0);
+  const [status, setStatus] = useState('OPEN');
+  const [load, reload] = useLoad<Raw[]>(() => unwrap<unknown>(api.GET('/api/admin/inquiries', { params: { query: { page, size: 20, status: status || undefined } } })).then(list), [page, status]);
+  const { open, modal, pending } = useDialog(reload);
+  return <>
+    <Field label="문의 상태"><select value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }}><option value="OPEN">답변 대기</option><option value="ANSWERED">답변 완료</option><option value="">전체</option></select></Field>
+    <ListBlock title="문의 답변" load={load} reload={reload} empty="문의가 없어요.">{(rows) => rows.map((row) => <Item key={n(row, 'id')} title={s(row, 'subject')} raw={row} rows={[
+      ['접수 시각', utcToLocal(s(row, 'createdAt'))], ['문의 내용', <span key="message" style={{ whiteSpace: 'pre-wrap' }}>{s(row, 'message')}</span>], ['답변', <span key="reply" style={{ whiteSpace: 'pre-wrap' }}>{s(row, 'reply')}</span>],
+    ]}>{s(row, 'status') === 'OPEN' && <button type="button" className="btn primary" disabled={pending} onClick={() => open({
+      title: '문의 답변', message: s(row, 'subject'), fields: [noteField('답변 내용', 3000)], submitText: '답변 등록', success: '답변을 등록했어요.',
+      action: (v) => unwrap(api.POST('/api/admin/inquiries/{inquiryId}/reply', { params: { path: { inquiryId: n(row, 'id')! } }, body: { reply: v.note } })),
+    })}>답변 작성</button>}</Item>)}</ListBlock>
+    <div className="modal-actions"><button type="button" className="btn ghost" disabled={page === 0 || load.status !== 'done'} onClick={() => setPage(page - 1)}>이전</button><span>{page + 1}페이지</span><button type="button" className="btn ghost" disabled={load.status !== 'done' || load.data.length < 20} onClick={() => setPage(page + 1)}>다음</button></div>
+    {modal}
+  </>;
+}
+
 function ProfilesTab() {
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/agent-profiles', { params: { query: { page: 0, size: 100 } } })));
   const { open, modal, pending, run } = useDialog(reload);
   const [evidence, setEvidence] = useState<{ id: number; rows: Raw[] } | null>(null);
+  const [correction, setCorrection] = useState<number | null>(null);
   const profileId = (row: Raw) => n(row, 'profileId', 'profileVersionId', 'id')!;
   const review = (row: Raw, approved: boolean) =>
     open({
@@ -338,7 +383,7 @@ function ProfilesTab() {
     });
   return (
     <>
-      <ListBlock title="심사 대기 프로필" desc="승인하면 도우미 찾기에 게시돼요. 서버가 본인·정산계좌 인증과 경력 증빙 3건(CLEAN)을 다시 확인해요. 경력 자료는 '증빙 보기'로 확인해 주세요." load={load} reload={reload} empty="심사할 프로필이 없어요.">
+      <ListBlock title="심사 대기 프로필" desc="승인하면 도우미 찾기에 게시돼요. 서버가 본인·정산계좌 인증과 경력 증빙 최소 1건(CLEAN)을 다시 확인해요. 경력 자료는 '증빙 보기'로 확인해 주세요." load={load} reload={reload} empty="심사할 프로필이 없어요.">
         {(rows) =>
           rows.map((row) => (
             <Item
@@ -377,6 +422,7 @@ function ProfilesTab() {
               <button type="button" className="btn primary" disabled={pending} onClick={() => review(row, true)}>
                 승인
               </button>
+              <button type="button" className="btn secondary" disabled={pending} onClick={() => setCorrection(profileId(row))}>보완 요청</button>
               <button type="button" className="btn ghost tx-danger" disabled={pending} onClick={() => review(row, false)}>
                 반려
               </button>
@@ -384,6 +430,7 @@ function ProfilesTab() {
           ))
         }
       </ListBlock>
+      {correction !== null && <ProfileCorrectionModal profileId={correction} onClose={() => setCorrection(null)} onDone={() => { setCorrection(null); reload(); }} />}
       {evidence && (
         <Modal title={`프로필 #${evidence.id} 증빙`} onClose={() => setEvidence(null)} wide>
           {evidence.rows.length ? (
@@ -1721,6 +1768,7 @@ export function AdminPage() {
       {tab === 'policy' && <PolicyTab />}
       {tab === 'files' && <FilesTab />}
       {tab === 'profiles' && <ProfilesTab />}
+      {tab === 'inquiries' && <InquiriesTab />}
       {tab === 'attempts' && <AttemptsTab />}
       {tab === 'settlements' && <SettlementsTab />}
       {tab === 'requests' && <RequestsTab />}

@@ -23,7 +23,8 @@ function proposalText(kind: MediationKind, p: Raw, feeKrw?: number) {
   return `결과 ${resultNames[str(p.proposedResult) ?? ''] ?? str(p.proposedResult)}${bool(p.attemptUnverified) ? ' (시도 미확인 종결 · 착수비 미지급)' : ''}`;
 }
 
-export function MediationCard({ requestId, kind, feeKrw, reloadDetail }: { requestId: number; kind: MediationKind; feeKrw?: number; reloadDetail?: () => void }) {
+export function MediationCard({ requestId, kind, feeKrw, agent, reloadDetail }: { requestId: number; kind: MediationKind; feeKrw?: number; agent: boolean; reloadDetail?: () => void }) {
+  const other = agent ? '이용자' : '도우미';
   const [load, reload] = useLoad(() => unwrap<unknown>(api.GET('/api/requests/{requestId}/mediation', { params: { path: { requestId }, query: { kind } } })) as Promise<Raw>, [requestId, kind], { refreshOnFocus: true });
   const [dialog, setDialog] = useState<'' | 'accept' | 'reject'>('');
   const [note, setNote] = useState('');
@@ -88,7 +89,7 @@ export function MediationCard({ requestId, kind, feeKrw, reloadDetail }: { reque
               </button>
             </div>
           ) : (
-            <Notice>{mine && mine !== 'PENDING' ? `내 응답: ${responseNames[mine]}. 상대방의 응답을 기다리고 있어요.` : '응답을 기다리고 있어요.'}</Notice>
+            <Notice>{mine && mine !== 'PENDING' ? `내 응답: ${responseNames[mine]}. ${other}의 응답을 기다리고 있어요.` : '응답을 기다리고 있어요.'}</Notice>
           )}
         </>
       )}
@@ -119,10 +120,10 @@ export function MediationCard({ requestId, kind, feeKrw, reloadDetail }: { reque
           <Rows rows={[['조정안', proposalText(kind, active, feeKrw)]]} />
           <p className="prose">
             {dialog === 'accept'
-              ? '이용자와 도우미가 모두 수락하면 확정되고, 확정 뒤에는 바꿀 수 없어요. 상대방이 거부하면 확정되지 않아요.'
+              ? `이용자와 도우미가 모두 수락하면 확정되고, 확정 뒤에는 바꿀 수 없어요. ${other}가 거부하면 확정되지 않아요.`
               : `거부하면 이 조정안은 끝나요. 운영팀이 새 조정안을 보낼 수 있고, 총 ${max}회까지 합의되지 않으면 해당 금액은 보류되고 외부 분쟁 조정 기관을 안내해요.`}
           </p>
-          <Field label={dialog === 'accept' ? '남길 말(선택)' : '거부 사유(선택)'} helper="상대방과 운영팀에 공개돼요. 다음 조정안에 참고돼요.">
+          <Field label={dialog === 'accept' ? '남길 말(선택)' : '거부 사유(선택)'} helper={`${other}와 운영팀에 공개돼요. 다음 조정안에 참고돼요.`}>
             <textarea rows={3} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
           <div className="modal-actions">

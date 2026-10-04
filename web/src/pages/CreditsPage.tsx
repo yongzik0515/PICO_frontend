@@ -9,13 +9,10 @@ import { PageTitle } from '../ui/PageTitle';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 transactions.js의 creditsPage(). 도우미가 요청을 수락할 때 매칭권 1장이 차감된다.
-// 명세: 판매 패키지는 1회 500원(단건)과 10회 5,000원. 구매 생성(POST /purchases) → PortOne 결제창 → 승인(POST /purchases/{id}/payment, txId를 pgPaymentKey로)
-// 금액은 서버가 수량으로 정한다. 화면의 금액은 안내용이며, 결제창에는 서버가 돌려준 주문 금액을 쓴다.
-// 1장(500원)은 KG이니시스 최소 결제 금액(1,000원) 때문에 막아 둔다(서버도 판매하지 않는다). 열 때는 disabled만 지우고 서버 패키지를 추가한다.
-const PACKS: readonly { units: number; price: number; disabled?: string }[] = [
-  { units: 1, price: 500, disabled: '준비 중' },
-  { units: 10, price: 5000 },
-];
+// 10장 패키지 4,500원 / 자유 수량 2~100장 개당 500원. 결제창은 서버 주문 금액만 사용한다.
+const UNIT_PRICE = 500;
+const MIN_UNITS = 2;
+const MAX_UNITS = 100;
 const PENDING_KEY = 'pico.pendingPassPayment';
 
 type Pending = { purchaseId: number; orderNumber: string; units: number };
@@ -83,11 +80,14 @@ export function CreditsPage() {
   // 결제창에서 카드 결제를 마쳤는데 서버가 PG 결과를 아직 확인하지 못한 상태(승인 API 503·PROCESSING)
   const [confirming, setConfirming] = useState(false);
   const navigate = useNavigate();
-  const [units, setUnits] = useState<number>(10);
+  const [productType, setProductType] = useState<'PACKAGE_10' | 'CUSTOM'>('PACKAGE_10');
+  const [unitsInput, setUnitsInput] = useState('2');
   const [phoneInput, setPhoneInput] = useState<string | null>(null);
   const savedBuyer = load.status === 'done' ? load.data.buyer : null;
   const phone = phoneInput ?? savedBuyer?.phone ?? '';
-  const pack = PACKS.find((x) => x.units === units && !x.disabled) ?? PACKS.find((x) => !x.disabled)!;
+  const units = productType === 'PACKAGE_10' ? 10 : Number(unitsInput);
+  const validUnits = Number.isInteger(units) && units >= MIN_UNITS && units <= MAX_UNITS;
+  const pack = { units: validUnits ? units : 0, price: validUnits ? (productType === 'PACKAGE_10' ? 4500 : units * UNIT_PRICE) : 0 };
   const [search, setSearch] = useSearchParams();
   const resumed = useRef(false);
   // 방금 충전을 마쳤을 때 안내(화면에 머물며 잔액을 바로 갱신해 보여 준다)
@@ -151,10 +151,11 @@ export function CreditsPage() {
     const result = { processing: false, purchaseId: 0 };
     setCharged(null);
     const ok = await run(async () => {
-      const purchase = await unwrap<Raw>(api.POST('/api/matching-passes/purchases', { body: { purchasedUnits: pack.units } }));
+      const purchase = await unwrap<Raw>(api.POST('/api/matching-passes/purchases', { body: { purchasedUnits: pack.units, productType } }));
       const purchaseId = num(pick(purchase, 'purchaseId'));
       const orderNumber = str(pick(purchase, 'payment.orderNumber'));
-      const amount = num(pick(purchase, 'payment.amountKrw', 'priceKrw')) ?? pack.price;
+      const amount = num(pick(purchase, 'payment.amountKrw', 'priceKrw'));
+      if (!amount || !Number.isSafeInteger(amount)) throw new Error('주문 금액을 확인하지 못했어요.');
       if (!purchaseId || !orderNumber) throw new Error('구매 주문을 만들지 못했어요.');
       // 결제창이 페이지를 이동시키는 환경(모바일)에서는 돌아온 뒤 이 주문을 이어서 승인한다.
       result.purchaseId = purchaseId;
@@ -215,17 +216,33 @@ export function CreditsPage() {
               </strong>
             </div>
             {load.status === 'error' && <Notice tone="error">{load.message}</Notice>}
-            <div className="pack-grid" role="radiogroup" aria-label="충전할 매칭권 수량">
-              {PACKS.map((x) => (
-                <label key={x.units} className={`pack ${x.units === pack.units ? 'selected' : ''} ${x.disabled ? 'disabled' : ''}`} aria-disabled={!!x.disabled}>
-                  <input type="radio" name="pack" checked={x.units === pack.units} disabled={!!x.disabled || pending || confirming} onChange={() => setUnits(x.units)} />
-                  <span>{x.units === 1 ? '한 장씩' : '묶음'}</span>
-                  <strong>{x.units}장</strong>
-                  <b>{x.disabled ? x.disabled : won(x.price)}</b>
-                </label>
-              ))}
-            </div>
-            <p className="record-note">1장당 500원 · 유효기간 없음 · 요청을 수락할 때 1장씩 사용해요. 한 장씩 결제는 카드 결제 최소 금액(1,000원) 때문에 잠시 막아 뒀어요.</p>
+            <Field label="구매 상품" required>
+              <select aria-label="구매 상품" value={productType} disabled={pending || confirming} onChange={(e) => setProductType(e.target.value as 'PACKAGE_10' | 'CUSTOM')}>
+                <option value="PACKAGE_10">10장 패키지 · 4,500원</option>
+                <option value="CUSTOM">자유 수량 · 1장당 500원</option>
+              </select>
+            </Field>
+            {productType === 'CUSTOM' && <Field label="충전할 수량 (장)" required error={unitsInput && !validUnits ? `${MIN_UNITS}장부터 ${MAX_UNITS}장까지 입력해 주세요.` : undefined}>
+              <div className="credit-units">
+                <button type="button" className="btn secondary" aria-label="1장 줄이기" disabled={pending || confirming || !validUnits || units <= MIN_UNITS} onClick={() => setUnitsInput(String(units - 1))}>
+                  −
+                </button>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_UNITS}
+                  max={MAX_UNITS}
+                  step={1}
+                  value={unitsInput}
+                  disabled={pending || confirming}
+                  onChange={(e) => setUnitsInput(e.target.value.replace(/[^0-9]/g, ''))}
+                />
+                <button type="button" className="btn secondary" aria-label="1장 늘리기" disabled={pending || confirming || (validUnits && units >= MAX_UNITS)} onClick={() => setUnitsInput(String(validUnits ? units + 1 : MIN_UNITS))}>
+                  +
+                </button>
+              </div>
+            </Field>}
+            <p className="record-note">10장 패키지 4,500원 / 자유 수량 1장당 500원 · 유효기간 없음 · 요청을 수락할 때 1장씩 사용해요. 카드 결제 최소 금액(1,000원) 때문에 자유 수량은 2장부터 구매할 수 있고, 자유 수량 10장은 5,000원이에요.</p>
             {charged !== null && (
               <Notice tone="success">
                 매칭권 {charged}장을 충전했어요. 지금 보유 {load.status === 'done' ? load.data.balance : '-'}장이에요.
@@ -268,9 +285,9 @@ export function CreditsPage() {
             <h2>충전 금액</h2>
             <div className="total-row">
               <span>
-                매칭권 <b>{pack.units}</b>장
+                매칭권 <b>{validUnits ? pack.units : '-'}</b>장
               </span>
-              <strong>{won(pack.price)}</strong>
+              <strong>{validUnits ? won(pack.price) : '-'}</strong>
             </div>
             <Field label="결제자 휴대폰 번호" required helper="카드 결제창에 필요해요. 결제 확인에만 쓰이고 저장하지 않아요.">
               <input inputMode="tel" maxLength={25} placeholder="예: 010-1234-5678" value={phone} disabled={pending || confirming} onChange={(e) => setPhoneInput(e.target.value)} />
@@ -282,7 +299,7 @@ export function CreditsPage() {
                 매칭권 충전 및 사용 조건 동의 (필수)
               </label>
             </div>
-            <button type="button" className="btn primary full" disabled={!agreed || pending || confirming || !validPhone(phone)} onClick={buy}>
+            <button type="button" className="btn primary full" disabled={!agreed || pending || confirming || !validPhone(phone) || !validUnits} onClick={buy}>
               {pending ? '결제 진행 중…' : '매칭권 충전하기'}
             </button>
             {confirming ? (

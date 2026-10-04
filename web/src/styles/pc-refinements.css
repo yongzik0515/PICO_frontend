@@ -227,3 +227,126 @@ form[data-account-form="application"] .account-form-footer{border-top:1px solid 
   .modal-body .form-grid>.field,
   .modal-body .form-grid>.field:first-child{margin-top:0}
 }
+
+/* 진행 상황 카드: 안내 문구 바로 아래 버튼(예: '이용자가 결과를 확인하고 있어요' → '추가 자료 올리기')이 붙어 있었다.
+   버튼 사이 간격(.tx-progress .btn+.btn)과 똑같이 띄운다. */
+.tx-progress .tx-notice+.btn{margin-top:10px}
+
+/* 하단 버튼이 둘(돌아가기 + 제출)인 폼: 상태 문구가 남는 폭을 차지해 두 버튼이 오른쪽에 나란히 모이게 한다.
+   버튼이 하나인 폼은 지금과 똑같이 보인다. */
+.tx-form-footer>span{flex:1}
+
+/* 분쟁 소명 기록: 지난 소명이 작은 글씨 한 줄로만 보여 확인하기 어려웠다. 누르면 아래로 펼쳐져 전체 내용·첨부를 본다(읽기 전용).
+   .tx-file-view(파일 줄, flex·가운데 정렬)를 그대로 쓰되 펼침 영역이 아래로 오도록 블록으로 바꾼다. */
+.dispute-message{display:block;padding:12px 14px}
+.dispute-message+.dispute-message{margin-top:8px}
+.dispute-message summary{cursor:pointer;list-style:none;position:relative;padding-right:24px}
+.dispute-message summary::-webkit-details-marker{display:none}
+.dispute-message summary::after{content:"";position:absolute;right:4px;top:50%;width:7px;height:7px;border-right:1.5px solid var(--ink-400);border-bottom:1.5px solid var(--ink-400);transform:translateY(-75%) rotate(45deg);transition:transform var(--dur-fast)}
+.dispute-message[open] summary::after{transform:translateY(-25%) rotate(225deg)}
+.dispute-message summary small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dispute-message[open] summary small{display:none}
+.dispute-message-body{margin-top:10px;padding-top:10px;border-top:1px solid var(--line-200)}
+.dispute-message-body .prose{font-size:13px;margin:0 0 8px}
+.dispute-message-body .record-note{margin:8px 0 0}
+
+/* 내 활동: 결과 확인 중 분쟁(DISPUTED)은 다른 진행 상태와 구분되게 빨간색으로 보여 준다. */
+.activity-status.disputed{background:#fdecec;color:var(--danger-500)}
+
+/* 도우미 신청: 제목('어떤 도우미인가요?')과 설명 사이(32px)가 설명과 첫 카드 사이(20px)보다 넓어 보였다. 같은 20px로 맞춘다. */
+.account-form-layout .pc-page-title:has(+.prose){margin-bottom:0}
+.account-form-layout .pc-page-title+.prose{margin-top:20px}
+
+/* 도우미 신청 > 정산 계좌: '계좌 확인' 버튼이 입력칸 아래 왼쪽에 따로 떠 있었다.
+   일반적인 계좌 인증 화면처럼 계좌번호 입력 오른쪽에 같은 높이로 붙인다. */
+.account-input-action{display:flex;gap:8px;align-items:stretch}
+.account-input-action>input{flex:1;min-width:0}
+.account-input-action>.btn{flex:0 0 auto;min-width:96px;min-height:48px}
+
+/* 부분 성공 정산: 확정된 도우미 몫·이용자 환불은 정산의 결론이라 금액을 굵게·강조색으로 보여 준다. */
+.settlement-key{font-weight:700;color:var(--primary-500)}
+/* 정산 카드 맨 아래로 옮긴 이용자 환불 요청·내역(환불할 것도 내역도 없으면 비어 있어 숨긴다) */
+.settlement-refund{margin-top:20px;padding-top:16px;border-top:1px solid var(--line-200)}
+.settlement-refund:empty{display:none}
+.settlement-refund>.btn{margin-top:12px}
+
+/* 도우미 신청 > 수고비: 한 항목 안에서 '최소 ~ 최대' 범위로 입력한다. */
+.account-range{display:flex;align-items:center;gap:10px}
+.account-range>input{flex:1;min-width:0}
+.account-range>span{color:var(--ink-400)}
+
+/* 도우미 신청 > 미리보기·제출: 도우미 상세 프로필 본문만 가운데에 보여 주고, 참고 사항 카드 맨 아래에 이전·제출 버튼을 둔다. */
+.application-detail-preview{max-width:720px;margin:0 auto}
+.application-detail-preview>.content-card{margin-bottom:20px}
+.application-detail-preview .profile-intro>.tiny-label{display:block;margin-bottom:14px}
+
+/* 계정 인증 줄(.account-verification, 아래 테두리) 바로 뒤에 저장 버튼 줄(위 테두리)이 오면 선이 두 줄로 보였다. 하나만 남긴다. */
+.account-verification:has(+.account-form-footer){border-bottom:0}
+.account-verification+.account-form-footer{margin-top:0}
+.account-section-title{margin-top:28px}
+
+/* 도우미 신청 현황: 보완 요청(노란 계열, 고칠 항목 포함)과 반려(빨간 계열, 사유만)를 색과 내용으로 구분한다. */
+.account-status-icon.changes{background:#fff5df;color:#a76800}
+.account-status-icon.rejected{background:#fdecec;color:var(--danger-500)}
+.badge.account-badge-warn{background:#fff5df;color:#a76800}
+.account-review-reason{margin:20px 0 0;padding:16px 18px;border-radius:12px;text-align:left}
+.account-review-reason strong{display:block;font-size:13px}
+.account-review-reason p{margin:6px 0 0;font-size:14px;line-height:1.7;white-space:pre-wrap}
+.account-review-reason p+strong{margin-top:14px}
+.account-review-reason .site-tags{margin-top:8px}
+.account-review-reason.changes{background:#fffaf0;border:1px solid #f3dca8}
+.account-review-reason.changes strong{color:#a76800}
+.account-review-reason.rejected{background:#fff6f6;border:1px solid #f4c7c7}
+.account-review-reason.rejected strong{color:var(--danger-500)}
+/* 승인: 버튼 위 '이용자에게 프로필 노출(활동 중)' 체크 */
+.account-active-toggle{justify-content:center;margin-top:22px;font-size:14px}
+.account-active-toggle small{color:var(--ink-400);font-size:12px}
+
+/* 신청 양식: 운영팀이 보완을 요청한 칸은 빨간 테두리 */
+.account-flagged input:not([type=checkbox]):not([type=radio]),.account-flagged textarea,.account-flagged select{border-color:var(--danger-500)!important}
+fieldset.account-flagged,.account-image-picker.account-flagged,.account-career-upload.account-flagged{border:1px solid var(--danger-500)!important;border-radius:12px;padding:14px}
+
+/* 받은 요청: 상단 '활동 중' ON/OFF 스위치. 옆 버튼들과 같은 높이의 칩 모양으로, 켜지면 초록색. */
+.active-switch{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:8px 14px;border:1px solid var(--line-200);border-radius:999px;background:#fff;font-size:13px;font-weight:600;color:var(--ink-600);white-space:nowrap}
+.active-switch.on{border-color:#b6e6da;background:var(--trust-50);color:var(--trust-500)}
+.active-switch-track{position:relative;width:32px;height:18px;border-radius:999px;background:#d5d9e2;transition:background var(--dur-fast)}
+.active-switch-track>i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform var(--dur-fast)}
+.active-switch.on .active-switch-track{background:var(--trust-500)}
+.active-switch.on .active-switch-track>i{transform:translateX(14px)}
+.active-switch:disabled{opacity:.6}
+
+/* 좋아요한 도우미: 목록 최대 너비(800px) 때문에 오른쪽이 비어 보였다. 화면 너비에 맞춘다. 카드 아래 좋아요 칩은 없앴다. */
+.favorite-list{max-width:none}
+
+/* 알림: 이용자 알림(파란색)과 도우미 알림(초록색)을 색으로 구분한다. 공통(운영팀 안내 등)은 회색.
+   알림 전체 보기 위의 칩(전체 - 이용자 - 도우미)으로 나눠 볼 수 있다. */
+.notification-role{display:inline-block;margin-right:6px;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:600;vertical-align:1px;white-space:nowrap}
+.notification-role.user{background:var(--primary-50);color:var(--primary-500)}
+.notification-role.agent{background:var(--trust-50);color:var(--trust-500)}
+.notification-role.common{background:#f1f3f6;color:var(--ink-600)}
+.notification-item.role-agent .notification-icon,.notification-item.role-agent .notification-icon>svg{background:var(--trust-50);color:var(--trust-500)}
+.notification-item.role-common .notification-icon,.notification-item.role-common .notification-icon>svg{background:#f1f3f6;color:var(--ink-600)}
+.popover-notification.role-agent .popover-notice-icon{color:var(--trust-500)}
+.popover-notification.role-common .popover-notice-icon{color:var(--ink-400)}
+.notification-filters{display:flex;gap:8px;margin:0 0 14px}
+.notification-filter{min-height:34px;padding:6px 14px;border:1px solid var(--line-200);border-radius:999px;background:#fff;font-size:13px;color:var(--ink-600)}
+.notification-filter.active{border-color:var(--ink-900);background:var(--ink-900);color:#fff}
+.notification-filter.user.active{border-color:var(--primary-500);background:var(--primary-500)}
+.notification-filter.agent.active{border-color:var(--trust-500);background:var(--trust-500)}
+
+/* 공개 설정: 두 항목(목록 노출 · 새 요청 받기)의 뜻을 제목 + 설명으로 나눠 보여 준다. */
+.visibility-option{align-items:flex-start;margin-bottom:14px}
+.visibility-option input{margin-top:3px}
+.visibility-option strong{display:block;font-size:14px}
+.visibility-option small{display:block;margin-top:4px;font-size:12px;line-height:1.6;color:var(--ink-400)}
+
+/* 매칭권 충전: 수량을 직접 입력한다(− 입력 + 한 줄). */
+.credit-units{display:flex;gap:8px;align-items:stretch}
+.credit-units>input{flex:1;min-width:0;text-align:center}
+.credit-units>.btn{flex:0 0 48px;min-height:48px;padding:0;font-size:18px}
+
+/* 바닥글: PICO 옆에 '확인할 수 있는 신뢰' 한 줄 안내(메인 오른쪽 카드에서 옮김). */
+.footer-top>.footer-brand-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.footer-trust{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-400)}
+.footer-trust>svg{color:var(--trust-500)}
+.footer-trust strong{font-weight:600;color:var(--ink-600)}

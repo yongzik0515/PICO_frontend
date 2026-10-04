@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { num, pick, str, type Raw } from '../api/pick';
 import { fetchDetail, latestAgreement, useLoad } from '../transactions/model';
+import { agreementRows } from '../transactions/requestRows';
 import { Notice, Rows, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
 import { PageTitle } from '../ui/PageTitle';
@@ -31,8 +32,11 @@ export function PaymentPage() {
   }
 
   // 이미 만든 입금 대기 주문이 있으면(발급받고 나갔다 온 경우) 계좌 안내를 이어서 보여 준다.
-  const existing = load.status === 'done' ? load.data.payment : null;
-  const existingId = str(pick(existing, 'status')) === 'PENDING' ? num(pick(existing, 'paymentId')) : undefined;
+  // 요청·합의 응답에 결제 상태가 있으면 결제 상세를 따로 불러오지 않으므로(fetchDetail) 거기서도 찾는다.
+  const loaded = load.status === 'done' ? load.data : null;
+  const loadedAgreement = loaded ? latestAgreement(loaded.agreements) : undefined;
+  const existingStatus = (str(pick(loaded?.payment ?? null, 'status')) || loadedAgreement?.paymentStatus || loaded?.request.paymentStatus || '').toUpperCase();
+  const existingId = existingStatus === 'PENDING' ? (num(pick(loaded?.payment ?? null, 'paymentId')) ?? loadedAgreement?.paymentId ?? loaded?.request.paymentId) : undefined;
   useEffect(() => {
     if (existingId) void loadAccount(existingId);
   }, [existingId]);
@@ -121,14 +125,7 @@ export function PaymentPage() {
             </p>
             <details className="tx-order-terms">
               <summary>확정한 진행 조건 보기</summary>
-              <Rows
-                rows={[
-                  ['성공 요건', a.successConditions],
-                  ['예매 시도 방식', a.attemptRule],
-                  ['실패·환불 처리', a.refundRule],
-                  ['결과 연락 기한', a.contactDeadlineRule],
-                ]}
-              />
+              <Rows rows={agreementRows(a)} />
             </details>
           </TxCard>
           {va && current && (
@@ -169,7 +166,9 @@ export function PaymentPage() {
               <span>총 결제 금액</span>
               <strong>{won(total)}</strong>
             </div>
-            {current ? (
+            {!current && existingId ? (
+              <p className="record-note" role="status">발급한 가상계좌를 불러오는 중이에요.</p>
+            ) : current ? (
               <>
                 <button type="button" className="btn primary full" disabled={pending} onClick={() => confirm(current.paymentId)}>
                   {pending ? '확인 중…' : '입금 확인'}
@@ -221,6 +220,10 @@ export function PaymentPage() {
                 </div>
                 <button type="button" className="btn primary full" disabled={!agreed.terms || !agreed.consent || pending} onClick={createOrder}>
                   {pending ? '발급 중…' : `${won(total)} 가상계좌 발급받기`}
+                </button>
+                {/* 주소로 바로 들어와 이전 기록이 없으면 요청 상세로 보낸다. */}
+                <button type="button" className="btn ghost full" onClick={() => ((window.history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate(`/requests/${requestId}`))}>
+                  돌아가기
                 </button>
               </>
             )}

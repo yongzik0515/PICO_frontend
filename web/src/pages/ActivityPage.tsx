@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { num, pick } from '../api/pick';
+import { useAgentActive } from '../agent/active';
 import { isApprovedAgent } from '../agent/profile';
 import { fetchRequests, roughStage, stageNames, useLoad, type TxRequest } from '../transactions/model';
 import { Notice, kstDay } from '../transactions/ui';
@@ -45,7 +46,7 @@ function Ticket({ r, agent }: { r: TxRequest; agent: boolean }) {
           </div>
           <small>{agent ? '신청한 이용자' : '도우미'}</small>
         </div>
-        <span className={`activity-status ${waiting ? 'waiting' : ended ? 'ended' : 'progress'}`}>{label}</span>
+        <span className={`activity-status ${waiting ? 'waiting' : ended ? 'ended' : stage === 'disputed' ? 'disputed' : 'progress'}`}>{label}</span>
       </header>
       <Link className="activity-ticket-body" to={`/requests/${r.id}`} aria-label={`${r.targetName} 요청 상세 보기`}>
         <div>
@@ -170,6 +171,7 @@ export function UserActivityPage() {
 
 /** 받은 요청(leads)·매칭 관리(matches). 받은 요청은 수락 전(PENDING)과 수락 없이 끝난 요청, 매칭 관리는 수락 이후 요청이다. */
 export function AgentActivityPage({ kind }: { kind: 'leads' | 'matches' }) {
+  const activity = useAgentActive();
   const navigate = useNavigate();
   const received = kind === 'leads';
   const [tab, setTab] = useState('all');
@@ -247,12 +249,25 @@ export function AgentActivityPage({ kind }: { kind: 'leads' | 'matches' }) {
           </strong>
         </div>
         <div className="matching-summary-actions">
-          <button type="button" className="btn secondary" onClick={() => navigate(received ? '/matches' : '/leads')}>
-            {received ? '매칭 관리로' : '받은 요청으로'}
-          </button>
+          {/* 받은 요청: 매칭권 충전 오른쪽에 활동 중 ON/OFF(목록 공개 + 새 요청 받기). 매칭 관리: 매칭권 충전 · 예매 가능 날짜 설정. */}
           <button type="button" className="btn secondary" onClick={() => navigate('/credits')}>
             매칭권 충전
           </button>
+          {received && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={activity.active}
+              className={`active-switch ${activity.active ? 'on' : ''}`}
+              disabled={!activity.ready || activity.saving}
+              onClick={() => void activity.setActive(!activity.active)}
+            >
+              <span className="active-switch-track" aria-hidden="true">
+                <i />
+              </span>
+              활동 중 {activity.active ? 'ON' : 'OFF'}
+            </button>
+          )}
           {!received && (
             <button type="button" className="btn secondary" onClick={() => navigate('/availability')}>
               예매 가능 날짜 설정

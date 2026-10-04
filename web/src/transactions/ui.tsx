@@ -1,4 +1,4 @@
-import { useState, type InputHTMLAttributes, type ReactNode } from 'react';
+import { useState, type InputHTMLAttributes, type ReactNode, cloneElement, isValidElement, type ReactElement } from 'react';
 import { ApiError } from '../api/client';
 import { str, type Raw } from '../api/pick';
 import { Icon } from '../ui/Icon';
@@ -57,8 +57,9 @@ const nextCopy: Record<Stage, [string, string, string?]> = {
   policy_review: ['운영팀이 요청을 확인하고 있어요', '대리 신청 정책 검토가 끝나면 도우미가 수락할 수 있어요.', '운영팀의 정책 검토가 끝나면 수락할 수 있어요.'],
   policy_blocked: ['운영 정책상 진행할 수 없는 요청이에요', '해당 공연·예매처는 대리 신청이 허용되지 않아요. 요청을 취소하거나 내용을 수정해 주세요.', '운영 정책상 수락할 수 없는 요청이에요.'],
   pending: ['도우미가 요청을 확인할 차례예요', '수락 전에는 요청 내용을 수정하거나 취소할 수 있어요.', '요청을 확인하고 수락하거나 거절해 주세요.'],
-  terms_needed: ['최종 조건을 작성할 차례예요', '양측 모두 비용과 진행 조건을 정해 제안할 수 있어요.', '양측 모두 비용과 진행 조건을 정해 제안할 수 있어요.'],
-  terms_sent: ['제안을 받은 상대방이 확인할 차례예요', '받은 제안은 먼저 승인하거나 수정을 요청해 주세요. 보낸 제안은 상대방의 확인을 기다려 주세요.', '받은 제안은 먼저 승인하거나 수정을 요청해 주세요. 보낸 제안은 상대방의 확인을 기다려 주세요.'],
+  terms_needed: ['도우미가 첫 최종 조건을 작성할 차례예요', '도우미의 첫 제안이 도착하면 확정하거나 조건과 사유를 함께 수정 제안할 수 있어요.', '비용과 진행 조건을 정해 첫 제안을 보내 주세요.'],
+  // 도우미가 보낸 조건 기준. 이용자가 보낸 조건이면 NextStep에서 확인하는 쪽을 도우미로 바꾼다.
+  terms_sent: ['이용자가 최종 조건을 확인할 차례예요', '변경된 내용을 확인하고 확정하거나 수정을 요청해 주세요.', '이용자의 확인을 기다려 주세요.'],
   revision_requested: ['조건을 다시 제안할 수 있어요', '수정 요청을 확인하고 새 조건을 제안해 주세요.', '수정 요청을 확인하고 새 조건을 제안해 주세요.'],
   payment: ['이용자가 안전거래를 결제할 차례예요', '확정된 금액을 가상계좌로 입금하면 예매 준비를 시작해요.', '이용자가 입금하면 알려드릴게요.'],
   ready: ['도우미가 착수할 차례예요', '도우미가 착수하면 알려드릴게요.', '예매를 시작할 때 착수 버튼을 눌러 주세요.'],
@@ -72,8 +73,18 @@ const nextCopy: Record<Stage, [string, string, string?]> = {
   expired: ['응답 기한이 지난 요청이에요', '도우미 프로필에서 새 요청을 보낼 수 있어요.'],
 };
 
-export function NextStep({ stage, role }: { stage: Stage; role: Role }) {
-  const [title, userText, agentText] = nextCopy[stage];
+// 단계마다 지금 해야 할 일이 있는 쪽. 다른 쪽에는 기다리면 된다는 안내를 한 줄 더 보여 준다.
+const actor: Partial<Record<Stage, Role>> = { pending: 'agent', payment: 'user', ready: 'agent', in_progress: 'agent', result_submitted: 'user' };
+
+export function NextStep({ stage, role, proposedBy, myName }: { stage: Stage; role: Role; proposedBy?: 'REQUESTER' | 'AGENT'; myName?: string }) {
+  const idle =
+    stage === 'policy_review' ||
+    (stage === 'terms_sent' && !!proposedBy && (proposedBy === 'AGENT') === (role === 'agent')) ||
+    (!!actor[stage] && actor[stage] !== role);
+  const [title, userText, agentText] =
+    stage === 'terms_sent' && proposedBy === 'REQUESTER'
+      ? ['도우미가 최종 조건을 확인할 차례예요', '도우미의 확인을 기다려 주세요.', '변경된 내용을 확인하고 확정하거나 수정을 요청해 주세요.']
+      : nextCopy[stage];
   const text = role === 'agent' && agentText !== undefined ? agentText : userText;
   return (
     <div className={`tx-next ${(stage === 'completed' || stage === 'matching_completed') ? 'success' : ''}`}>
@@ -83,6 +94,7 @@ export function NextStep({ stage, role }: { stage: Stage; role: Role }) {
       <div>
         <strong>{title}</strong>
         {text && <p>{text}</p>}
+        {idle && <p>{myName ? `${myName}님은 ` : ''}지금 따로 하실 일이 없어요. 편하게 기다려 주세요.</p>}
       </div>
     </div>
   );
@@ -91,17 +103,18 @@ export function NextStep({ stage, role }: { stage: Stage; role: Role }) {
 const steps: [string, Stage[]][] = [
   ['요청 보내기', ['policy_review', 'policy_blocked', 'pending']],
   ['요청 수락 · 조건 작성', ['terms_needed', 'revision_requested']],
-  ['상대방 조건 확인', ['terms_sent']],
+  ['이용자 조건 확인', ['terms_sent']],
   ['안전거래 결제', ['payment']],
   ['착수 · 예매 · 결과 등록', ['ready', 'in_progress']],
   ['이용자 결과 확인', ['result_submitted', 'disputed']],
 ];
 
 /** 직접 거래는 조건 확인 후 매칭 완료·후기로 종료한다. */
-export function Progress({ stage, direct = false }: { stage: Stage; direct?: boolean }) {
+export function Progress({ stage, direct = false, proposedBy }: { stage: Stage; direct?: boolean; proposedBy?: 'REQUESTER' | 'AGENT' }) {
+  const named = steps.map(([label, s]): [string, Stage[]] => [s.includes('terms_sent') ? `${proposedBy === 'REQUESTER' ? '도우미' : '이용자'} 조건 확인` : label, s]);
   const shown: [string, Stage[]][] = direct
-    ? [...steps.slice(0, 3), ['매칭 완료 · 후기', ['matching_completed', 'completed']]]
-    : steps;
+    ? [...named.slice(0, 3), ['매칭 완료 · 후기', ['matching_completed', 'completed']]]
+    : named;
   const active = shown.findIndex(([, s]) => s.includes(stage));
   return (
     <ol aria-label="거래 진행 상황">
@@ -151,14 +164,20 @@ export const utcToLocal = (iso: string) => {
 };
 
 // 입력 필드(프로토타입 input()/area())
-export function Field({ label, required, helper, children }: { label: string; required?: boolean; helper?: string; children: ReactNode }) {
+/** error를 주면 입력칸에 빨간 테두리(aria-invalid)를 켜고 그 아래에 이유를 적는다. */
+export function Field({ label, required, helper, error, children }: { label: string; required?: boolean; helper?: string; error?: string; children: ReactNode }) {
+  // 입력칸을 직접 받지 않고 children으로 받으므로, aria-invalid는 복제해서 붙인다(빨간 테두리는 기존 CSS가 처리).
+  const marked = error && isValidElement(children) ? cloneElement(children as ReactElement<{ 'aria-invalid'?: boolean }>, { 'aria-invalid': true }) : children;
   return (
     <label className="field">
       <span>
         {label} {required ? <em>*</em> : <small>선택</small>}
       </span>
-      {children}
+      {marked}
       {helper && <small className="field-helper">{helper}</small>}
+      <small className="field-error" aria-live="polite">
+        {error}
+      </small>
     </label>
   );
 }
@@ -226,7 +245,7 @@ export function FilePicker({ files, onChange, kind }: { files: File[]; onChange:
  * 처음 값이 0이면 빈칸 + placeholder '0'으로 보여 준다. 필수 칸을 비워 두면 브라우저 검증에 걸린다.
  */
 export function MoneyInput({ value, onChange, ...rest }: { value: number | undefined; onChange: (n: number) => void } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'>) {
-  const [text, setText] = useState(value ? String(value) : '');
+  const [text, setText] = useState(value == null ? '' : String(value));
   return (
     <input
       type="number"

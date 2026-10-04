@@ -141,6 +141,8 @@ export interface Agreement {
   attemptRule: string;
   refundRule: string;
   contactDeadlineRule: string;
+  additionalNote: string;
+  reason: string;
   createdAt: string;
   finalizedAt: string;
   paymentId?: number;
@@ -172,6 +174,8 @@ export function toAgreement(raw: Raw): Agreement {
     refundRule: s('refundRule'),
     contactDeadlineRule: s('contactDeadlineRule'),
     createdAt: s('createdAt', 'proposedAt'),
+    additionalNote: s('additionalNote'),
+    reason: s('reason'),
     finalizedAt: s('finalizedAt', 'acceptedAt'),
     paymentId: n('paymentId', 'payment.paymentId'),
     paymentStatus: s('paymentStatus', 'payment.status'),
@@ -203,7 +207,7 @@ export const stageNames: Record<Stage, string> = {
   policy_blocked: '진행할 수 없는 요청',
   pending: '도우미 응답 대기',
   terms_needed: '최종 조건 작성 필요',
-  terms_sent: '상대방 확인 대기',
+  terms_sent: '최종 조건 확인 대기',
   revision_requested: '조건 수정 요청',
   payment: '안전거래 결제 대기',
   ready: '착수 대기',

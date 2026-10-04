@@ -1,0 +1,143 @@
+/* 홈 목록 영역의 반응형 보정.
+   공용 스타일(styles.css·desktop.css·pc-refinements.css)을 건드리지 않으려고 홈에서만 쓰는 이 파일에 둔다.
+   선택자를 .home-layout.pc-home-layout(클래스 2개)로 써서 공용 규칙보다 우선하게 한다.
+
+   문제: 공용 규칙이 `grid-template-columns: minmax(0,1fr) 288px`이라,
+         창을 좁혀도 오른쪽 가이드 카드가 288px를 그대로 차지해 왼쪽 도우미 카드만 찌그러졌다.
+   해결: 가이드 카드를 옆이 아니라 아래로 내려서, 도우미 카드가 제목(.pc-discovery-header)과
+         같은 너비를 전부 쓰게 한다. 모바일(767px 이하)은 기존 공용 규칙이 이미 처리한다. */
+@media (max-width: 1023px) {
+  .home-layout.pc-home-layout {
+    display: block;
+  }
+  .home-layout.pc-home-layout > .home-sidebar {
+    margin-top: 28px;
+  }
+}
+
+/* 홈 페이지의 가로 자르기 해제.
+   원인: styles.css의 .page.home에 overflow:hidden이 걸려 있어, 본문 폭(최대 1144px) 밖으로
+         흘러나가야 하는 캐러셀이 그 선에서 잘렸다. 화면 끝까지 닿지 못한 이유다.
+         원래는 히어로 오른쪽 위로 삐져나오던 티켓 장식(.ticket-outline)을 가리려고 둔 것인데,
+         그 장식을 캐러셀로 교체하면서 가릴 대상이 없어졌다.
+   주의: 홈에서 가로로 넘치는 요소가 생기면 가로 스크롤이 생길 수 있다.
+         캐러셀은 화면 폭에 정확히 맞춰 끝나도록 여백을 내림 계산해서 넘치지 않는다. */
+main.page.home {
+  overflow: visible;
+}
+
+/* 히어로 영역(캐러셀이 들어간 섹션)의 창 축소 시 보정.
+   원인: desktop.css의 .pc-hero는 미디어쿼리 밖에 있어 모든 폭에 적용되는데
+         (1px 테두리 + 24px 모서리 + 높이 280px + 안쪽 여백 42/46px + overflow:hidden),
+         이를 지우는 pc-refinements.css 규칙은 @media(min-width:1000px) 안에만 있다.
+         그래서 999px 이하로 줄이면 테두리 선이 다시 나타나고, overflow:hidden이
+         화면 끝까지 흘러야 할 캐러셀을 잘라 섹션에 제대로 담기지 않았다.
+   해결: 1000px 미만에서도 같은 초기화를 적용한다(클래스 2개로 공용 규칙보다 우선). */
+@media (max-width: 999px) {
+  .home-heading.pc-hero {
+    display: block;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+}
+
+/* 홈 검색창: 왼쪽에 있던 돋보기를 오른쪽 끝의 누를 수 있는 칩으로 옮겼다.
+   (안내 문구 '원하는 공연이 있나요?'는 없앴다) */
+.search-container > .search-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  margin-right: -8px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--primary-500);
+  cursor: pointer;
+  transition: color var(--dur-fast);
+}
+.search-container > .search-chip:hover {
+  color: var(--primary-600);
+}
+
+/* 검색창 옆 광고 자리.
+   검색창·인기 검색어는 공용 규칙상 최대 750px라, 넓은 화면에서 오른쪽(최대 306px)이 비어 있었다.
+   1024px 이상에서만 검색 줄을 2칸으로 나눠 오른쪽 칸에 광고를 둔다(높이 = 검색창 + 인기 검색어 줄).
+   그보다 좁은 화면은 옆자리가 없어 광고를 숨긴다. 광고 내용이 검색 줄 높이(약 114px)를 넘지 않게
+   문구는 2줄까지만 보인다. */
+.home-ad {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .home .pc-search-row {
+    display: grid;
+    grid-template-columns: minmax(0, 750px) minmax(240px, 1fr);
+    column-gap: 24px;
+  }
+  .home .pc-search-row > .search-container,
+  .home .pc-search-row > .popular-shows {
+    grid-column: 1;
+  }
+  .home .pc-search-row > .home-ad {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 16px 20px;
+    border: 1px solid #e4e9fb;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f7f8ff, #eef2ff);
+    color: var(--ink-900);
+    text-decoration: none;
+    transition:
+      border-color var(--dur-fast),
+      box-shadow var(--dur-fast);
+  }
+  .home .pc-search-row > .home-ad:hover {
+    border-color: #c5d0ff;
+    box-shadow: 0 8px 28px #5478c714;
+  }
+}
+.home-ad-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 1px 6px;
+  border: 1px solid #d5dcf3;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink-400);
+}
+.home-ad strong {
+  padding-right: 36px; /* 오른쪽 위 '광고' 표시와 겹치지 않게 */
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.home-ad-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-500);
+}

@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
-import { str } from '../api/pick';
+import { list, str } from '../api/pick';
 import {
   banks,
   careerCaseStates,
@@ -20,11 +20,12 @@ import {
 } from '../agent/profile';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
+import { useAgentActive } from '../agent/active';
+import { Avatar } from '../discovery/AgentCard';
 import { categoryNames, useFreshPlatforms } from '../discovery/agent';
-import { myUserId, useLoad } from '../transactions/model';
+import { useLoad } from '../transactions/model';
 import { FilePicker, MoneyInput, kstDay, useAction } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
-import { ImagePreview } from '../ui/ImagePreview';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
 import { Verification } from '../ui/account';
@@ -32,12 +33,21 @@ import { money } from '../ui/format';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 account.js의 application()/helperFields()/verificationCard()/careerUpload()/publicPreview()/applicationStatusPage()
-// 명세 흐름: PUT /api/me/agent/profile(초안) → 본인·계좌 인증 → 경력 증빙(CAREER 사례 1~3) → POST /profiles/{id}/submit → 관리자 심사
+// 명세 흐름: PUT /api/me/agent/profile(초안) → 본인·계좌 인증 → 경력 증빙(CAREER 최소 1건) → POST /profiles/{id}/submit → 관리자 심사
 // 공개 항목만 수정하면 기존 경력 승인을 유지하고 즉시 게시한다.
 
-const statusLabels: Record<ProfileStatus | 'none', string> = { none: '미신청', draft: '작성 중', review: '심사 중', approved: '승인', rejected: '반려', archived: '이전 게시본' };
+const statusLabels: Record<ProfileStatus | 'none', string> = { none: '미신청', draft: '작성 중', review: '심사 중', approved: '승인', changes: '보완 요청', rejected: '반려', archived: '이전 게시본' };
+// 보완 요청에서 고칠 항목(changeFields) 이름. 신청 양식의 같은 칸에 빨간 테두리를 표시한다.
+const fieldNames: Record<string, string> = {
+  image: '프로필 이미지', activityName: '활동 닉네임', headline: '한 줄 소개', bio: '상세 소개', platformIds: '가능한 예매처', categories: '공연 분야',
+  primaryCategory: '주로 맡는 공연 분야', contactHoursNote: '활동 가능 시간·일정', upfrontFeeKrw: '최소 착수비', successFee: '수고비',
+  payout: '정산 계좌', contact: '매칭 후 연락 방법', careerDescription: '경력 요약', career: '경력 인증', business: '사업자 등록번호',
+};
 const scanLabels: Record<string, string> = { clean: '검토 완료', pending: '운영팀 파일 검토 전', blocked: '차단됨 · 다시 제출해 주세요', unknown: '제출 완료' };
 const categories = Object.keys(categoryNames) as Category[];
+// 매칭 후 연락 방법(마이페이지 연락처와 같은 값)
+const contactKinds: Record<string, string> = { PHONE: '전화번호', KAKAO: '카카오톡 ID', EMAIL: '이메일' };
+const contactPlaceholders: Record<string, string> = { PHONE: '010-0000-0000', KAKAO: '카카오톡 ID', EMAIL: 'name@example.com' };
 
 function Note({ children, kind = '' }: { children: ReactNode; kind?: string }) {
   return (
@@ -57,9 +67,9 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Field({ label, required, helper, children }: { label: string; required?: boolean; helper?: string; children: ReactNode }) {
+function Field({ label, required, helper, className = '', children }: { label: string; required?: boolean; helper?: string; className?: string; children: ReactNode }) {
   return (
-    <label className="field">
+    <label className={`field ${className}`}>
       <span>
         {label} <small className="account-required">{required ? '필수' : '선택'}</small>
       </span>
@@ -83,84 +93,83 @@ function Progress({ step }: { step: number }) {
 }
 
 /** 공개 프로필 미리보기(프로토타입 publicPreview) */
-/** stats: 신규 신청자용 '기록 없음' 통계 칸. 이미 활동 중인 도우미의 공개 프로필 미리보기에서는 실제 통계와 달라 숨긴다. */
-function PublicPreview({ p, platformNames, image, stats = true }: { p: ProfileBody; platformNames: string[]; image?: string; stats?: boolean }) {
+
+/** 신청 마지막 단계 미리보기: 이용자가 보게 될 도우미 상세 프로필(ProfilePage) 본문과 같은 모양. 거래 기록은 아직 없다. */
+function DetailPreview({ p, platformNames, image, footer }: { p: ProfileBody; platformNames: string[]; image?: string; footer?: ReactNode }) {
+  const name = p.activityName || '활동 닉네임';
+  const rows: [string, string][] = [
+    ['가능 예매처', platformNames.join(' · ') || '미입력'],
+    ['주로 맡는 분야', categoryNames[p.primaryCategory] ?? '미입력'],
+    ['활동 가능 시간', p.contactHoursNote || '미입력'],
+    ['최소 착수비', money(p.upfrontFeeKrw) + '원'],
+    ['수고비', `${money(p.successFeeMin)} ~ ${money(p.successFeeMax)}원 · 최종 조건에서 확정`],
+    ['활동 경력', (p.careerDescription?.trim() || '미입력') + ' · 본인 작성'],
+  ];
   return (
-    <div className="account-public-preview">
-      <section className="content-card">
+    <>
+      <section className="content-card profile-intro">
         <span className="tiny-label">공개 프로필 미리보기</span>
-        <div className="account-preview-heading">
-          <span className="avatar blue">
-            {image ? <ImagePreview src={image} alt="프로필 사진" /> : p.activityName[0] || '나'}
-            <span className="avatar-spark">✦</span>
-          </span>
+        <div className="profile-title">
+          <Avatar agent={{ name, initial: name[0], color: 'blue', image }} size="large" />
           <div>
-            <h1>{p.activityName || '활동 닉네임'}</h1>
-            <span className="badge neutral">직접 작성한 소개</span>
+            <div className="agent-title">
+              <h1>{name}</h1>
+            </div>
             <p>{p.headline || '한 줄 소개를 입력해 주세요.'}</p>
+            <span className="rating">
+              <b>★</b>
+              <strong>0.0</strong> · 후기 0개
+            </span>
           </div>
         </div>
-        {stats && (
-        <>
-        <div className="account-preview-stats">
-          <div>
-            <span>플랫폼 거래</span>
-            <strong>기록 없음</strong>
-          </div>
-          <div>
-            <span>이용 후기</span>
-            <strong>등록된 후기 없음</strong>
-          </div>
-          <div>
-            <span>성공률</span>
-            <strong>기록 없음</strong>
-          </div>
+        <div className="profile-stats">
+          {[
+            ['성공률', '기록 없음'],
+            ['거래 횟수', '0회'],
+            ['평균 응답', '기록 없음'],
+          ].map(([k, v]) => (
+            <div key={k} className="info-tile">
+              <span>{k}</span>
+              <strong>{v}</strong>
+            </div>
+          ))}
         </div>
-        <p className="account-caption left">플랫폼에서 확인된 거래 기록이 쌓이면 표시돼요. 직접 입력한 경력은 거래 통계에 포함하지 않습니다.</p>
-        </>
-        )}
+        <p className="record-note">
+          <Icon name="info" size={13} /> 플랫폼 거래 기록 기준 · 소개와 경력은 도우미가 직접 작성해요.
+        </p>
       </section>
-      <Card title="도우미 소개">
-        <p className="account-prewrap prose">{p.bio || '상세 소개를 입력해 주세요.'}</p>
-      </Card>
-      <Card title="활동 정보">
+      <section className="content-card">
+        <h2>함께하기 전에 확인하세요</h2>
         <dl className="document-rows">
-          <div>
-            <dt>예매처</dt>
-            <dd>
-              <div className="site-tags">{platformNames.length ? platformNames.map((s) => <span key={s}>{s}</span>) : '미입력'}</div>
-            </dd>
-          </div>
-          <div>
-            <dt>공연 분야</dt>
-            <dd>{p.categories.map((c) => categoryNames[c]).join(' · ') || '미입력'}</dd>
-          </div>
-          <div>
-            <dt>활동 시간</dt>
-            <dd>{p.contactHoursNote || '미입력'}</dd>
-          </div>
+          {rows.map(([k, v]) => (
+            <div key={k}>
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
         </dl>
-      </Card>
-      <Card title="비용 안내">
-        <div className="account-price-preview">
-          <div>
-            <span>착수비</span>
-            <strong>
-              {money(p.upfrontFeeKrw)}
-              <small>원부터</small>
-            </strong>
-          </div>
-          <div>
-            <span>수고비</span>
-            <strong>
-              {money(p.successFeeMin)} ~ {money(p.successFeeMax)}
-              <small>원</small>
-            </strong>
-          </div>
+        <div className="notice">
+          <Icon name="shield" size={17} />
+          연락처는 요청을 수락한 상대방에게만 공개돼요.
         </div>
-        <p className="prose">거래별 최종 조건에서 비용을 확정해요. 연락처는 요청 수락 후 거래 상대방에게만 공개됩니다.</p>
-      </Card>
-    </div>
+      </section>
+      <section className="content-card profile-feedback">
+        <div className="tabs" role="tablist" aria-label="프로필 정보">
+          <button type="button" className="active" role="tab" aria-selected>
+            도우미 소개
+          </button>
+          <button type="button" role="tab" aria-selected={false} disabled>
+            거래 후기 0
+          </button>
+        </div>
+        <h3>공연을 기다리는 마음, 함께할게요.</h3>
+        <p className="prose profile-detail" style={{ whiteSpace: 'pre-line' }}>
+          {p.bio || '상세 소개를 입력해 주세요.'}
+        </p>
+        <p className="record-note">도우미가 직접 작성한 소개예요.</p>
+        {footer}
+      </section>
+    </>
   );
 }
 
@@ -189,49 +198,93 @@ function VisibilityCard({ reload }: { reload: () => void }) {
 
   return (
     <Card title="공개 설정">
-      <label className="check-row">
+      {/* 두 설정은 따로 움직인다: '목록 노출'은 찾을 수 있는지, '새 요청 받기'는 요청을 보낼 수 있는지. */}
+      <label className="check-row visibility-option">
         <input type="checkbox" disabled={!me} checked={visibility.listed} onChange={(e) => void saveVisibility({ ...visibility, listed: e.target.checked })} />
-        도우미 찾기 목록에 내 프로필 공개
+        <span>
+          <strong>도우미 찾기 목록에 노출</strong>
+          <small>켜면 이용자가 도우미 찾기·검색에서 내 프로필을 찾을 수 있어요. 끄면 목록에서 빠져요.</small>
+        </span>
       </label>
-      <label className="check-row">
+      <label className="check-row visibility-option">
         <input type="checkbox" disabled={!me} checked={visibility.acceptsRequests} onChange={(e) => void saveVisibility({ ...visibility, acceptsRequests: e.target.checked })} />
-        새 요청 받기
+        <span>
+          <strong>새 요청 받기</strong>
+          <small>켜면 이용자가 내 프로필에서 예매 요청을 보낼 수 있어요. 끄면 프로필은 보여도 새 요청은 받지 않아요.</small>
+        </span>
       </label>
       <p className="record-note">잠시 쉬고 싶을 때 끄면 목록에서 숨겨지거나 새 요청을 받지 않아요. 진행 중인 거래는 그대로 이어져요.</p>
     </Card>
   );
 }
 
-function StatusView({ state, onResume, reload }: { state: AgentState; onResume: () => void; reload: () => void }) {
+function StatusView({ state, onResume }: { state: AgentState; onResume: () => void }) {
   const navigate = useNavigate();
-  const latest = state.latest!;
+  const { platforms } = useFreshPlatforms();
+  const activity = useAgentActive();
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const latest = state.latest;
   // 게시된(승인) 버전이 있으면 새로 고친 버전이 심사 중이거나 반려돼도 공개 프로필은 그대로 공개 중이다.
-  const s: ProfileStatus = state.approved ? 'approved' : latest.status;
-  const revision = state.approved && latest.id !== state.approved.id ? latest.status : undefined;
-  const data: Record<ProfileStatus, [string, string, 'clock' | 'check' | 'info']> = {
+  const s: ProfileStatus | 'none' = state.approved ? 'approved' : (latest?.status ?? 'none');
+  const revision = state.approved && latest && latest.id !== state.approved.id ? latest.status : undefined;
+  const data: Record<ProfileStatus | 'none', [string, string, 'clock' | 'check' | 'info']> = {
+    none: ['아직 도우미 신청 전이에요', '공개 프로필과 인증·경력 자료를 준비해 신청해 주세요. 단계마다 저장돼서 나눠서 작성해도 돼요.', 'info'],
     archived: ['이전 게시본이에요', '새 버전이 게시되어 이 버전은 보관됐어요.', 'info'],
     draft: ['신청서를 작성하고 있어요', '이어서 작성하고 제출해 주세요.', 'info'],
     review: ['신청 내용을 확인하고 있어요', '공개 프로필과 인증·경력 자료를 확인한 뒤 알림으로 안내할게요. 승인 전에는 받은 요청과 매칭 관리를 이용할 수 없어요.', 'clock'],
     approved: ['도우미 활동을 시작할 수 있어요', '공개 프로필로 직접 도착한 요청을 확인하고, 수락한 거래는 매칭 관리에서 이어가세요.', 'check'],
-    rejected: ['신청이 승인되지 않았어요', latest.reviewNote || '활동 기준을 확인한 뒤 프로필과 경력 자료를 보완하여 다시 신청할 수 있어요.', 'info'],
+    changes: ['신청 내용을 보완해 주세요', '아래 사유와 항목을 고쳐 다시 신청하면 이어서 심사해요. 신청 양식에서 고칠 곳을 빨간 테두리로 표시해 두었어요.', 'info'],
+    rejected: ['신청이 승인되지 않았어요', '아래 사유를 확인해 주세요. 활동 기준에 맞는 자료를 준비해 다시 신청할 수 있어요.', 'info'],
   };
   const [title, text, icon] = data[s];
+  const platformNames = platforms.filter((x) => latest?.body.platformIds.includes(x.id)).map((x) => x.name);
 
   return (
     <div className="account-contained">
       <PageTitle title="도우미 신청 현황" crumbs={[{ label: '마이페이지', to: '/my' }]} />
-      <section className="content-card account-status-card">
-        <span className={`account-status-icon ${s === 'review' ? 'review' : s === 'approved' ? 'approved' : 'rejected'}`}>
+      <section className={`content-card account-status-card ${s}`}>
+        <span className={`account-status-icon ${s}`}>
           <Icon name={icon} size={30} />
         </span>
-        <span className={`badge ${s === 'approved' ? 'verified' : s === 'rejected' ? 'account-badge-error' : 'neutral'}`}>{statusLabels[s]}</span>
+        <span className={`badge ${s === 'approved' ? 'verified' : s === 'rejected' ? 'account-badge-error' : s === 'changes' ? 'account-badge-warn' : 'neutral'}`}>{statusLabels[s]}</span>
         <h2>{title}</h2>
         <p>{text}</p>
+        {/* 보완 요청: 사유 + 고칠 항목(노란 계열) / 반려: 사유만(빨간 계열). 둘이 한눈에 구분되게 색과 내용을 다르게 둔다. */}
+        {s === 'changes' && (
+          <div className="account-review-reason changes">
+            <strong>운영팀이 남긴 보완 사유</strong>
+            <p>{latest?.reviewNote || '보완이 필요한 항목을 확인해 주세요.'}</p>
+            {latest && latest.changeFields.length > 0 && (
+              <>
+                <strong>고칠 항목</strong>
+                <div className="site-tags">
+                  {latest.changeFields.map((f) => (
+                    <span key={f}>{fieldNames[f] ?? f}</span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {s === 'rejected' && (
+          <div className="account-review-reason rejected">
+            <strong>반려 사유</strong>
+            <p>{latest?.reviewNote || '운영팀이 사유를 남기지 않았어요. 문의 작성에서 사유를 물어볼 수 있어요.'}</p>
+          </div>
+        )}
         {revision === 'review' && <Note>수정한 공개 프로필을 심사하고 있어요. 심사 중에도 기존 공개 프로필은 그대로 공개되고, 승인되면 새 내용으로 바뀌어요.</Note>}
-        {revision === 'rejected' && (
+        {(revision === 'rejected' || revision === 'changes') && (
           <Note kind="error">
-            수정한 공개 프로필이 승인되지 않았어요{latest.reviewNote ? ` (사유: ${latest.reviewNote})` : ''}. 기존 공개 프로필은 그대로 공개 중이에요. '공개 프로필 수정'에서 보완해 다시 신청할 수 있어요.
+            수정한 공개 프로필이 승인되지 않았어요{latest?.reviewNote ? ` (사유: ${latest.reviewNote})` : ''}. 기존 공개 프로필은 그대로 공개 중이에요. '공개 프로필 관리'에서 보완해 다시 신청할 수 있어요.
           </Note>
+        )}
+        {s === 'approved' && (
+          <label className="check-row account-active-toggle">
+            <input type="checkbox" disabled={!activity.ready || activity.saving} checked={activity.active} onChange={(e) => void activity.setActive(e.target.checked)} />
+            <span>
+              이용자에게 도우미 프로필이 노출돼요 <small>(활동 중 · 끄면 목록에서 숨겨지고 새 요청을 받지 않아요)</small>
+            </span>
+          </label>
         )}
         <div className="account-status-actions">
           {s === 'approved' ? (
@@ -247,19 +300,35 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
               )}
             </>
           ) : s === 'review' ? (
-            <button type="button" className="btn secondary full" onClick={() => navigate('/my')}>
-              마이페이지로
+            <>
+              <button type="button" className="btn primary full" onClick={() => setPreviewOpen(true)}>
+                제출한 공개 프로필 보기
+              </button>
+              <button type="button" className="btn secondary full" onClick={() => navigate('/my')}>
+                마이페이지로
+              </button>
+            </>
+          ) : s === 'rejected' ? (
+            <button type="button" className="btn secondary full" onClick={onResume}>
+              다시 신청하기
             </button>
           ) : (
             <button type="button" className="btn primary full" onClick={onResume}>
-              {s === 'rejected' ? '보완하고 다시 신청' : '이어서 작성하기'}
+              {s === 'changes' ? '보완하고 다시 신청' : s === 'none' ? '도우미 신청 정보 작성' : '도우미 신청 정보 수정'}
             </button>
           )}
         </div>
         {state.approved?.careerSourceProfileId && <Note>공개 내용은 수정해 바로 게시한 버전이에요. 인증·경력은 기존에 승인된 자료를 유지하고 있어요.</Note>}
-        {latest.submittedAt && <small className="account-caption">신청일 {kstDay(latest.submittedAt)}</small>}
+        {s === 'none' && <Note>요청 수락 시 매칭권 1장을 사용해요. 이용자의 안전거래 결제와는 별개입니다. 예매처의 이용 기준을 준수하고, 계정정보 수집·매크로·재판매·티켓 양도를 요구하거나 제공할 수 없어요.</Note>}
+        {latest?.submittedAt && <small className="account-caption">신청일 {kstDay(latest.submittedAt)}</small>}
       </section>
-      {s === 'approved' && <VisibilityCard reload={reload} />}
+      {previewOpen && latest && (
+        <Modal title="제출한 공개 프로필" wide onClose={() => setPreviewOpen(false)}>
+          <div className="application-detail-preview">
+            <DetailPreview p={latest.body} platformNames={platformNames} image={latest.imageUrl} />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -271,17 +340,20 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
   const [, setApp] = useAppState();
   // 관리자가 예매처를 삭제(사용 중지)했을 수 있어 신청 화면을 열 때마다 새로 받는다.
   const { platforms, loaded: platformsLoaded, failed: platformsFailed } = useFreshPlatforms();
-  const [load, reload] = useLoad(fetchAgentState, []);
+  const [load, reload] = useLoad(fetchAgentState, [], { refreshOnFocus: true });
   const [started, setStarted] = useState(false);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<ProfileBody | null>(null);
   const [image, setImage] = useState<{ file: File; url: string } | null>(null);
   const [error, setError] = useState('');
   const [bank, setBank] = useState({ code: '004', number: '' });
+  const [contactsLoad] = useLoad(() => unwrap<unknown>(api.GET('/api/me/contacts')).then(list), []);
+  const primaryContact = contactsLoad.status === 'done' ? contactsLoad.data.find((c) => c.isPrimary === true) : undefined;
+  const [contact, setContact] = useState<{ kind: string; value: string } | null>(null);
+  const contactDraft = contact ?? { kind: str(primaryContact?.kind) ?? 'PHONE', value: str(primaryContact?.value) ?? '' };
   const [career, setCareer] = useState<Record<number, { files: File[]; description: string }>>({});
   const [business, setBusiness] = useState('');
   const [agreed, setAgreed] = useState({ rules: false, contact: false });
-  const [previewOpen, setPreviewOpen] = useState(false);
   const { pending, run } = useAction();
 
   if (load.status === 'loading')
@@ -303,52 +375,9 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
   // /helper-profile(헤더 '프로필 수정')로 들어와도 승인된 프로필이 없으면 수정이 아니라 신규 신청 흐름이다.
   const edit = editRoute && !!state.approved;
   // 승인된 도우미에게 예전 흐름의 초안이 남아 있어도 신청 단계 화면을 띄우지 않는다. 공개 내용 수정은 /helper-profile에서 바로 반영한다.
-  const inForm = started || edit || (latest?.status === 'draft' && !state.approved);
+  const inForm = started || edit;
 
-  if (!inForm && latest && (latest.status !== 'draft' || state.approved)) return <StatusView state={state} reload={reload} onResume={() => setStarted(true)} />;
-
-  if (!inForm)
-    return (
-      <div className="account-application-intro">
-        <PageTitle title="도우미로 함께해요" crumbs={[{ label: '마이페이지', to: '/my' }]} />
-        <div className="account-intro-hero">
-          <div>
-            <span className="tiny-label">나의 경험이, 누군가의 설렘으로</span>
-            <h2>
-              티켓팅을 준비하는 마음에
-              <br />
-              든든한 도움이 되어 주세요.
-            </h2>
-            <p>
-              내 공개 프로필을 보고 이용자가 직접 요청해요.
-              <br />
-              내용을 확인하고 가능한 요청만 수락하세요.
-            </p>
-            <button type="button" className="btn primary" onClick={() => setStarted(true)}>
-              도우미 활동 신청하기
-            </button>
-          </div>
-          <span className="account-intro-ticket">
-            <Icon name="ticket" size={110} />
-            <i>✦</i>
-          </span>
-        </div>
-        <ol className="helper-milestones" aria-label="도우미 활동 신청 단계">
-          {[
-            ['공개 프로필 작성', '소개·가능한 예매처·활동 시간·비용을 알려주세요.'],
-            ['인증과 경력 자료', '본인인증과 정산 계좌를 확인하고 경력 자료를 제출해요.'],
-            ['검토 후 활동 시작', '승인 후 직접 받은 요청을 확인하고 수락한 매칭을 관리해요.'],
-          ].map(([t, d], i) => (
-            <li key={t} className={i === 0 ? 'current' : ''}>
-              <span className="milestone-dot" aria-hidden="true"></span>
-              <h3>{t}</h3>
-              <p>{d}</p>
-            </li>
-          ))}
-        </ol>
-        <Note>요청 수락 시 매칭권 1장을 사용해요. 이용자의 안전거래 결제와는 별개입니다. 예매처의 이용 기준을 준수하고, 계정정보 수집·매크로·재판매·티켓 양도를 요구하거나 제공할 수 없어요.</Note>
-      </div>
-    );
+  if (!inForm) return <StatusView state={state} onResume={() => setStarted(true)} />;
 
   // 작성 중이던 초안 → 반려·수정이면 마지막 버전 → 처음이면 빈 양식
   const base = (edit ? state.approved?.body : latest?.body) ?? { ...emptyProfile(), activityName: str(me?.nickname) ?? '' };
@@ -358,8 +387,8 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
   const p = removedPlatforms.length ? { ...saved, platformIds: saved.platformIds.filter((id) => !removedPlatforms.includes(id)) } : saved;
   const set = (patch: Partial<ProfileBody>) => setDraft({ ...p, ...patch });
   const caseStates = careerCaseStates(state.evidence);
-  const submittedCases = caseStates.map((c) => c.caseNumber);
-  const allCasesClean = caseStates.length === 3 && caseStates.every((c) => c.scan === 'clean' || c.scan === 'unknown');
+  // 경력 인증은 정상 파일을 포함한 최신 사례 1건 이상을 요구한다.
+  const careerCase = caseStates.find((c) => c.caseNumber === 1);
   const platformNames = platforms.filter((x) => p.platformIds.includes(x.id)).map((x) => x.name);
 
   function validateProfile() {
@@ -406,14 +435,16 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
       ? '본인인증을 완료해 주세요.'
       : !state.payoutVerified
         ? '정산 계좌를 확인해 주세요.'
-        : submittedCases.length < 3
-          ? '경력 사례 1~3을 모두 제출해 주세요.'
+        : !caseStates.some((c) => c.scan === 'clean')
+          ? '경력 인증 자료를 제출하고 파일 검토가 완료될 때까지 기다려 주세요.'
           : !agreed.rules || !agreed.contact
             ? '필수 항목에 동의해 주세요.'
             : '';
     setError(message);
     if (message) return;
     const ok = await run(async () => {
+      if (contact && (contact.kind !== str(primaryContact?.kind) || contact.value.trim() !== str(primaryContact?.value)))
+        await unwrap(api.PUT('/api/me/contacts', { body: { kind: contact.kind as 'PHONE', value: contact.value.trim(), primary: true } }));
       const saved = await saveDraft(p);
       if (business.trim() && saved.id) await unwrap(api.PUT('/api/me/agent/profiles/{profileId}/business', { params: { path: { profileId: saved.id } }, body: { registrationNumber: business.trim() } }));
     });
@@ -441,7 +472,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
     const c = career[n];
     if (!c?.files.length) return toast('첨부할 파일을 선택해 주세요.');
     if (!c.description.trim()) return toast('경력 설명을 적어 주세요.');
-    const ok = await run(() => submitCareerCase(latest.id, n, c.files, c.description.trim()), `경력 사례 ${n}을 제출했어요.`);
+    const ok = await run(() => submitCareerCase(latest.id, n, c.files, c.description.trim()), '경력 자료를 제출했어요.');
     if (ok) {
       // 제출한 사례는 '제출 완료'로 접는다. 다시 제출하려면 '다시 제출하기'를 누른다.
       const rest = { ...career };
@@ -453,7 +484,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
 
   const titles = [
     ['어떤 도우미인가요?', '이용자가 보게 될 공개 프로필을 만들어요.'],
-    ['활동에 필요한 확인', '본인인증과 정산 계좌, 경력 자료를 확인해요.'],
+    ['활동에 필요한 확인', '본인인증·연락 방법·정산 계좌와 경력 자료를 확인해요.'],
     ['마지막으로 확인해 주세요', '입력한 내용이 공개 프로필에 이렇게 표시돼요.'],
   ][step];
 
@@ -475,10 +506,20 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
     </>
   );
 
+  // 보완 요청이면 고칠 항목을 빨간 테두리로 표시하고 양식 맨 위에 사유를 보여 준다.
+  const flaggedFields = !edit && latest?.status === 'changes' ? latest.changeFields : [];
+  const fl = (key: string) => (flaggedFields.includes(key) ? 'account-flagged' : '');
+  const changeBanner = flaggedFields.length > 0 && (
+    <Note kind="error">
+      운영팀이 보완을 요청한 항목을 빨간 테두리로 표시했어요: {flaggedFields.map((f) => fieldNames[f] ?? f).join(', ')}.{latest?.reviewNote ? ` 사유: ${latest.reviewNote}` : ''}
+    </Note>
+  );
+
   const profileForm = (
       <form noValidate onSubmit={saveStep0}>
         <Card title={edit ? '프로필 정보' : '공개 프로필'}>
-          <div className="account-image-picker">
+          {changeBanner}
+          <div className={`account-image-picker ${fl('image')}`}>
             <span className="avatar blue">
               {image || (edit ? state.approved?.imageUrl : latest?.imageUrl) ? <img src={image?.url ?? (edit ? state.approved?.imageUrl : latest?.imageUrl)} alt="" /> : p.activityName[0] || '나'}
               <span className="avatar-spark">✦</span>
@@ -513,16 +554,16 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
             </div>
           </div>
           <Note>이 화면의 소개와 활동 정보는 공개 프로필에 표시돼요. 연락처와 인증 제출 자료는 공개하지 않습니다.</Note>
-          <Field label="활동 닉네임" required>
+          <Field label="활동 닉네임" required className={fl('activityName')}>
             <input required maxLength={50} value={p.activityName} onChange={(e) => set({ activityName: e.target.value })} placeholder="활동할 이름을 입력해 주세요" />
           </Field>
-          <Field label="한 줄 소개" required helper="도우미 목록과 공개 프로필에 표시돼요. 최대 150자">
+          <Field label="한 줄 소개" required className={fl('headline')} helper="도우미 목록과 공개 프로필에 표시돼요. 최대 150자">
             <input required maxLength={150} value={p.headline} onChange={(e) => set({ headline: e.target.value })} placeholder="어떤 도움을 드릴 수 있는지 소개해 주세요" />
           </Field>
-          <Field label="상세 소개" required helper="경험과 진행 방식을 직접 소개해 주세요. 직접 작성한 경력은 검증된 실적으로 표시되지 않아요.">
+          <Field label="상세 소개" required className={fl('bio')} helper="경험과 진행 방식을 직접 소개해 주세요. 직접 작성한 경력은 검증된 실적으로 표시되지 않아요.">
             <textarea rows={5} required maxLength={10000} value={p.bio} onChange={(e) => set({ bio: e.target.value })} />
           </Field>
-          <fieldset className="account-fieldset">
+          <fieldset className={`account-fieldset ${fl('platformIds')}`}>
             <legend>
               가능한 예매처 <small className="account-required">필수 · 복수 선택</small>
             </legend>
@@ -541,11 +582,20 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
             {removedPlatforms.length > 0 && <p className="record-note">이전에 선택한 예매처 중 {removedPlatforms.length}곳이 삭제되어 선택에서 빠졌어요. 저장하면 공개 프로필에도 반영돼요.</p>}
             {!platforms.length && <p className="record-note">{platformsLoaded ? '선택할 수 있는 예매처가 없어요.' : platformsFailed ? '예매처 목록을 불러오지 못했어요.' : '예매처 목록을 불러오는 중이에요.'}</p>}
           </fieldset>
-          <fieldset className="account-fieldset">
+          <fieldset className={`account-fieldset ${fl('categories')}`}>
             <legend>
               공연 분야 <small className="account-required">필수 · 복수 선택</small>
             </legend>
             <div className="account-choice-chips">
+              {/* 모두 가능: 모든 분야를 한 번에 고르거나 비운다(서버에는 분야 목록 그대로 저장). */}
+              <label>
+                <input
+                  type="checkbox"
+                  checked={p.categories.length === categories.length}
+                  onChange={(e) => set({ categories: e.target.checked ? [...categories] : [], primaryCategory: e.target.checked ? p.primaryCategory : 'CONCERT' })}
+                />
+                <span>모두 가능</span>
+              </label>
               {categories.map((c) => (
                 <label key={c}>
                   <input
@@ -562,7 +612,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
             </div>
           </fieldset>
           <div className="form-grid">
-            <Field label="주로 맡는 공연 분야" required>
+            <Field label="주로 맡는 공연 분야" required className={fl('primaryCategory')}>
               <select required value={p.primaryCategory} onChange={(e) => set({ primaryCategory: e.target.value as Category })}>
                 {(p.categories.length ? p.categories : categories).map((c) => (
                   <option key={c} value={c}>
@@ -571,20 +621,23 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
                 ))}
               </select>
             </Field>
-            <Field label="활동 가능 시간·일정" required>
+            <Field label="활동 가능 시간·일정" required className={fl('contactHoursNote')}>
               <input required maxLength={500} value={p.contactHoursNote ?? ''} onChange={(e) => set({ contactHoursNote: e.target.value })} placeholder="평일 18:00~23:00, 주말 오후" />
             </Field>
           </div>
-          <Field label="최소 착수비 (원)" required helper="예매에 착수하는 비용이에요. 공개 프로필에 최소 착수비로 표시합니다.">
+          <Field label="최소 착수비 (원)" required className={fl('upfrontFeeKrw')} helper="예매에 착수하는 비용이에요. 공개 프로필에 최소 착수비로 표시합니다.">
             <MoneyInput required value={p.upfrontFeeKrw} onChange={(n) => set({ upfrontFeeKrw: n })} />
           </Field>
-          <div className="form-grid">
-            <Field label="수고비 최소 (원)" required>
-              <MoneyInput required value={p.successFeeMin} onChange={(n) => set({ successFeeMin: n })} />
-            </Field>
-            <Field label="수고비 최대 (원)" required>
-              <MoneyInput required value={p.successFeeMax} onChange={(n) => set({ successFeeMax: n })} />
-            </Field>
+          {/* 수고비는 한 항목에서 범위로 입력한다(입력칸이 둘이라 label 대신 div로 묶는다). */}
+          <div className={`field ${fl('successFee')}`}>
+            <span>
+              수고비 (원) <small className="account-required">필수</small>
+            </span>
+            <div className="account-range">
+              <MoneyInput required aria-label="수고비 최소" value={p.successFeeMin} onChange={(n) => set({ successFeeMin: n })} />
+              <span aria-hidden="true">~</span>
+              <MoneyInput required aria-label="수고비 최대" value={p.successFeeMax} onChange={(n) => set({ successFeeMax: n })} />
+            </div>
           </div>
           <p className="account-caption left">
             수고비는 협의한 성공 조건을 충족했을 때의 비용이에요.
@@ -597,36 +650,16 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
   );
 
   if (edit) {
-    const myId = myUserId(me);
     return (
       <>
         <PageTitle title="공개 프로필" crumbs={[{ label: '마이페이지', to: '/my' }]} />
-        <p className="prose">이용자가 도우미 찾기와 프로필 화면에서 보는 정보예요. 저장하면 심사 없이 바로 반영돼요.</p>
+        <p className="prose">이용자가 도우미 찾기와 프로필 화면에서 보는 정보예요. 저장하면 심사 없이 바로 반영돼요. 이미 승인된 인증과 경력 자료는 그대로 유지돼요.</p>
         <div className="detail-layout public-profile-layout">
           <div>{profileForm}</div>
           <aside className="public-profile-side">
-            <Card title="공개 상태">
-              {me?.isListed === true || me?.isListed === 1 ? <span className="badge verified">공개 중</span> : <span className="badge neutral">도우미 찾기 목록에서 숨김</span>}
-              <p className="prose">이미 승인된 인증과 경력 자료는 그대로 유지돼요. 소개·활동 정보·비용만 고칠 수 있어요.</p>
-              <div className="account-status-actions">
-                <button type="button" className="btn secondary full" onClick={() => setPreviewOpen(true)}>
-                  저장 전 미리보기
-                </button>
-                {myId && (
-                  <button type="button" className="btn ghost full" onClick={() => navigate(`/agents/${myId}`)}>
-                    내 공개 프로필 보기
-                  </button>
-                )}
-              </div>
-            </Card>
             <VisibilityCard reload={reload} />
           </aside>
         </div>
-        {previewOpen && (
-          <Modal title="공개 프로필 미리보기" wide onClose={() => setPreviewOpen(false)}>
-            <PublicPreview p={p} platformNames={platformNames} image={image?.url ?? state.approved?.imageUrl} stats={false} />
-          </Modal>
-        )}
       </>
     );
   }
@@ -646,7 +679,6 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
           잠시 나갔다 와도 이어서 작성할 수 있어요.
         </p>
         <Progress step={step} />
-        <span className="badge neutral">작성 중</span>
       </aside>
       <div>
         <PageTitle title={titles[0]} crumbs={[{ label: '마이페이지', to: '/my' }]} />
@@ -655,6 +687,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
         {step === 1 && (
           <form noValidate onSubmit={saveStep1}>
             <Card title="계정 인증">
+              {changeBanner}
               <Note>본인인증과 정산 계좌 확인이 끝나야 심사를 신청할 수 있어요.</Note>
               <Verification title="본인인증" text="서로 안심하고 요청과 매칭을 시작해요." done={state.identityVerified}>
                 {!state.identityVerified && (
@@ -665,9 +698,9 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
               </Verification>
               <Verification title="정산 계좌 확인" text="도우미 활동에 사용할 정산 정보를 확인해요. 본인 명의 계좌만 등록할 수 있어요." done={state.payoutVerified} doneText={state.payoutMasked ? `확인 완료 · ${state.payoutMasked}` : undefined} />
               {!state.payoutVerified && (
-                <div className="form-grid">
-                  <Field label="은행" required>
-                    <select value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
+                <>
+                  <Field label="은행" required className={fl('payout')}>
+                    <select required value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
                       {banks.map(([code, name]) => (
                         <option key={code} value={code}>
                           {name}
@@ -675,64 +708,83 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
                       ))}
                     </select>
                   </Field>
-                  <Field label="계좌번호" helper="숫자만 입력해 주세요.">
-                    <input inputMode="numeric" value={bank.number} onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
-                  </Field>
-                  <button
-                    type="button"
-                    className="btn secondary"
-                    disabled={pending || !state.identityVerified || bank.number.length < 8}
-                    onClick={() => run(() => verifyPayout(bank.code, bank.number), '정산 계좌를 확인했어요.').then((ok) => ok && reload())}
-                  >
-                    {state.identityVerified ? '계좌 확인' : '본인인증 후 확인할 수 있어요'}
-                  </button>
-                </div>
+                  {/* 계좌번호 입력 오른쪽에 같은 높이의 확인 버튼(일반적인 계좌 인증 화면 배치). 버튼이 있어 label 대신 div로 묶는다. */}
+                  <div className="field">
+                    <span>
+                      계좌번호 <small className="account-required">필수</small>
+                    </span>
+                    <div className="account-input-action">
+                      <input required aria-label="계좌번호" inputMode="numeric" value={bank.number} placeholder="'-' 없이 숫자만 입력" onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
+                      <button
+                        type="button"
+                        className="btn primary"
+                        disabled={pending || !state.identityVerified || bank.number.length < 8}
+                        onClick={() => run(() => verifyPayout(bank.code, bank.number), '정산 계좌를 확인했어요.').then((ok) => ok && reload())}
+                      >
+                        계좌 확인
+                      </button>
+                    </div>
+                    <small className="field-helper">{state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
+                  </div>
+                </>
               )}
+              {/* 매칭 후 연락 방법: 공개용(isPrimary) 연락처로 저장한다(PUT /api/me/contacts). 마이페이지 '연락처'와 같은 값이다. */}
+              <div className="form-grid">
+                <Field label="매칭 후 연락 방법" required className={fl('contact')}>
+                  <select value={contactDraft.kind} onChange={(e) => setContact({ ...contactDraft, kind: e.target.value })}>
+                    {Object.entries(contactKinds).map(([v, t]) => (
+                      <option key={v} value={v}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="연락처" required className={fl('contact')}>
+                  <input required maxLength={250} type={contactDraft.kind === 'EMAIL' ? 'email' : 'text'} value={contactDraft.value} placeholder={contactPlaceholders[contactDraft.kind]} onChange={(e) => setContact({ ...contactDraft, value: e.target.value })} />
+                </Field>
+              </div>
+              <p className="record-note">요청을 수락한 뒤 거래하는 이용자에게만 공개돼요. 공개 프로필에는 표시하지 않아요.</p>
             </Card>
             <Card title="경력 자료">
-              <p className="prose">경력을 보여줄 자료를 사례 1~3으로 나눠 모두 첨부해 주세요. 개인정보는 가려 주세요.</p>
-              <p className="account-caption left">
-                이미지·PDF / 파일당 최대 20MB / 사례당 최대 10개
-                <br />
-                자료는 비공개로 저장되고, 운영팀 파일 검토를 마친 뒤 심사를 신청할 수 있어요.
-              </p>
-              {[1, 2, 3].map((n) => (
-                <div key={n} className="account-career-upload">
-                  <div className="account-title-row">
-                    <strong>경력 사례 {n}</strong>
-                    {caseStates.find((c) => c.caseNumber === n) && (
-                      <span className={`badge ${caseStates.find((c) => c.caseNumber === n)!.scan === 'blocked' ? 'account-badge-error' : 'verified'}`}>
-                        <Icon name="check" size={12} />
-                        {scanLabels[caseStates.find((c) => c.caseNumber === n)!.scan]}
-                      </span>
-                    )}
-                  </div>
-                  {(!submittedCases.includes(n) || career[n]) && (n === 1 || submittedCases.includes(n - 1) || submittedCases.includes(n)) ? (
-                    <>
-                      <FilePicker kind="career" files={career[n]?.files ?? []} onChange={(files) => setCareer({ ...career, [n]: { description: career[n]?.description ?? '', files: files.slice(0, 10) } })} />
-                      <Field label="설명" required>
-                        <textarea rows={3} maxLength={10000} value={career[n]?.description ?? ''} onChange={(e) => setCareer({ ...career, [n]: { files: career[n]?.files ?? [], description: e.target.value } })} />
-                      </Field>
-                      <button type="button" className="btn secondary" disabled={pending} onClick={() => void submitCase(n)}>
-                        {submittedCases.includes(n) ? `사례 ${n} 다시 제출` : `사례 ${n} 제출`}
-                      </button>
-                    </>
-                  ) : submittedCases.includes(n) ? (
-                    <button type="button" className="text-link" onClick={() => setCareer({ ...career, [n]: { files: [], description: '' } })}>
-                      다시 제출하기
-                    </button>
-                  ) : (
-                    <div className="account-upload-empty">이전 사례를 먼저 제출해 주세요</div>
+              <Field label="경력 요약" className={fl('careerDescription')} helper="공개 프로필의 활동 경력에 표시돼요.">
+                <textarea rows={3} maxLength={3000} value={p.careerDescription ?? ''} onChange={(e) => set({ careerDescription: e.target.value })} placeholder="예: 2022년부터 콘서트·뮤지컬 예매를 도와 왔어요." />
+              </Field>
+              {/* 경력 인증: 자료와 설명을 한 묶음으로 제출한다(사례 1건). */}
+              <div className={`account-career-upload ${fl('career')}`}>
+                <div className="account-title-row">
+                  <strong>
+                    경력 인증 <small className="account-required">필수</small>
+                  </strong>
+                  {careerCase && (
+                    <span className={`badge ${careerCase.scan === 'blocked' ? 'account-badge-error' : 'verified'}`}>
+                      <Icon name="check" size={12} />
+                      {scanLabels[careerCase.scan]}
+                    </span>
                   )}
                 </div>
-              ))}
-              <Field label="경력 요약" helper="공개 프로필의 활동 경력에 표시돼요.">
-                <textarea rows={3} maxLength={3000} value={p.careerDescription ?? ''} onChange={(e) => set({ careerDescription: e.target.value })} />
-              </Field>
-              <Field label="활동 시작일">
-                <input type="date" value={p.careerStartedOn ?? ''} onChange={(e) => set({ careerStartedOn: e.target.value || undefined })} />
-              </Field>
-              <Field label="사업자 등록번호" helper="예: 123-45-67890">
+                <p>
+                  경력을 보여줄 자료(예매 내역·활동 기록 등)와 설명을 함께 제출해 주세요. 개인정보는 가려 주세요.
+                  <br />
+                  이미지·PDF / 파일당 최대 20MB / 최대 10개 · 비공개로 저장되고, 운영팀 파일 검토를 마친 뒤 심사를 신청할 수 있어요.
+                </p>
+                <button type="button" className="btn ghost" disabled={pending} onClick={reload}>파일 검토 상태 새로고침</button>
+                {!careerCase || career[1] ? (
+                  <>
+                    <FilePicker kind="career" files={career[1]?.files ?? []} onChange={(files) => setCareer({ ...career, 1: { description: career[1]?.description ?? '', files: files.slice(0, 10) } })} />
+                    <Field label="설명" required>
+                      <textarea rows={3} maxLength={10000} value={career[1]?.description ?? ''} onChange={(e) => setCareer({ ...career, 1: { files: career[1]?.files ?? [], description: e.target.value } })} placeholder="예: 2024년 ○○ 콘서트 예매 내역이에요. 좌석 정보만 남기고 가렸어요." />
+                    </Field>
+                    <button type="button" className="btn secondary" disabled={pending} onClick={() => void submitCase(1)}>
+                      {careerCase ? '경력 자료 다시 제출' : '경력 자료 제출'}
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="text-link" onClick={() => setCareer({ ...career, 1: { files: [], description: '' } })}>
+                    다시 제출하기
+                  </button>
+                )}
+              </div>
+              <Field label="사업자 등록번호" className={fl('business')} helper="예: 123-45-67890">
                 <input value={business} onChange={(e) => setBusiness(e.target.value)} pattern="[0-9]{3}-?[0-9]{2}-?[0-9]{5}" placeholder="선택 사항" />
               </Field>
               <div className="account-agreements">
@@ -764,10 +816,10 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
               void submit();
             }}
           >
-            <PublicPreview p={p} platformNames={platformNames} image={image?.url ?? latest?.imageUrl} />
-            <Note>소개와 경력은 직접 작성한 정보예요. 제출한 자료에 대한 검토 전에는 인증된 경력이나 플랫폼 거래 실적으로 표시되지 않습니다.</Note>
-            {!allCasesClean && <Note kind="error">경력 자료 3건의 운영팀 파일 검토가 끝나야 심사를 신청할 수 있어요. 검토가 끝나면 다시 제출해 주세요.</Note>}
-            <section className="content-card account-card">{footer(edit ? '수정한 프로필 심사 신청' : '도우미 신청 제출')}</section>
+            <div className="application-detail-preview">
+              <DetailPreview p={p} platformNames={platformNames} image={image?.url ?? latest?.imageUrl} footer={footer(edit ? '수정한 프로필 심사 신청' : '도우미 신청 제출')} />
+              <Note>소개와 경력은 직접 작성한 정보예요. 제출한 자료에 대한 검토 전에는 인증된 경력이나 플랫폼 거래 실적으로 표시되지 않습니다.</Note>
+            </div>
           </form>
         )}
       </div>

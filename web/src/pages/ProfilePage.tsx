@@ -11,6 +11,7 @@ import { ImagePreview } from '../ui/ImagePreview';
 import { PageTitle } from '../ui/PageTitle';
 import { money, responseTime, successRate } from '../ui/format';
 import { useToast } from '../ui/Toast';
+import './profile-aside.css';
 
 // 프로토타입 discovery.js의 profile(). GET /api/agents/{id}와 GET /api/agents/{id}/reviews를 쓴다.
 interface Review {
@@ -302,6 +303,7 @@ export function ProfilePage() {
             </div>
           </div>
           <p className="aside-disclaimer">
+            <strong>* 진행 과정</strong>
             요청 → 도우미 수락 및 최종 조건 전달
             <br />→ 이용자 확인·확정 → 안전거래 조건이면 결제
           </p>

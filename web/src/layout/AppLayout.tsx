@@ -4,8 +4,52 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useAppState, type Mode } from '../AppState';
 import { Icon } from '../ui/Icon';
-import { useNotifications, type Notification } from './notifications';
+import { notificationRoleNames, notificationTarget, useNotificationRoles, useNotifications, type Notification } from './notifications';
 import { utcToLocal } from '../transactions/ui';
+
+// 전자상거래법·정보통신망법에 따라 푸터에 표기하는 사업자 정보(사업자등록증 기준).
+// 빈 문자열은 아직 확정되지 않은 항목으로, 값을 채우면 푸터에 자동으로 나타난다.
+const BIZ = {
+  name: '피코(PICO)',
+  ceo: '박진영',
+  bizNo: '278-02-03958',
+  address: '서울특별시 마포구 신촌로24길 14, 301호(노고산동)',
+  mailOrderNo: '', // 통신판매업 신고번호 — 신고 완료 후 '제2026-서울마포-0000호' 형태로 기재(결제 오픈 전 필수)
+  hosting: '', // 호스팅 서비스 제공자 (예: Amazon Web Services)
+  cpo: '', // 개인정보보호책임자 성명
+  cpoEmail: '', // 개인정보보호책임자 연락처
+  tel: '', // 고객센터 전화번호 (예: 02-0000-0000 (평일 10:00~18:00))
+  email: '', // 고객 문의 이메일
+};
+
+// 사업자등록번호 진위는 공정거래위원회 '사업자정보확인'으로 연결해야 한다(하이픈 없는 10자리).
+const BIZ_INFO_URL = `https://www.ftc.go.kr/bizCommPop.do?wrkr_no=${BIZ.bizNo.replace(/-/g, '')}`;
+
+type BizItem = { label: string; value: string; href?: string };
+
+// 값이 빈 항목은 줄에서 빼고, 줄 전체가 비면 그 줄도 그리지 않는다.
+function bizLines(): BizItem[][] {
+  const lines: BizItem[][] = [
+    [
+      { label: '상호명', value: BIZ.name },
+      { label: '대표자', value: BIZ.ceo },
+      { label: '개인정보보호책임자', value: BIZ.cpo && BIZ.cpoEmail ? `${BIZ.cpo}(${BIZ.cpoEmail})` : BIZ.cpo },
+    ],
+    [
+      { label: '사업자등록번호', value: BIZ.bizNo, href: BIZ_INFO_URL },
+      { label: '통신판매업신고번호', value: BIZ.mailOrderNo },
+    ],
+    [
+      { label: '주소', value: BIZ.address },
+      { label: '호스팅제공자', value: BIZ.hosting },
+    ],
+    [
+      { label: '고객센터', value: BIZ.tel },
+      { label: '이메일', value: BIZ.email },
+    ],
+  ];
+  return lines.map((l) => l.filter((i) => i.value)).filter((l) => l.length);
+}
 
 // 프로토타입 app.js의 header()/footer()와 pc-interactions.js의 알림·프로필 팝오버를 그대로 옮김.
 // <main class="page {route}">의 route 클래스는 프로토타입 CSS가 화면별 스타일에 쓴다.
@@ -48,16 +92,18 @@ export function AppLayout() {
   const headerAvatar = helper ? helperAvatarUrl || avatarUrl : avatarUrl;
   const name = String(me?.nickname ?? me?.name ?? '');
   const { items: notifications, unread, open: openNotification, readAll } = useNotifications(pathname);
+  const roleOf = useNotificationRoles(notifications);
   async function clickNotification(n: Notification) {
     setOpened('');
     await openNotification(n);
-    if (n.requestId) navigate(`/requests/${n.requestId}`);
+    const to = notificationTarget(n);
+    if (to) navigate(to);
   }
 
   const nav: [string, string, string][] = helper
     ? [['/leads', 'leads', '받은 요청'], ['/matches', 'matches', '매칭 관리']]
     : [['/', 'home', '도우미 찾기'], ['/requests', 'requests', '내 활동']];
-  const active = ['my', 'favorites', 'help', 'terms', 'privacy', 'guide', 'user-profile', 'helper-profile', 'account', 'history', 'application', 'credits', 'reports'].includes(route) ? 'my' : helper ? (route === 'matches' || route === 'availability' ? 'matches' : 'leads') : route === 'requests' ? 'requests' : 'home';
+  const active = ['my', 'favorites', 'help', 'inquiries', 'terms', 'privacy', 'guide', 'user-profile', 'helper-profile', 'account', 'history', 'application', 'credits', 'reports'].includes(route) ? 'my' : helper ? (route === 'matches' || route === 'availability' ? 'matches' : 'leads') : route === 'requests' ? 'requests' : 'home';
 
   useEffect(() => {
     document.title = `${titles[route] || '티켓팅 매칭'} · PICO`;
@@ -204,12 +250,15 @@ export function AppLayout() {
                 <div className="popover-notifications">
                   {notifications.length ? (
                     notifications.slice(0, 20).map((n) => (
-                      <button key={n.notificationId} className={`popover-notification ${!n.readAt ? 'unread' : ''}`} onClick={() => void clickNotification(n)}>
+                      <button key={n.notificationId} className={`popover-notification role-${roleOf(n)} ${!n.readAt ? 'unread' : ''}`} onClick={() => void clickNotification(n)}>
                         <span className="popover-notice-icon">
                           <Icon name={n.requestId ? 'check' : 'bell'} size={18} />
                         </span>
                         <span>
-                          <strong>{n.title}</strong>
+                          <strong>
+                            <span className={`notification-role ${roleOf(n)}`}>{notificationRoleNames[roleOf(n)]}</span>
+                            {n.title}
+                          </strong>
                           {n.body && <span>{n.body}</span>}
                           <small>{utcToLocal(n.createdAt)}</small>
                         </span>
@@ -237,18 +286,45 @@ export function AppLayout() {
       </main>
       <footer>
         <div className="footer-top">
-          <Link className="footer-brand" to="/">
-            PICO
-          </Link>
+          {/* 메인 오른쪽에 있던 '확인할 수 있는 신뢰' 안내를 바닥글 PICO 옆으로 옮겼다(고객센터는 바닥글 메뉴에만 둔다). */}
+          <div className="footer-brand-row">
+            <Link className="footer-brand" to="/">
+              PICO
+            </Link>
+            <span className="footer-trust">
+              <Icon name="shield" size={14} />
+              <strong>확인할 수 있는 신뢰</strong>
+              인증 정보와 플랫폼 거래 후기를 함께 확인하고 선택하세요.
+            </span>
+          </div>
           <div>
             <button onClick={() => navigate('/guide')}>이용 방법</button>
             <button onClick={() => navigate('/help')}>고객센터</button>
             <button onClick={() => navigate('/terms')}>이용약관</button>
-            <button onClick={() => navigate('/privacy')}>개인정보처리방침</button>
+            <button className="footer-privacy" onClick={() => navigate('/privacy')}>
+              개인정보처리방침
+            </button>
           </div>
         </div>
         <p>PICO는 이용자와 도우미를 연결하며 예매 성공이나 티켓을 보증하지 않습니다.</p>
-        <small>© 2026 PICO</small>
+        <ul className="footer-biz">
+          {bizLines().map((line, i) => (
+            <li key={i}>
+              {line.map((item) => (
+                <span key={item.label}>
+                  {item.label}: {item.href ? (
+                    <a href={item.href} target="_blank" rel="noreferrer noopener">
+                      {item.value}
+                    </a>
+                  ) : (
+                    item.value
+                  )}
+                </span>
+              ))}
+            </li>
+          ))}
+        </ul>
+        <small>© 2026 PICO. All rights reserved.</small>
       </footer>
     </>
   );

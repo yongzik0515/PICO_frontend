@@ -4,6 +4,7 @@ import { Modal } from '../ui/Modal';
 import { searchAgents, usePlatforms } from './agent';
 import { Calendar } from './Calendar';
 import { emptyFilters, type Filters, type Sort } from './filters';
+import './filter-modal.css';
 
 // 프로토타입 discovery-filters.js의 빠른 필터 팝오버와 상세 필터 모달
 type QuickKey = 'price' | 'date' | 'rating' | 'success';

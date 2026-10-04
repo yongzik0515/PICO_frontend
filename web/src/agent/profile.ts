@@ -11,7 +11,8 @@ export type ProfileBody = components['schemas']['Profile'];
 export type Category = components['schemas']['ServiceCategory'];
 
 /** 프로필 버전 상태. 명세에 값 목록이 없어 흔한 이름으로 나눈다. */
-export type ProfileStatus = 'draft' | 'review' | 'approved' | 'rejected' | 'archived';
+// changes(보완 요청): 고칠 항목(changeFields)과 사유를 받아 보완 후 다시 신청한다. 서버의 CHANGES_REQUESTED 상태를 사용한다.
+export type ProfileStatus = 'draft' | 'review' | 'approved' | 'changes' | 'rejected' | 'archived';
 
 export interface ProfileVersion {
   id: number;
@@ -19,6 +20,8 @@ export interface ProfileVersion {
   status: ProfileStatus;
   rawStatus: string;
   reviewNote: string;
+  /** 보완 요청 때 고쳐야 할 항목(예: headline, career). 신청 양식에서 빨간 테두리로 표시한다. */
+  changeFields: string[];
   submittedAt: string;
   body: ProfileBody;
   imageUrl?: string;
@@ -31,7 +34,8 @@ function statusOf(v: string): ProfileStatus {
   const s = v.toUpperCase();
   if (['SUBMITTED', 'IN_REVIEW', 'PENDING', 'PENDING_REVIEW', 'REVIEW'].includes(s)) return 'review';
   if (['APPROVED', 'PUBLISHED', 'ACTIVE'].includes(s)) return 'approved';
-  if (['REJECTED', 'NEEDS_CHANGES', 'DECLINED'].includes(s)) return 'rejected';
+  if (['CHANGES_REQUESTED', 'NEEDS_CHANGES'].includes(s)) return 'changes';
+  if (['REJECTED', 'DECLINED'].includes(s)) return 'rejected';
   if (['ARCHIVED', 'SUPERSEDED'].includes(s)) return 'archived';
   return 'draft';
 }
@@ -49,6 +53,7 @@ export function toProfile(raw: Raw): ProfileVersion {
     status: statusOf(rawStatus),
     rawStatus,
     reviewNote: s('reviewNote', 'rejectionReason', 'reviewComment'),
+    changeFields: (Array.isArray(pick(raw, 'changeFields')) ? (pick(raw, 'changeFields') as unknown[]) : []).map(String),
     submittedAt: s('submittedAt'),
     imageUrl: s('imageUrl', 'profileImageUrl') || undefined,
     careerSourceProfileId: n('careerSourceProfileId'),
@@ -109,7 +114,7 @@ export async function fetchAgentState(): Promise<AgentState> {
     .map(toProfile)
     .sort((a, b) => b.version - a.version || b.id - a.id);
   // 이전 게시본(ARCHIVED)은 작성·심사 대상이 아니다.
-  const current = summaries.find((v) => v.status === 'draft' || v.status === 'review') ?? summaries.find((v) => v.status !== 'archived');
+  const current = summaries.find((v) => v.status === 'draft' || v.status === 'review' || v.status === 'changes') ?? summaries.find((v) => v.status !== 'archived');
   const path = current ? { params: { path: { profileId: current.id } } } : null;
   // 목록은 요약(활동명·상태 등)만 준다. 이어서 작성·공개 프로필 수정 양식을 채우려면 그 버전의 상세를 불러온다.
   const [detail, evidenceRaw] = path
@@ -178,7 +183,7 @@ export async function submitCareerCase(profileId: number, caseNumber: number, fi
 }
 
 /** 제출한 경력 사례 번호 목록 */
-/** 제출한 경력 사례(1~3)별 최신 상태. 심사 신청에는 3건 모두 제출(SUBMITTED/APPROVED)이고 첨부가 전부 CLEAN이어야 한다(가이드 4장). */
+/** 제출한 경력 사례(1~3)별 최신 상태. 심사 신청에는 최소 1건이 제출(SUBMITTED/APPROVED)이고 해당 최신 사례의 첨부가 전부 CLEAN이어야 한다. */
 export interface CareerCase {
   caseNumber: number;
   status: string;

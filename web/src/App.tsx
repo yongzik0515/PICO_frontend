@@ -3,7 +3,7 @@ import { BrowserRouter, Link, Route, Routes, useNavigate } from 'react-router-do
 import { AppStateProvider } from './AppState';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { RequireAuth } from './auth/RequireAuth';
-import { AgentCard, FavoriteButton } from './discovery/AgentCard';
+import { AgentCard } from './discovery/AgentCard';
 import { FavoritesProvider, useFavorites } from './discovery/favorites';
 import { AdminLayout } from './layout/AdminLayout';
 import { AppLayout } from './layout/AppLayout';
@@ -18,6 +18,7 @@ import { ReviewPage } from './pages/ReviewPage';
 import { ReportPage, ReportsPage } from './pages/ReportPage';
 import { CreditsPage } from './pages/CreditsPage';
 import { AccountPage, HistoryPage, MyPage, UserProfilePage, VerifyEmailPage } from './pages/MyPage';
+import { InquiryHistoryPage, InquiryWritePage } from './pages/InquiryPage';
 import { EvidencePage } from './pages/EvidencePage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { PaymentPage } from './pages/PaymentPage';
@@ -76,7 +77,6 @@ function FavoritesPage() {
           list.map((a) => (
             <div key={a.id} className="favorite-entry">
               <AgentCard agent={a} />
-              <FavoriteButton agent={a} />
             </div>
           ))
         ) : (
@@ -153,6 +153,8 @@ export default function App() {
                 <Route path="user-profile" element={auth(<UserProfilePage />)} />
                 <Route path="account" element={auth(<AccountPage />)} />
                 <Route path="history" element={auth(<HistoryPage />)} />
+                <Route path="inquiries" element={auth(<InquiryWritePage />)} />
+                <Route path="inquiries/history" element={auth(<InquiryHistoryPage />)} />
                 <Route path="verify-email" element={<VerifyEmailPage />} />
                 <Route path="application" element={auth(<ApplicationPage />)} />
                 <Route path="helper-profile" element={auth(<ApplicationPage key="edit" edit />)} />
