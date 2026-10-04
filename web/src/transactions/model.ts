@@ -141,6 +141,8 @@ export interface Agreement {
   attemptRule: string;
   refundRule: string;
   contactDeadlineRule: string;
+  additionalNote: string;
+  reason: string;
   createdAt: string;
   finalizedAt: string;
   paymentId?: number;
@@ -172,6 +174,8 @@ export function toAgreement(raw: Raw): Agreement {
     refundRule: s('refundRule'),
     contactDeadlineRule: s('contactDeadlineRule'),
     createdAt: s('createdAt', 'proposedAt'),
+    additionalNote: s('additionalNote'),
+    reason: s('reason'),
     finalizedAt: s('finalizedAt', 'acceptedAt'),
     paymentId: n('paymentId', 'payment.paymentId'),
     paymentStatus: s('paymentStatus', 'payment.status'),

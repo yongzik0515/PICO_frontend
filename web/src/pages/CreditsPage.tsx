@@ -9,10 +9,7 @@ import { PageTitle } from '../ui/PageTitle';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 transactions.js의 creditsPage(). 도우미가 요청을 수락할 때 매칭권 1장이 차감된다.
-// 명세: 판매 패키지는 1회 500원(단건)과 10회 5,000원. 구매 생성(POST /purchases) → PortOne 결제창 → 승인(POST /purchases/{id}/payment, txId를 pgPaymentKey로)
-// 금액은 서버가 수량으로 정한다. 화면의 금액은 안내용이며, 결제창에는 서버가 돌려준 주문 금액을 쓴다.
-// 수량은 직접 입력한다(1장 500원). 1장(500원)은 KG이니시스 최소 결제 금액(1,000원)보다 작아 2장부터 살 수 있다.
-// TODO(백엔드): 서버는 아직 10장 묶음만 판다(그 밖의 수량은 400). 수량 자유 판매가 필요하다(USER_FLOW.md 12번).
+// 10장 패키지 4,500원 / 자유 수량 2~100장 개당 500원. 결제창은 서버 주문 금액만 사용한다.
 const UNIT_PRICE = 500;
 const MIN_UNITS = 2;
 const MAX_UNITS = 100;
@@ -83,13 +80,14 @@ export function CreditsPage() {
   // 결제창에서 카드 결제를 마쳤는데 서버가 PG 결과를 아직 확인하지 못한 상태(승인 API 503·PROCESSING)
   const [confirming, setConfirming] = useState(false);
   const navigate = useNavigate();
-  const [unitsInput, setUnitsInput] = useState('10');
+  const [productType, setProductType] = useState<'PACKAGE_10' | 'CUSTOM'>('PACKAGE_10');
+  const [unitsInput, setUnitsInput] = useState('2');
   const [phoneInput, setPhoneInput] = useState<string | null>(null);
   const savedBuyer = load.status === 'done' ? load.data.buyer : null;
   const phone = phoneInput ?? savedBuyer?.phone ?? '';
-  const units = Number(unitsInput);
+  const units = productType === 'PACKAGE_10' ? 10 : Number(unitsInput);
   const validUnits = Number.isInteger(units) && units >= MIN_UNITS && units <= MAX_UNITS;
-  const pack = { units: validUnits ? units : 0, price: validUnits ? units * UNIT_PRICE : 0 };
+  const pack = { units: validUnits ? units : 0, price: validUnits ? (productType === 'PACKAGE_10' ? 4500 : units * UNIT_PRICE) : 0 };
   const [search, setSearch] = useSearchParams();
   const resumed = useRef(false);
   // 방금 충전을 마쳤을 때 안내(화면에 머물며 잔액을 바로 갱신해 보여 준다)
@@ -153,10 +151,11 @@ export function CreditsPage() {
     const result = { processing: false, purchaseId: 0 };
     setCharged(null);
     const ok = await run(async () => {
-      const purchase = await unwrap<Raw>(api.POST('/api/matching-passes/purchases', { body: { purchasedUnits: pack.units } }));
+      const purchase = await unwrap<Raw>(api.POST('/api/matching-passes/purchases', { body: { purchasedUnits: pack.units, productType } }));
       const purchaseId = num(pick(purchase, 'purchaseId'));
       const orderNumber = str(pick(purchase, 'payment.orderNumber'));
-      const amount = num(pick(purchase, 'payment.amountKrw', 'priceKrw')) ?? pack.price;
+      const amount = num(pick(purchase, 'payment.amountKrw', 'priceKrw'));
+      if (!amount || !Number.isSafeInteger(amount)) throw new Error('주문 금액을 확인하지 못했어요.');
       if (!purchaseId || !orderNumber) throw new Error('구매 주문을 만들지 못했어요.');
       // 결제창이 페이지를 이동시키는 환경(모바일)에서는 돌아온 뒤 이 주문을 이어서 승인한다.
       result.purchaseId = purchaseId;
@@ -217,7 +216,13 @@ export function CreditsPage() {
               </strong>
             </div>
             {load.status === 'error' && <Notice tone="error">{load.message}</Notice>}
-            <Field label="충전할 수량 (장)" required error={unitsInput && !validUnits ? `${MIN_UNITS}장부터 ${MAX_UNITS}장까지 입력해 주세요.` : undefined}>
+            <Field label="구매 상품" required>
+              <select aria-label="구매 상품" value={productType} disabled={pending || confirming} onChange={(e) => setProductType(e.target.value as 'PACKAGE_10' | 'CUSTOM')}>
+                <option value="PACKAGE_10">10장 패키지 · 4,500원</option>
+                <option value="CUSTOM">자유 수량 · 1장당 500원</option>
+              </select>
+            </Field>
+            {productType === 'CUSTOM' && <Field label="충전할 수량 (장)" required error={unitsInput && !validUnits ? `${MIN_UNITS}장부터 ${MAX_UNITS}장까지 입력해 주세요.` : undefined}>
               <div className="credit-units">
                 <button type="button" className="btn secondary" aria-label="1장 줄이기" disabled={pending || confirming || !validUnits || units <= MIN_UNITS} onClick={() => setUnitsInput(String(units - 1))}>
                   −
@@ -236,8 +241,8 @@ export function CreditsPage() {
                   +
                 </button>
               </div>
-            </Field>
-            <p className="record-note">1장당 500원 · 유효기간 없음 · 요청을 수락할 때 1장씩 사용해요. 카드 결제 최소 금액(1,000원) 때문에 2장부터 충전할 수 있어요.</p>
+            </Field>}
+            <p className="record-note">10장 패키지 4,500원 / 자유 수량 1장당 500원 · 유효기간 없음 · 요청을 수락할 때 1장씩 사용해요. 카드 결제 최소 금액(1,000원) 때문에 자유 수량은 2장부터 구매할 수 있고, 자유 수량 10장은 5,000원이에요.</p>
             {charged !== null && (
               <Notice tone="success">
                 매칭권 {charged}장을 충전했어요. 지금 보유 {load.status === 'done' ? load.data.balance : '-'}장이에요.

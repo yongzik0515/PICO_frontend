@@ -36,5 +36,7 @@ export function agreementRows(a: Agreement): [string, ReactNode][] {
     ['예매 시도 방식', a.attemptRule],
     ['실패·환불 처리', a.refundRule],
     ['결과 연락 기한', a.contactDeadlineRule],
+    ['기타 사항', a.additionalNote],
+    ['수정 사유', a.reason],
   ];
 }

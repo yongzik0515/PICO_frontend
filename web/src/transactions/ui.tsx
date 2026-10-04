@@ -57,7 +57,7 @@ const nextCopy: Record<Stage, [string, string, string?]> = {
   policy_review: ['운영팀이 요청을 확인하고 있어요', '대리 신청 정책 검토가 끝나면 도우미가 수락할 수 있어요.', '운영팀의 정책 검토가 끝나면 수락할 수 있어요.'],
   policy_blocked: ['운영 정책상 진행할 수 없는 요청이에요', '해당 공연·예매처는 대리 신청이 허용되지 않아요. 요청을 취소하거나 내용을 수정해 주세요.', '운영 정책상 수락할 수 없는 요청이에요.'],
   pending: ['도우미가 요청을 확인할 차례예요', '수락 전에는 요청 내용을 수정하거나 취소할 수 있어요.', '요청을 확인하고 수락하거나 거절해 주세요.'],
-  terms_needed: ['최종 조건을 작성할 차례예요', '양측 모두 비용과 진행 조건을 정해 제안할 수 있어요.', '양측 모두 비용과 진행 조건을 정해 제안할 수 있어요.'],
+  terms_needed: ['도우미가 첫 최종 조건을 작성할 차례예요', '도우미의 첫 제안이 도착하면 확정하거나 조건과 사유를 함께 수정 제안할 수 있어요.', '비용과 진행 조건을 정해 첫 제안을 보내 주세요.'],
   // 도우미가 보낸 조건 기준. 이용자가 보낸 조건이면 NextStep에서 확인하는 쪽을 도우미로 바꾼다.
   terms_sent: ['이용자가 최종 조건을 확인할 차례예요', '변경된 내용을 확인하고 확정하거나 수정을 요청해 주세요.', '이용자의 확인을 기다려 주세요.'],
   revision_requested: ['조건을 다시 제안할 수 있어요', '수정 요청을 확인하고 새 조건을 제안해 주세요.', '수정 요청을 확인하고 새 조건을 제안해 주세요.'],
@@ -245,7 +245,7 @@ export function FilePicker({ files, onChange, kind }: { files: File[]; onChange:
  * 처음 값이 0이면 빈칸 + placeholder '0'으로 보여 준다. 필수 칸을 비워 두면 브라우저 검증에 걸린다.
  */
 export function MoneyInput({ value, onChange, ...rest }: { value: number | undefined; onChange: (n: number) => void } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'>) {
-  const [text, setText] = useState(value ? String(value) : '');
+  const [text, setText] = useState(value == null ? '' : String(value));
   return (
     <input
       type="number"

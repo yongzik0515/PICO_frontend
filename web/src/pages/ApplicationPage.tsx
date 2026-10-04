@@ -33,7 +33,7 @@ import { money } from '../ui/format';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 account.js의 application()/helperFields()/verificationCard()/careerUpload()/publicPreview()/applicationStatusPage()
-// 명세 흐름: PUT /api/me/agent/profile(초안) → 본인·계좌 인증 → 경력 증빙(CAREER 사례 1~3) → POST /profiles/{id}/submit → 관리자 심사
+// 명세 흐름: PUT /api/me/agent/profile(초안) → 본인·계좌 인증 → 경력 증빙(CAREER 최소 1건) → POST /profiles/{id}/submit → 관리자 심사
 // 공개 항목만 수정하면 기존 경력 승인을 유지하고 즉시 게시한다.
 
 const statusLabels: Record<ProfileStatus | 'none', string> = { none: '미신청', draft: '작성 중', review: '심사 중', approved: '승인', changes: '보완 요청', rejected: '반려', archived: '이전 게시본' };
@@ -340,7 +340,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
   const [, setApp] = useAppState();
   // 관리자가 예매처를 삭제(사용 중지)했을 수 있어 신청 화면을 열 때마다 새로 받는다.
   const { platforms, loaded: platformsLoaded, failed: platformsFailed } = useFreshPlatforms();
-  const [load, reload] = useLoad(fetchAgentState, []);
+  const [load, reload] = useLoad(fetchAgentState, [], { refreshOnFocus: true });
   const [started, setStarted] = useState(false);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<ProfileBody | null>(null);
@@ -387,7 +387,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
   const p = removedPlatforms.length ? { ...saved, platformIds: saved.platformIds.filter((id) => !removedPlatforms.includes(id)) } : saved;
   const set = (patch: Partial<ProfileBody>) => setDraft({ ...p, ...patch });
   const caseStates = careerCaseStates(state.evidence);
-  // 경력 인증은 사례 1건만 받는다. TODO(백엔드): 심사 신청 API는 아직 사례 1~3을 모두 요구한다(USER_FLOW.md 9번).
+  // 경력 인증은 정상 파일을 포함한 최신 사례 1건 이상을 요구한다.
   const careerCase = caseStates.find((c) => c.caseNumber === 1);
   const platformNames = platforms.filter((x) => p.platformIds.includes(x.id)).map((x) => x.name);
 
@@ -435,8 +435,8 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
       ? '본인인증을 완료해 주세요.'
       : !state.payoutVerified
         ? '정산 계좌를 확인해 주세요.'
-        : !careerCase
-          ? '경력 인증 자료를 제출해 주세요.'
+        : !caseStates.some((c) => c.scan === 'clean')
+          ? '경력 인증 자료를 제출하고 파일 검토가 완료될 때까지 기다려 주세요.'
           : !agreed.rules || !agreed.contact
             ? '필수 항목에 동의해 주세요.'
             : '';
@@ -767,6 +767,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
                   <br />
                   이미지·PDF / 파일당 최대 20MB / 최대 10개 · 비공개로 저장되고, 운영팀 파일 검토를 마친 뒤 심사를 신청할 수 있어요.
                 </p>
+                <button type="button" className="btn ghost" disabled={pending} onClick={reload}>파일 검토 상태 새로고침</button>
                 {!careerCase || career[1] ? (
                   <>
                     <FilePicker kind="career" files={career[1]?.files ?? []} onChange={(files) => setCareer({ ...career, 1: { description: career[1]?.description ?? '', files: files.slice(0, 10) } })} />

@@ -399,7 +399,7 @@ export function RequestDetailPage() {
       case 'revision_requested':
         return (
           <>
-            {go(`/requests/${r.id}/terms`, stage === 'revision_requested' ? '최종 조건 수정하기' : '최종 조건 작성하기')}
+            {stage === 'terms_needed' && !agent ? <Notice>도우미가 첫 최종 조건을 작성하고 있어요.</Notice> : go(`/requests/${r.id}/terms`, stage === 'revision_requested' ? '최종 조건 수정하기' : '최종 조건 작성하기')}
             {cancelMatched}
           </>
         );
@@ -409,7 +409,7 @@ export function RequestDetailPage() {
         ) : (
           <>
             {btn('확인하고 확정하기', () => setDialog('agree'))}
-            {btn('수정 요청하기', () => setDialog('revision'), 'secondary')}
+            {go(`/requests/${r.id}/terms`, '조건 수정해서 제안하기')}
             {cancelMatched}
           </>
         );

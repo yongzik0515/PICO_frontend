@@ -1,107 +1,62 @@
-import { type FormEvent } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { api, unwrap } from '../api/client';
+import type { components } from '../api/schema';
 import { useAuth } from '../auth/AuthContext';
-import { Field, Notice } from '../transactions/ui';
+import { useLoad } from '../transactions/model';
+import { Field, Notice, useAction, utcToLocal } from '../transactions/ui';
 import { PageTitle } from '../ui/PageTitle';
-import { useToast } from '../ui/Toast';
 
-// 프로토타입 account.js의 inquiries()/inquiryHistory().
-// 문의 API가 아직 없어 이 브라우저에만 계정별로 저장한다. 운영팀에는 전송되지 않는다(USER_FLOW.md 7번).
-type Inquiry = { id: number; subject: string; message: string; createdAt: string; reply?: string };
-
-const storageKey = (userKey: string) => `pico:inquiries:${userKey}`;
-
-function readInquiries(userKey: string): Inquiry[] {
-  try {
-    const rows = JSON.parse(localStorage.getItem(storageKey(userKey)) || '[]');
-    return Array.isArray(rows) ? rows : [];
-  } catch {
-    return [];
-  }
-}
+type Inquiry = components['schemas']['InquiryDetail'];
 
 export function InquiryWritePage() {
-  const { userKey } = useAuth();
   const navigate = useNavigate();
-  const toast = useToast();
-
-  function submit(e: FormEvent<HTMLFormElement>) {
+  const { pending, run } = useAction();
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     if (!form.checkValidity()) return form.querySelector<HTMLElement>(':invalid')?.focus();
-    const d = new FormData(form);
-    const row: Inquiry = { id: Date.now(), subject: String(d.get('subject')).trim(), message: String(d.get('message')).trim(), createdAt: new Date().toISOString() };
-    try {
-      localStorage.setItem(storageKey(userKey), JSON.stringify([row, ...readInquiries(userKey)]));
-    } catch {
-      return toast('이 브라우저에 저장하지 못했어요. 브라우저 저장 공간을 확인해 주세요.');
-    }
-    toast('문의를 저장했어요.');
-    navigate('/inquiries/history');
+    const data = new FormData(form);
+    const subject = String(data.get('subject') ?? '').trim();
+    const message = String(data.get('message') ?? '').trim();
+    if (!subject || !message) return;
+    const ok = await run(() => unwrap(api.POST('/api/inquiries', { body: { subject, message } })), '문의를 접수했어요.');
+    if (ok) navigate('/inquiries/history');
   }
-
-  return (
-    <div className="account-contained">
-      <PageTitle title="문의 작성" crumbs={[{ label: '마이페이지', to: '/my' }]} />
-      <section className="content-card">
-        <div className="account-title-row">
-          <h2>문의 작성</h2>
-          <Link className="btn ghost" to="/inquiries/history">
-            문의 현황
-          </Link>
-        </div>
-        <form noValidate onSubmit={submit}>
-          <Field label="제목" required>
-            <input name="subject" required maxLength={100} placeholder="예: 결제한 금액을 확인하고 싶어요" />
-          </Field>
-          <Field label="문의 내용" required>
-            <textarea name="message" rows={6} required maxLength={3000} placeholder="거래와 관련된 문의라면 공연명과 요청 날짜를 함께 적어 주세요." />
-          </Field>
-          <p className="record-note">아직 문의 접수 서버가 연결되지 않아 이 브라우저에만 저장되고, 운영팀에 전송되지 않아요.</p>
-          <div className="account-form-footer">
-            <button type="submit" className="btn primary">
-              문의 저장
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
+  return <div className="account-contained">
+    <PageTitle title="문의 작성" crumbs={[{ label: '마이페이지', to: '/my' }]} />
+    <section className="content-card">
+      <div className="account-title-row"><h2>문의 작성</h2><Link className="btn ghost" to="/inquiries/history">문의 현황</Link></div>
+      <form onSubmit={submit}>
+        <Field label="제목" required><input name="subject" required maxLength={100} placeholder="예: 결제한 금액을 확인하고 싶어요" /></Field>
+        <Field label="문의 내용" required><textarea name="message" rows={6} required maxLength={3000} placeholder="거래 관련 문의라면 공연명과 요청 날짜를 함께 적어 주세요." /></Field>
+        <p className="record-note">접수한 문의와 운영팀 답변은 본인만 확인할 수 있어요.</p>
+        <div className="account-form-footer"><button type="submit" className="btn primary" disabled={pending}>{pending ? '접수 중…' : '문의 접수'}</button></div>
+      </form>
+    </section>
+  </div>;
 }
 
 export function InquiryHistoryPage() {
   const { userKey } = useAuth();
-  const [params] = useSearchParams();
-  const rows = readInquiries(userKey);
-  return (
-    <div className="account-contained">
-      <PageTitle title="문의 현황" crumbs={[{ label: '마이페이지', to: '/my' }]} />
-      {/* 운영팀 안내 알림(ANNOUNCEMENT)의 '자세히 보기'로 들어온 경우. 메시지 전문·답장은 문의 API가 생기면 연결한다. */}
-      {params.get('notification') && <Notice>운영팀이 보낸 메시지는 문의 기능이 서버와 연결되면 이곳에서 전문을 보고 답장할 수 있어요.</Notice>}
-      <div className="inquiry-history-list">
-        <section className="content-card">
-          <h2>문의 현황</h2>
-          {rows.length ? (
-            rows.map((q) => (
-              <details key={q.id} className="inquiry-item">
-                <summary>
-                  {q.subject} <small>{q.reply ? '답변 완료' : '접수 대기 · 서버 연결 전'}</small>
-                </summary>
-                <small>{new Date(q.createdAt).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })}</small>
-                <p>{q.message}</p>
-                {q.reply && <p>{q.reply}</p>}
-              </details>
-            ))
-          ) : (
-            <p className="prose">아직 작성한 문의가 없어요.</p>
-          )}
-          <div className="account-form-footer">
-            <Link className="btn primary" to="/inquiries">
-              문의 작성
-            </Link>
-          </div>
-        </section>
+  const [page, setPage] = useState(0);
+  const [load, reload] = useLoad(() => unwrap<Inquiry[]>(api.GET('/api/inquiries', { params: { query: { page, size: 20 } } })), [userKey, page], { refreshOnFocus: true });
+  return <div className="account-contained">
+    <PageTitle title="문의 현황" crumbs={[{ label: '마이페이지', to: '/my' }]} />
+    <section className="content-card">
+      <div className="account-title-row"><h2>내 문의</h2><button type="button" className="btn ghost" onClick={reload}>새로 고침</button></div>
+      {load.status === 'loading' ? <p>불러오는 중이에요.</p> : load.status === 'error' ? <Notice tone="error">{load.message}</Notice> : load.data.length ? load.data.map((q) => <details key={q.id} className="inquiry-item">
+        <summary>{q.subject} <small>{q.status === 'ANSWERED' ? '답변 완료' : '답변 대기'}</small></summary>
+        <small>{utcToLocal(q.createdAt ?? '')}</small>
+        <p style={{ whiteSpace: 'pre-wrap' }}>{q.message}</p>
+        {q.reply && <><h3>운영팀 답변</h3><small>{utcToLocal(q.answeredAt ?? '')}</small><p style={{ whiteSpace: 'pre-wrap' }}>{q.reply}</p></>}
+      </details>) : <p className="prose">접수한 문의가 없어요.</p>}
+      <div className="account-form-footer">
+        <button type="button" className="btn ghost" disabled={page === 0 || load.status !== 'done'} onClick={() => setPage(page - 1)}>이전</button>
+        <span>{page + 1}페이지</span>
+        <button type="button" className="btn ghost" disabled={load.status !== 'done' || load.data.length < 20} onClick={() => setPage(page + 1)}>다음</button>
+        <Link className="btn primary" to="/inquiries">문의 작성</Link>
       </div>
-    </div>
-  );
+    </section>
+  </div>;
 }

@@ -4,6 +4,7 @@ import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
 import { api, unwrap } from '../api/client';
 import { str, pick } from '../api/pick';
+import { agreementRows } from '../transactions/requestRows';
 import { fetchDetail, latestAgreement, roleIn, safetyFee, useLoad, type AgreementBody, type Detail } from '../transactions/model';
 import { Field, MoneyInput, Notice, Rows, TxCard, useAction, won } from '../transactions/ui';
 import { PageTitle } from '../ui/PageTitle';
@@ -47,32 +48,34 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
   const [{ mode }] = useAppState();
   const { pending, run } = useAction();
   const { request: r, stage, changeRequests, agreements } = detail;
-  const other = roleIn(r, me, mode) === 'agent' ? '이용자' : '도우미';
+  const myRole = roleIn(r, me, mode);
+  const other = myRole === 'agent' ? '이용자' : '도우미';
   const prev = latestAgreement(agreements);
   const version = prev?.version ?? 0;
+  const mine = latestAgreement(agreements.filter((a) => a.proposedByRole === (myRole === 'agent' ? 'AGENT' : 'REQUESTER')));
+  const initialTerms = mine ?? (myRole === 'agent' ? prev : undefined);
   const storageKey = `pico:terms-draft:${userKey}:${requestId}`;
   const [draft, setDraft] = useState<Draft>(() => {
     const initial: Draft = {
-      upfrontFeeKrw: prev?.upfrontFeeKrw ?? 0, successFeeKrw: prev?.successFeeKrw ?? r.agencyBudgetDesired ?? r.agencyBudgetMax ?? 0,
-      safePayment: prev?.safePayment ?? true, requirements: prev?.requirements || r.requirements,
-      successConditions: prev?.successConditions || r.successConditions, attemptRule: prev?.attemptRule || '',
-      refundRule: prev?.refundRule || '수고비 전액 환불, 착수비는 시도 증빙 검토 후 처리',
-      contactDeadlineRule: prev?.contactDeadlineRule || r.contactDeadlineRule || '예매 종료 후 30분 이내', expectedAgreementVersion: version,
+      upfrontFeeKrw: initialTerms?.upfrontFeeKrw ?? 0, successFeeKrw: initialTerms?.successFeeKrw ?? r.agencyBudgetDesired ?? r.agencyBudgetMax ?? 0,
+      safePayment: initialTerms?.safePayment ?? true, requirements: initialTerms?.requirements || r.requirements,
+      successConditions: initialTerms?.successConditions || r.successConditions, attemptRule: initialTerms?.attemptRule || '',
+      refundRule: initialTerms?.refundRule || '수고비 전액 환불, 착수비는 시도 증빙 검토 후 처리',
+      contactDeadlineRule: initialTerms?.contactDeadlineRule || r.contactDeadlineRule || '예매 종료 후 30분 이내', expectedAgreementVersion: version,
+      additionalNote: initialTerms?.additionalNote ?? r.additionalNote ?? '', reason: '',
     };
     try {
       const cached = JSON.parse(sessionStorage.getItem(storageKey) || 'null') as Draft | null;
       if (cached && Number.isInteger(cached.expectedAgreementVersion) && cached.expectedAgreementVersion >= 0
           && Number.isSafeInteger(cached.upfrontFeeKrw) && cached.upfrontFeeKrw >= 0
           && Number.isSafeInteger(cached.successFeeKrw) && cached.successFeeKrw >= 0 && typeof cached.safePayment === 'boolean'
-          && ['requirements', 'successConditions', 'attemptRule', 'refundRule', 'contactDeadlineRule'].every((k) => typeof cached[k as keyof Draft] === 'string')) return cached;
+          && ['requirements', 'successConditions', 'attemptRule', 'refundRule', 'contactDeadlineRule'].every((k) => typeof cached[k as keyof Draft] === 'string')) return { ...initial, ...cached, additionalNote: cached.additionalNote ?? initial.additionalNote, reason: cached.reason ?? '' };
     } catch { /* Start with the server's conditions when local storage is unavailable or invalid. */ }
     return initial;
   });
   const [saveFailed, setSaveFailed] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [blockNote, setBlockNote] = useState("");
-  // 기타 사항: 지금은 서버에 보낼 자리가 없어 화면에만 남는다(BACKEND_REQUESTS.md 5번).
-  const [extraNote, setExtraNote] = useState("");
   useEffect(() => {
     try { sessionStorage.setItem(storageKey, JSON.stringify(draft)); setSaveFailed(false); }
     catch { setSaveFailed(true); }
@@ -80,7 +83,8 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
   const current = { upfront: draft.upfrontFeeKrw, success: draft.successFeeKrw, safe: draft.safePayment };
   const setFees = (next: typeof current) => setDraft((old) => ({ ...old, upfrontFeeKrw: next.upfront, successFeeKrw: next.success, safePayment: next.safe }));
   const reproposing = stage === 'ready' || stage === 'payment';
-  const canPropose = r.status === 'MATCHED' && (stage === 'terms_needed' || stage === 'revision_requested' || reproposing);
+  const counteroffering = stage === 'terms_sent' && prev?.proposedByRole !== (myRole === 'agent' ? 'AGENT' : 'REQUESTER');
+  const canPropose = r.status === 'MATCHED' && ((stage === 'terms_needed' && myRole === 'agent') || stage === 'revision_requested' || reproposing || counteroffering);
   const newConditions = version !== draft.expectedAgreementVersion;
   const blocked = !canPropose || newConditions;
   const fee = safetyFee(current.success, current.safe);
@@ -110,6 +114,7 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
           ? `${(el as HTMLInputElement).maxLength}자 이하로 입력해 주세요.`
           : '입력 내용을 확인해 주세요.';
     }
+    if (counteroffering && !draft.reason.trim()) found.reason = '수정 사유를 입력해 주세요.';
     if (tooMuch) {
       if (current.upfront > MAX_FEE) found.upfrontFeeKrw = '착수비는 1억 원 이하로 입력해 주세요.';
       if (current.success > MAX_FEE) found.successFeeKrw = '수고비는 1억 원 이하로 입력해 주세요.';
@@ -124,6 +129,7 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
     setBlockNote('');
     const body: AgreementBody = {
       ...draft,
+      additionalNote: draft.additionalNote.trim(), reason: counteroffering ? draft.reason.trim() : undefined,
       requirements: draft.requirements.trim(), successConditions: draft.successConditions.trim(),
       attemptRule: current.safe ? draft.attemptRule.trim() : '직접 거래: 착수 증빙을 플랫폼에 제출하지 않음',
       refundRule: draft.refundRule.trim(), contactDeadlineRule: draft.contactDeadlineRule.trim(),
@@ -214,8 +220,11 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
             <Field label="실패·환불 처리" required error={errors.refundRule}>
               <textarea name="refundRule" rows={3} required maxLength={10000} value={draft.refundRule} onChange={(e) => setDraft((old) => ({ ...old, refundRule: e.target.value }))} />
             </Field>
-            <Field label="기타 사항" error={errors.extraNote} helper="꼭 알려야 할 내용이 있으면 적어 주세요.">
-              <textarea name="extraNote" rows={3} maxLength={10000} value={extraNote} onChange={(e) => setExtraNote(e.target.value)} placeholder="예: 예매 당일 연락 가능한 시간대" />
+            {counteroffering && <Field label="수정 사유" required error={errors.reason}>
+              <textarea name="reason" required maxLength={2000} rows={3} value={draft.reason} onChange={(e) => setDraft((old) => ({ ...old, reason: e.target.value }))} />
+            </Field>}
+            <Field label="기타 사항" error={errors.additionalNote} helper="꼭 알려야 할 내용이 있으면 적어 주세요.">
+              <textarea name="additionalNote" rows={3} maxLength={10000} value={draft.additionalNote} onChange={(e) => setDraft((old) => ({ ...old, additionalNote: e.target.value }))} placeholder="예: 예매 당일 연락 가능한 시간대" />
             </Field>
             <Field label="결과 연락 기한" required error={errors.contactDeadlineRule}>
               <input name="contactDeadlineRule" required maxLength={500} value={draft.contactDeadlineRule} onChange={(e) => setDraft((old) => ({ ...old, contactDeadlineRule: e.target.value }))} />
@@ -237,6 +246,7 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
           </fieldset>
         </form>
         <aside className="tx-side">
+          {prev && <TxCard title="상대와 검토할 최신 조건"><Rows rows={agreementRows(prev)} /></TxCard>}
           <TxCard title="이용자의 최초 요청">
             <Rows
               rows={[

@@ -202,25 +202,19 @@ export function PaymentPage() {
                   </label>
                   {(
                     [
-                      ['terms', '서비스 이용약관', '/terms'],
-                      // 안전거래 결제·환불 안내 화면은 아직 없다(USER_FLOW.md 코드에서 비어 있는 부분).
-                      ['consent', '안전거래 결제 및 환불 안내', ''],
+                      ['terms', '서비스 이용약관', '서비스의 이용 기준과 거래 진행 안내를 확인합니다.'],
+                      ['consent', '안전거래 결제 및 환불 안내', '착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면 도우미에게 정산됩니다(시도 증빙이 승인되지 않은 채 운영팀이 시도 미확인·결과 미제출로 종결하면 착수비도 환불). 수고비는 성공이면 전액, 부분 성공이면 정산한 금액만 정산되고, 실패하면 합의한 환불 조건에 따라 처리됩니다.'],
                     ] as const
-                  ).map(([key, label, to]) => (
+                  ).map(([key, label, body]) => (
                     <div key={key} className="quote-agreement-row">
                       <label className="check-row">
                         <input type="checkbox" required checked={agreed[key]} onChange={(e) => setAgreed({ ...agreed, [key]: e.target.checked })} />
                         {label} (필수)
                       </label>
-                      {to ? (
-                        <Link className="quote-terms-view" to={to} aria-label={`${label} 보기`}>
-                          보기
-                        </Link>
-                      ) : (
-                        <button type="button" className="quote-terms-view" aria-label={`${label} 보기`} onClick={() => toast('안전거래 결제 및 환불 안내 화면은 준비 중이에요.')}>
-                          보기
-                        </button>
-                      )}
+                      <details>
+                        <summary>보기</summary>
+                        <p>{body}</p>
+                      </details>
                     </div>
                   ))}
                 </div>
