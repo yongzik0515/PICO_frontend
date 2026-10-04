@@ -5892,6 +5892,264 @@
         }
       }
     },
+    "/api/me/social/{provider}/withdraw/start": {
+      "post": {
+        "tags": [
+          "social-controller"
+        ],
+        "summary": "소셜 재인증으로 회원 탈퇴 준비",
+        "description": "이미 연결한 제공자만 사용합니다. 재인증 후 별도의 탈퇴 확정 호출이 필요합니다.",
+        "operationId": "withdrawal",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSocialStarted"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/social/{provider}/link/start": {
+      "post": {
+        "tags": [
+          "social-controller"
+        ],
+        "summary": "기존 이메일 계정에 소셜 로그인 연결 시작",
+        "description": "현재 비밀번호 재확인 필요. 이메일 일치로 자동 병합하지 않습니다.",
+        "operationId": "link",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SocialStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSocialStarted"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/social/withdraw": {
+      "post": {
+        "tags": [
+          "social-controller"
+        ],
+        "summary": "소셜 재인증 후 탈퇴 확정",
+        "description": "시작한 PICO 세션과 동일한 JWT + flowSecret이 필요합니다. 연결한 동일 소셜 계정만 허용하며 거래·미정산 차단과 개인정보 삭제는 기존 탈퇴 정책을 따릅니다.",
+        "operationId": "withdraw",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SocialComplete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/social/complete": {
+      "post": {
+        "tags": [
+          "social-controller"
+        ],
+        "summary": "계정 연결·탈퇴 준비의 소셜 인증 결과 교환",
+        "description": "시작한 사용자와 동일 PICO JWT 세션 및 flowSecret이 필요합니다. LINKED/REAUTHENTICATED 반환.",
+        "operationId": "completeProtected",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SocialComplete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSocialResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/me/identity/verify": {
       "post": {
         "tags": [
@@ -7061,6 +7319,135 @@
         }
       }
     },
+    "/api/auth/social/{provider}/start": {
+      "post": {
+        "tags": [
+          "social-controller"
+        ],
+        "summary": "소셜 로그인 시작",
+        "description": "응답의 flowSecret은 탭 sessionStorage에만 보관하고 authorizationUrl로 이동합니다. 동일 출처의 세션 쿠키가 필요합니다.",
+        "operationId": "start_1",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSocialStarted"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/social/register": {
+      "post": {
+        "tags": [
+          "social-controller"
+        ],
+        "summary": "소셜 신규 가입 완료",
+        "description": "검증된 제공자 ID와 닉네임·최신 약관 동의로 신규 계정 생성. 본인인증은 별도이며 기존 이메일 계정과 자동 병합하지 않습니다.",
+        "operationId": "register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SocialRegister"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSocialResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/social/complete": {
+      "post": {
+        "tags": [
+          "social-controller"
+        ],
+        "summary": "소셜 인증 결과 교환",
+        "description": "LOGIN은 LOGGED_IN(기존 JWT) 또는 REGISTRATION_REQUIRED. LINK/WITHDRAW는 시작한 PICO 세션의 JWT도 필요하며 LINKED/REAUTHENTICATED를 반환합니다. 완료된 로그인·연결은 재사용 불가, 유효기간 10분.",
+        "operationId": "complete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SocialComplete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSocialResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
     "/api/auth/register": {
       "post": {
         "tags": [
@@ -7068,7 +7455,7 @@
         ],
         "summary": "이메일·비밀번호 회원가입",
         "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ",
-        "operationId": "register",
+        "operationId": "register_1",
         "requestBody": {
           "content": {
             "application/json": {
@@ -9788,7 +10175,7 @@
         ],
         "summary": "비밀번호 확인 후 탈퇴",
         "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 진행 중 거래(PENDING·MATCHED·IN_PROGRESS·DISPUTED)가 있거나 지급·환불받을 금액이 남아 있으면 409입니다 (지급·환불 진행 중, 아직 지급되지 않은 착수비·성공보수, 아직 요청하지 않은 실패·부분성공 환불, 미결정 부분성공 정산). 탈퇴하면 로그인 ID는 익명 값으로 바뀌어 같은 이메일로 새로 가입할 수 있고, 닉네임은 '탈퇴한 회원'이 됩니다. 연락처·본인인증 정보·정산계좌·프로필 이미지는 지우고, 거래·결제·증빙·후기·동의 기록은 보관합니다. 본인인증 CI 해시는 30일(도우미 활동 정지 중 탈퇴는 3년) 동안만 보관해 같은 사람의 본인인증을 막고, 기간이 지나면 지웁니다. ",
-        "operationId": "withdraw",
+        "operationId": "withdraw_1",
         "requestBody": {
           "content": {
             "application/json": {
@@ -12505,6 +12892,39 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseMapStringString"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/social/providers": {
+      "get": {
+        "tags": [
+          "social-controller"
+        ],
+        "summary": "사용 가능한 소셜 로그인",
+        "description": "서버 키가 설정된 google/kakao만 반환합니다.",
+        "operationId": "providers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListString"
                 }
               }
             }
@@ -17561,6 +17981,106 @@
           "EXPIRED"
         ]
       },
+      "ApiResponseSocialStarted": {
+        "type": "object",
+        "description": "공통 응답. 성공은 success=true, 오류는 success=false와 data=null",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SocialStarted"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SocialStarted": {
+        "type": "object",
+        "properties": {
+          "authorizationUrl": {
+            "type": "string"
+          },
+          "flowSecret": {
+            "type": "string"
+          }
+        }
+      },
+      "SocialStart": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 0
+          }
+        }
+      },
+      "SocialComplete": {
+        "type": "object",
+        "properties": {
+          "flowSecret": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "flowSecret"
+        ]
+      },
+      "ApiResponseSocialResult": {
+        "type": "object",
+        "description": "공통 응답. 성공은 success=true, 오류는 success=false와 data=null",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SocialResult"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SocialResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "tokens": {
+            "$ref": "#/components/schemas/Tokens"
+          }
+        }
+      },
+      "Tokens": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "userId": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "IdentityVerifyRequest": {
         "type": "object",
         "description": "본인인증 완료 검증 요청. PortOne 본인인증창에서 인증을 마친 뒤 호출",
@@ -17993,6 +18513,35 @@
           "purpose"
         ]
       },
+      "SocialRegister": {
+        "type": "object",
+        "properties": {
+          "flowSecret": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "nickname": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 0
+          },
+          "termsDocumentId": {
+            "type": "integer",
+            "format": "int64",
+            "exclusiveMinimum": 0
+          },
+          "privacyDocumentId": {
+            "type": "integer",
+            "format": "int64",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "flowSecret",
+          "nickname"
+        ]
+      },
       "Register": {
         "type": "object",
         "properties": {
@@ -18056,28 +18605,6 @@
           },
           "message": {
             "type": "string"
-          }
-        }
-      },
-      "Tokens": {
-        "type": "object",
-        "properties": {
-          "accessToken": {
-            "type": "string"
-          },
-          "refreshToken": {
-            "type": "string"
-          },
-          "tokenType": {
-            "type": "string"
-          },
-          "expiresIn": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "userId": {
-            "type": "integer",
-            "format": "int64"
           }
         }
       },
@@ -19345,6 +19872,24 @@
           "data": {
             "type": "object",
             "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseListString": {
+        "type": "object",
+        "description": "공통 응답. 성공은 success=true, 오류는 success=false와 data=null",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
               "type": "string"
             }
           },

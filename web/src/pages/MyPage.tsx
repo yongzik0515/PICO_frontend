@@ -6,6 +6,7 @@ import { getTokens, setTokens } from '../api/tokens';
 import { banks, fetchAgentState, verifyIdentity, verifyPayout } from '../agent/profile';
 import { useAppState, type Mode } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
+import { startSocial, useSocialProviders, socialNames } from '../auth/social';
 import { fetchRequests, latestAgreement, toAgreement, useLoad } from '../transactions/model';
 import { Field, useAction, utcToLocal, won } from '../transactions/ui';
 import { AccountCard, AccountInput, AccountNote, Verification } from '../ui/account';
@@ -297,6 +298,10 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
   const [bank, setBank] = useState({ code: '004', number: '' });
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawPassword, setWithdrawPassword] = useState('');
+  const providers = useSocialProviders();
+  const hasLocal = me?.hasLocalPassword !== false;
+  const linked = Array.isArray(me?.loginProviders) ? me.loginProviders as string[] : [];
+  const [linkPassword, setLinkPassword] = useState('');
   const state = load.status === 'done' ? load.data : null;
   const applicationStatus = state?.latest?.status ?? 'none';
   // GET /api/me의 loginVerifiedAt: 로그인 이메일 인증 시각(미인증이면 null). 응답에 키가 없으면(불러오기 전 등) 표시하지 않는다.
@@ -394,7 +399,7 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
           </>
         )}
       </AccountCard>
-      <AccountCard title="아이디(로그인 이메일) 변경">
+      {hasLocal && <><AccountCard title="아이디(로그인 이메일) 변경">
         <p className="prose">
           지금 아이디: <strong>{str(me?.email) || '미입력'}</strong>{' '}
           {emailVerified === true && <span className="badge verified">인증 완료</span>}
@@ -428,6 +433,16 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
           </div>
         </form>
       </AccountCard>
+      </>}
+      <AccountCard title="소셜 로그인">
+        <p>{linked.filter(p => p === 'GOOGLE' || p === 'KAKAO').map(p => p === 'GOOGLE' ? '구글' : '카카오').join(' · ') || '연결된 소셜 계정이 없어요.'}</p>
+        {hasLocal && providers.some(p => !linked.includes(p.toUpperCase())) && <>
+          <AccountNote>현재 비밀번호와 소셜 계정을 확인한 후 지금 PICO 계정에 연결해요.</AccountNote>
+          <Field label="현재 비밀번호"><input type="password" maxLength={72} autoComplete="current-password" value={linkPassword} onChange={e => setLinkPassword(e.target.value)} /></Field>
+          {providers.filter(p => !linked.includes(p.toUpperCase())).map(provider => <button key={provider} className="btn secondary" disabled={pending || !linkPassword} onClick={() => void run(() => startSocial(provider, 'LINK', '/user-profile', linkPassword))}>{socialNames[provider]} 연결</button>)}
+        </>}
+        {!hasLocal && <AccountNote>가입할 때 연결한 소셜 계정으로 로그인해 주세요. 비밀번호와 이메일 변경은 해당 서비스에서 관리해요.</AccountNote>}
+      </AccountCard>
       <div className="title-between">
         <button className="account-logout" type="button" onClick={() => void logout().then(() => navigate('/'))}>
           <Icon name="logout" size={18} />
@@ -450,7 +465,7 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
           >
             <p className="prose">탈퇴하면 계정으로 로그인할 수 없고, 연락처·본인인증·정산계좌 정보는 바로 지워져요. 거래·결제 기록은 법에 따라 보관돼요.</p>
             <p className="prose">진행 중인 거래가 있거나 받을 돈·환불받을 돈이 남아 있으면 탈퇴할 수 없어요. 탈퇴 후 30일 동안은 같은 명의로 다시 본인인증을 할 수 없어요(도우미 활동이 정지된 상태에서 탈퇴하면 3년).</p>
-            <Field label="비밀번호 확인" required>
+            {hasLocal ? <><Field label="비밀번호 확인" required>
               <input type="password" required maxLength={72} value={withdrawPassword} onChange={(e) => setWithdrawPassword(e.target.value)} autoComplete="current-password" />
             </Field>
             <div className="modal-actions">
@@ -460,7 +475,11 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
               <button type="submit" className="btn danger" disabled={!withdrawPassword || pending}>
                 탈퇴하기
               </button>
-            </div>
+            </div></> : <>
+              <AccountNote>연결한 소셜 계정으로 다시 인증한 뒤 탈퇴를 확정해 주세요.</AccountNote>
+              {providers.filter(p => linked.includes(p.toUpperCase())).map(provider => <button type="button" key={provider} className="btn danger" disabled={pending} onClick={() => void run(() => startSocial(provider, 'WITHDRAW'))}>{socialNames[provider]}로 재인증</button>)}
+              {!providers.some(p => linked.includes(p.toUpperCase())) && <p role="alert">소셜 인증을 지금 사용할 수 없어요. 잠시 후 다시 시도해 주세요.</p>}
+            </>}
           </form>
         </Modal>
       )}

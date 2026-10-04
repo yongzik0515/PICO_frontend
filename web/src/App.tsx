@@ -26,6 +26,7 @@ import { QuotePage, RequestSentPage } from './pages/QuotePage';
 import { RequestDetailPage } from './pages/RequestDetailPage';
 import { TermsPage } from './pages/TermsPage';
 import { HomePage } from './pages/HomePage';
+import { SocialCallbackPage } from './pages/SocialCallbackPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SignupPage } from './pages/SignupPage';
@@ -133,6 +134,7 @@ export default function App() {
                 <Route index element={<HomePage />} />
                 <Route path="agents/:id" element={auth(<ProfilePage />)} />
                 <Route path="login" element={<LoginPage />} />
+                <Route path="auth/social/callback" element={<SocialCallbackPage />} />
                 <Route path="signup" element={<SignupPage />} />
                 <Route path="dev/api" element={<ApiCheckPage />} />
                 <Route path="favorites" element={auth(<FavoritesPage />)} />

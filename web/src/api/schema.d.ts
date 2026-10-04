@@ -912,6 +912,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/social/{provider}/withdraw/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 소셜 재인증으로 회원 탈퇴 준비
+         * @description 이미 연결한 제공자만 사용합니다. 재인증 후 별도의 탈퇴 확정 호출이 필요합니다.
+         */
+        post: operations["withdrawal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/social/{provider}/link/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 기존 이메일 계정에 소셜 로그인 연결 시작
+         * @description 현재 비밀번호 재확인 필요. 이메일 일치로 자동 병합하지 않습니다.
+         */
+        post: operations["link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/social/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 소셜 재인증 후 탈퇴 확정
+         * @description 시작한 PICO 세션과 동일한 JWT + flowSecret이 필요합니다. 연결한 동일 소셜 계정만 허용하며 거래·미정산 차단과 개인정보 삭제는 기존 탈퇴 정책을 따릅니다.
+         */
+        post: operations["withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/social/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 계정 연결·탈퇴 준비의 소셜 인증 결과 교환
+         * @description 시작한 사용자와 동일 PICO JWT 세션 및 flowSecret이 필요합니다. LINKED/REAUTHENTICATED 반환.
+         */
+        post: operations["completeProtected"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/identity/verify": {
         parameters: {
             query?: never;
@@ -1140,6 +1220,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/social/{provider}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 소셜 로그인 시작
+         * @description 응답의 flowSecret은 탭 sessionStorage에만 보관하고 authorizationUrl로 이동합니다. 동일 출처의 세션 쿠키가 필요합니다.
+         */
+        post: operations["start_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/social/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 소셜 신규 가입 완료
+         * @description 검증된 제공자 ID와 닉네임·최신 약관 동의로 신규 계정 생성. 본인인증은 별도이며 기존 이메일 계정과 자동 병합하지 않습니다.
+         */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/social/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 소셜 인증 결과 교환
+         * @description LOGIN은 LOGGED_IN(기존 JWT) 또는 REGISTRATION_REQUIRED. LINK/WITHDRAW는 시작한 PICO 세션의 JWT도 필요하며 LINKED/REAUTHENTICATED를 반환합니다. 완료된 로그인·연결은 재사용 불가, 유효기간 10분.
+         */
+        post: operations["complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/register": {
         parameters: {
             query?: never;
@@ -1153,7 +1293,7 @@ export interface paths {
          * 이메일·비밀번호 회원가입
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다.
          */
-        post: operations["register"];
+        post: operations["register_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1706,7 +1846,7 @@ export interface paths {
          * 비밀번호 확인 후 탈퇴
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 진행 중 거래(PENDING·MATCHED·IN_PROGRESS·DISPUTED)가 있거나 지급·환불받을 금액이 남아 있으면 409입니다 (지급·환불 진행 중, 아직 지급되지 않은 착수비·성공보수, 아직 요청하지 않은 실패·부분성공 환불, 미결정 부분성공 정산). 탈퇴하면 로그인 ID는 익명 값으로 바뀌어 같은 이메일로 새로 가입할 수 있고, 닉네임은 '탈퇴한 회원'이 됩니다. 연락처·본인인증 정보·정산계좌·프로필 이미지는 지우고, 거래·결제·증빙·후기·동의 기록은 보관합니다. 본인인증 CI 해시는 30일(도우미 활동 정지 중 탈퇴는 3년) 동안만 보관해 같은 사람의 본인인증을 막고, 기간이 지나면 지웁니다.
          */
-        delete: operations["withdraw"];
+        delete: operations["withdraw_1"];
         options?: never;
         head?: never;
         /**
@@ -2296,6 +2436,26 @@ export interface paths {
          * @description 인증 없이 애플리케이션 응답 상태를 확인합니다. data={status:UP}이며 DB·외부 연동 상태까지 검사하는 API는 아닙니다.
          */
         get: operations["health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/social/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 사용 가능한 소셜 로그인
+         * @description 서버 키가 설정된 google/kakao만 반환합니다.
+         */
+        get: operations["providers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4038,6 +4198,42 @@ export interface components {
          * @enum {string}
          */
         PaymentStatus: "PENDING" | "PROCESSING" | "CANCEL_REQUESTED" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED" | "FAILED" | "CANCELLED" | "EXPIRED";
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseSocialStarted: {
+            success?: boolean;
+            data?: components["schemas"]["SocialStarted"];
+            message?: string;
+        };
+        SocialStarted: {
+            authorizationUrl?: string;
+            flowSecret?: string;
+        };
+        SocialStart: {
+            currentPassword?: string;
+        };
+        SocialComplete: {
+            flowSecret: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseSocialResult: {
+            success?: boolean;
+            data?: components["schemas"]["SocialResult"];
+            message?: string;
+        };
+        SocialResult: {
+            status?: string;
+            provider?: string;
+            tokens?: components["schemas"]["Tokens"];
+        };
+        Tokens: {
+            accessToken?: string;
+            refreshToken?: string;
+            tokenType?: string;
+            /** Format: int64 */
+            expiresIn?: number;
+            /** Format: int64 */
+            userId?: number;
+        };
         /** @description 본인인증 완료 검증 요청. PortOne 본인인증창에서 인증을 마친 뒤 호출 */
         IdentityVerifyRequest: {
             /**
@@ -4255,6 +4451,14 @@ export interface components {
             /** Format: int64 */
             sizeBytes?: number;
         };
+        SocialRegister: {
+            flowSecret: string;
+            nickname: string;
+            /** Format: int64 */
+            termsDocumentId?: number;
+            /** Format: int64 */
+            privacyDocumentId?: number;
+        };
         Register: {
             /** Format: email */
             email: string;
@@ -4273,15 +4477,6 @@ export interface components {
             success?: boolean;
             data?: components["schemas"]["Tokens"];
             message?: string;
-        };
-        Tokens: {
-            accessToken?: string;
-            refreshToken?: string;
-            tokenType?: string;
-            /** Format: int64 */
-            expiresIn?: number;
-            /** Format: int64 */
-            userId?: number;
         };
         Email: {
             /** Format: email */
@@ -4816,6 +5011,12 @@ export interface components {
             data?: {
                 [key: string]: string;
             };
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListString: {
+            success?: boolean;
+            data?: string[];
             message?: string;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
@@ -9618,6 +9819,210 @@ export interface operations {
             };
         };
     };
+    withdrawal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSocialStarted"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocialStart"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSocialStarted"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocialComplete"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    completeProtected: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocialComplete"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSocialResult"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     verifyIdentity: {
         parameters: {
             query?: never;
@@ -10566,7 +10971,104 @@ export interface operations {
             };
         };
     };
+    start_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSocialStarted"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocialRegister"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSocialResult"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    complete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocialComplete"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSocialResult"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    register_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -12794,7 +13296,7 @@ export interface operations {
             };
         };
     };
-    withdraw: {
+    withdraw_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -14980,6 +15482,35 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseMapStringString"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    providers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListString"];
                 };
             };
             /** @description 서버 오류가 발생했습니다. */

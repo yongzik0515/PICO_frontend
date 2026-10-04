@@ -3,18 +3,22 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { AuthAside, AccountInput } from '../ui/account';
 import { PageTitle } from '../ui/PageTitle';
-import { useToast } from '../ui/Toast';
+import { startSocial, useSocialProviders, type SocialProvider } from '../auth/social';
 
 // 프로토타입 account.js의 login(). 인증은 POST /api/auth/login을 쓴다.
-// 소셜 로그인은 API 명세에 없어 버튼만 두고 준비 중으로 안내한다.
 export function LoginPage() {
   const { login } = useAuth();
-  const toast = useToast();
-  const socialPending = () => toast('소셜 로그인은 준비 중이에요. 이메일로 로그인해 주세요.');
+  const providers = useSocialProviders();
   const navigate = useNavigate();
   const from = (useLocation().state as { from?: string } | null)?.from ?? '/';
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
+
+  async function social(provider: SocialProvider) {
+    setPending(true); setError('');
+    try { await startSocial(provider, 'LOGIN', from); }
+    catch (e) { setError(e instanceof Error ? e.message : '로그인하지 못했어요.'); setPending(false); }
+  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -50,18 +54,18 @@ export function LoginPage() {
               <button className="btn primary full" type="submit" disabled={pending}>
                 {pending ? '로그인 중…' : '로그인'}
               </button>
-              <button type="button" className="btn secondary full social-google" onClick={socialPending}>
+              {providers.includes('google') && <button type="button" className="btn secondary full social-google" disabled={pending} onClick={() => void social('google')}>
                 <span className="google-symbol" aria-hidden="true">
                   G
                 </span>
                 구글로 계속하기
-              </button>
-              <button type="button" className="btn secondary full social-kakao" onClick={socialPending}>
+              </button>}
+              {providers.includes('kakao') && <button type="button" className="btn secondary full social-kakao" disabled={pending} onClick={() => void social('kakao')}>
                 <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
                   <path fill="currentColor" d="M12 3C6.5 3 2 6.4 2 10.6c0 2.7 1.8 5 4.5 6.4L5.4 21l4.6-2.9c.7.1 1.3.1 2 .1 5.5 0 10-3.4 10-7.6S17.5 3 12 3" />
                 </svg>
                 카카오로 계속하기
-              </button>
+              </button>}
             </div>
           </form>
           <div className="login-links">

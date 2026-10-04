@@ -68,10 +68,10 @@ function withAuth(request: Request, token: string | undefined): Request {
   return next;
 }
 
-async function authFetch(input: Request): Promise<Response> {
+export async function authFetch(input: Request): Promise<Response> {
   const path = new URL(input.url, location.origin).pathname;
   // 로그인·가입·갱신에는 저장된 토큰을 붙이지 않는다. 만료·무효 토큰이 남아 있으면 서버가 401로 막는다.
-  if (NO_REFRESH.some((p) => path.endsWith(p))) return fetch(input); // API 주소에 경로 접두어가 있어도 맞게
+  if (path.startsWith('/api/auth/social/') || NO_REFRESH.some((p) => path.endsWith(p))) return fetch(input); // API 주소에 경로 접두어가 있어도 맞게
   const retry = input.clone();
   const sent = getTokens()?.accessToken;
   const response = await fetch(withAuth(input, sent));
