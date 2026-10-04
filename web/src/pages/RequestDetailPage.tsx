@@ -416,7 +416,7 @@ export function RequestDetailPage() {
       case 'payment':
         return (
           <>
-            {agent ? <Notice>이용자가 입금하면 알려드릴게요.</Notice> : go(`/requests/${r.id}/payment`, r.paidItems.length ? '남은 금액 결제하기' : '안전거래 결제하기')}
+            {agent ? <Notice>이용자가 입금하면 알려드릴게요.</Notice> : go(`/requests/${r.id}/payment`, '안전거래 결제하기')}
             {repropose}
             {cancelMatched}
           </>
@@ -684,23 +684,7 @@ export function RequestDetailPage() {
           {finalized?.safePayment && (
             <TxCard title="안전거래 결제">
               {stage === 'payment' ? (
-                r.paidItems.length ? (
-                  // 일부 항목만 결제한 상태: 무엇을 냈고 무엇이 남았는지 보여 준다.
-                  <>
-                    <Rows
-                      rows={[
-                        ['착수비', r.paidItems.includes('UPFRONT') ? '결제 완료' : `결제 전 · ${money(finalized.upfrontFeeKrw)}원`],
-                        ['수고비 + 안전거래 수수료', r.paidItems.includes('SUCCESS_FEE') ? '결제 완료' : `결제 전 · ${money(finalized.successFeeKrw + finalized.safetyFeeKrw)}원`],
-                      ]}
-                    />
-                    <Notice tone="error">
-                      {`${r.paidItems.includes('UPFRONT') ? '수고비' : '착수비'}가 아직 결제되지 않았어요. `}
-                      {agent ? '이용자가 남은 금액을 결제해야 착수할 수 있어요.' : paymentStatus === 'PENDING' ? '발급한 가상계좌로 입금해야 다음 단계로 넘어가요.' : '추가 결제를 해야 다음 단계(도우미 착수)로 넘어갈 수 있어요.'}
-                    </Notice>
-                  </>
-                ) : (
-                  <Notice>{agent ? '이용자가 확정 금액을 입금할 차례예요.' : paymentStatus === 'PENDING' ? '가상계좌를 발급했어요. 기한 안에 입금해 주세요.' : '아직 결제 전이에요. 확정 금액을 가상계좌로 입금해 주세요.'}</Notice>
-                )
+                <Notice>{agent ? '이용자가 확정 금액을 입금할 차례예요.' : paymentStatus === 'PENDING' ? '가상계좌를 발급했어요. 기한 안에 입금해 주세요.' : '아직 결제 전이에요. 확정 금액을 가상계좌로 입금해 주세요.'}</Notice>
               ) : paymentStatus && paymentStatus !== 'PAID' ? (
                 <>
                   <div className="title-between">

@@ -14,7 +14,7 @@
 type DemoStage = 'payment' | 'ready' | 'in_progress' | 'result_submitted' | 'disputed' | 'completed' | 'completed_partial';
 type DemoResult = 'SUCCESS' | 'PARTIAL' | 'FAILURE';
 type DemoMessage = { id: number; kind: string; body: string; createdAt: string; attachments: unknown[] };
-type DemoEntry = { stage: DemoStage; result?: DemoResult; messages?: DemoMessage[]; successFee?: number; upfront?: number; paidItems?: string[]; pendingItems?: string[];
+type DemoEntry = { stage: DemoStage; result?: DemoResult; messages?: DemoMessage[]; successFee?: number; upfront?: number; ordered?: boolean;
   // 도우미가 등록한 결과 설명·확보 내용, 이용자 후기(삭제해도 reviewWritten은 남아 다시 쓸 수 없다)
   resultNote?: string; resultOutcome?: string; reviewData?: Record<string, unknown> | null; reviewWritten?: boolean;
   // 올린 파일 정보(업로드 키별)와 제출한 시도·결과 증빙. 파일 본문은 dev 서버 /__demo/file/{key}에 있다.
@@ -135,8 +135,8 @@ function patchRequest(data: Record<string, unknown>, entry: DemoEntry) {
   const r = entry.result ?? 'SUCCESS';
   const base = { paymentStatus: 'PAID' } as Record<string, unknown>;
   const map: Record<DemoStage, Record<string, unknown>> = {
-    // 항목별 결제 중: 결제한 항목(paidItems)을 내려 주고 결제 대기에 머문다.
-    payment: { stage: 'PAYMENT_WAITING', status: 'MATCHED', paymentStatus: entry.pendingItems?.length ? 'PENDING' : '', paymentId: entry.pendingItems?.length ? 990000 : undefined, paidItems: entry.paidItems ?? [], orderedItems: entry.pendingItems ?? [] },
+    // 가상계좌를 발급했으면(ordered) 입금 대기 주문을 내려 준다.
+    payment: { stage: 'PAYMENT_WAITING', status: 'MATCHED', paymentStatus: entry.ordered ? 'PENDING' : '', paymentId: entry.ordered ? 990000 : undefined },
     ready: { ...base, stage: 'READY_TO_START', status: 'MATCHED', agentResult: null },
     in_progress: { ...base, stage: 'IN_PROGRESS', status: 'IN_PROGRESS', agentResult: null },
     result_submitted: { ...base, stage: 'RESULT_CONFIRMATION', status: 'IN_PROGRESS', agentResult: r },
@@ -188,24 +188,17 @@ export function installDemoMode() {
 
     // ── 결제 ──────────────────────────────────────────────
     if (method === 'POST' && /\/api\/agreements\/\d+\/safe-payment$/.test(path)) {
-      const b = await body();
-      const items = Array.isArray(b.items) && b.items.length ? (b.items as string[]) : ['UPFRONT', 'SUCCESS_FEE'];
-      const entry = rid ? (await readState())[rid] : undefined;
-      await setFields(rid, { stage: 'payment', pendingItems: items, paidItems: entry?.paidItems ?? [] });
+      await setFields(rid, { stage: 'payment', ordered: true });
       return json({ paymentId: 990000, status: 'PENDING' });
     }
     if (method === 'GET' && /\/api\/payments\/\d+\/virtual-account$/.test(path))
       return json({ bankName: '데모은행', accountNumber: '000-데모-000000', accountHolder: '피코(데모)', depositDueAt: new Date(Date.now() + 2 * 86400000).toISOString() });
     if (method === 'POST' && /\/api\/payments\/\d+\/confirm$/.test(path)) {
-      // 착수비·수고비를 모두 결제해야 착수 단계로 넘어간다. 일부만 냈으면 결제 대기에 남는다.
-      const entry = rid ? (await readState())[rid] : undefined;
-      const paid = [...new Set([...(entry?.paidItems ?? []), ...(entry?.pendingItems ?? ['UPFRONT', 'SUCCESS_FEE'])])];
-      if (paid.includes('UPFRONT') && paid.includes('SUCCESS_FEE')) await setFields(rid, { stage: 'ready', paidItems: paid, pendingItems: [] });
-      else await setFields(rid, { stage: 'payment', paidItems: paid, pendingItems: [] });
+      await setFields(rid, { stage: 'ready', ordered: false });
       return json({ status: 'PAID' });
     }
     if (method === 'POST' && /\/api\/payments\/\d+\/cancel$/.test(path)) {
-      if (rid && (await readState())[rid]?.stage === 'payment') await setFields(rid, { pendingItems: [] });
+      if (rid && (await readState())[rid]?.stage === 'payment') await setFields(rid, { ordered: false });
       return json({ status: 'CANCELLED' });
     }
 
@@ -433,7 +426,7 @@ export function installDemoMode() {
       const arr = Array.isArray(b?.data) ? b.data : Array.isArray(b?.data?.content) ? b.data.content : null;
       if (arr) {
         const paying = entry.stage === 'payment';
-        const ordered = paying && !!entry.pendingItems?.length;
+        const ordered = paying && !!entry.ordered;
         arr.forEach((a: Record<string, unknown>) =>
           Object.assign(a, { status: 'FINALIZED', safePayment: true, paymentStatus: paying ? (ordered ? 'PENDING' : '') : 'PAID', paymentId: paying && !ordered ? a.paymentId : (a.paymentId ?? 990000) }),
         );
