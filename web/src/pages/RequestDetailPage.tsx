@@ -746,8 +746,8 @@ export function RequestDetailPage() {
             </TxCard>
           )}
 
-          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <MediationCard key={r.status} requestId={r.id} kind="RESULT" agent={agent} reloadDetail={reload} />}
-          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <DisputeCard key={r.status} requestId={r.id} disputed={r.status === 'DISPUTED'} agent={agent} reloadDetail={reload} />}
+          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <MediationCard key={`mediation:${r.id}:${r.status}`} requestId={r.id} kind="RESULT" agent={agent} reloadDetail={reload} />}
+          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <DisputeCard key={`dispute:${r.id}:${r.status}`} requestId={r.id} disputed={r.status === 'DISPUTED'} agent={agent} reloadDetail={reload} />}
 
           {/* 결과 카드가 없을 때(결과 등록 전 등)만 따로 보여 준다. 결과 카드가 있으면 그 안에 함께 보인다. */}
           {d.resultEvidences.length > 0 && !resultCardShown && <TxCard title="결과 증빙">{resultEvidenceList}</TxCard>}

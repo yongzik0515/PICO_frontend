@@ -392,6 +392,8 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
   const platformNames = platforms.filter((x) => p.platformIds.includes(x.id)).map((x) => x.name);
 
   function validateProfile() {
+    if (edit && !state.identityVerified) return '본인인증이 완료되지 않아 공개 프로필을 저장할 수 없어요. 인증 상태를 확인해 주세요.';
+    if (edit && !state.payoutVerified) return '정산 계좌 인증이 완료되지 않아 공개 프로필을 저장할 수 없어요. 계좌 인증 상태를 확인해 주세요.';
     if (!p.platformIds.length) return '가능한 예매처를 하나 이상 선택해 주세요.';
     if (!p.categories.length) return '공연 분야를 하나 이상 선택해 주세요.';
     if ((p.successFeeMax ?? 0) < (p.successFeeMin ?? 0)) return '수고비 최대 금액은 최소 금액 이상이어야 해요.';
@@ -407,12 +409,18 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
     if (message) return;
     const body = { ...p, primaryCategory: p.categories.includes(p.primaryCategory) ? p.primaryCategory : p.categories[0] };
     const ok = await run(async () => {
-      if (edit) {
-        await savePublicProfile(body, state.approved!.id, image?.file);
-        await reloadMe();
-      } else {
-        const saved = await saveDraft(body);
-        if (image && saved.id) await uploadProfileImage(saved.id, image.file);
+      try {
+        if (edit) {
+          await savePublicProfile(body, state.approved!.id, image?.file);
+          await reloadMe();
+        } else {
+          const saved = await saveDraft(body);
+          if (image && saved.id) await uploadProfileImage(saved.id, image.file);
+        }
+      } catch (e) {
+        // 토스트가 사라진 뒤에도 저장 실패 이유와 작성 내용을 확인할 수 있게 남긴다.
+        setError(e instanceof Error ? e.message : '프로필을 저장하지 못했어요. 다시 시도해 주세요.');
+        throw e;
       }
     }, edit ? '공개 프로필을 저장했어요. 바로 반영돼요.' : '공개 프로필을 임시저장했어요.');
     if (ok) {
@@ -490,7 +498,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
 
   const footer = (text: string) => (
     <>
-      <div className="account-form-error" aria-live="polite">
+      <div className="account-form-error" role={error ? 'alert' : undefined} aria-live="polite">
         {error}
       </div>
       <div className="account-form-footer">
