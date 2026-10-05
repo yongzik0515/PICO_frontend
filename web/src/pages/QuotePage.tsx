@@ -489,9 +489,8 @@ export function RequestSentPage() {
       <span className="tiny-label">요청 전송 완료</span>
       <h1>도우미에게 마음이 도착했어요</h1>
       <p>
-        운영팀의 요청 검토가 끝나면 도우미가 요청을 확인해요.
-        <br />
-        수락과 최종 조건 도착 소식은 알림으로 알려드릴게요.
+        <span>운영팀의 요청 검토가 끝나면 도우미가 요청을 확인해요.</span>
+        <span>수락과 최종 조건 도착 소식은 알림으로 알려드릴게요.</span>
       </p>
       <div>
         <button type="button" className="btn primary" onClick={() => navigate(`/requests/${id}`)}>

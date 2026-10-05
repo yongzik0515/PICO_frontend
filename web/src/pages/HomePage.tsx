@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppState } from '../AppState';
 import { useAgentSearch } from '../discovery/agent';
@@ -19,6 +19,75 @@ const quickFilters = [
   ['rating', '별점'],
   ['success', '성공률'],
 ] as const;
+// 이용 안내 3단계: 오른쪽 안내 카드와 휴대폰의 '이용 방법' 말풍선이 함께 쓴다.
+const guideSteps = [
+  ['나에게 맞는 도우미 찾기', '프로필과 거래 후기를 살펴보세요.'],
+  ['원하는 조건으로 직접 요청', '공연, 좌석과 희망 수고비를 알려주세요.'],
+  ['최종 조건 확인 후 안전결제', '도우미가 제안한 조건을 확인해요.'],
+] as const;
+
+function GuideSteps() {
+  return (
+    <ol className="guide-steps">
+      {guideSteps.map(([title, desc], i) => (
+        <li key={title}>
+          <b>{i + 1}</b>
+          <div>
+            <strong>{title}</strong>
+            <p>{desc}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// 휴대폰(767px 이하)은 오른쪽 안내 카드가 숨겨지므로(styles.css .home-sidebar) 필터 줄 왼쪽의 '이용 방법'을 누르면 말풍선으로 보여 준다.
+// 바깥을 누르거나 포커스가 나가거나 Esc를 누르면 닫는다(QuickFilter와 같은 방식).
+function GuideTip() {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: Event) => {
+      if (!anchor.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      setOpen(false);
+      button.current?.focus();
+    };
+    document.addEventListener('click', outside);
+    document.addEventListener('focusin', outside);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('click', outside);
+      document.removeEventListener('focusin', outside);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
+  return (
+    <div className="home-guide-tip" ref={anchor}>
+      <button ref={button} type="button" className="home-guide-trigger" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Icon name="info" size={16} />
+        이용 방법
+      </button>
+      {open && (
+        <div className="home-guide-bubble" role="dialog" aria-label="이용 방법">
+          <GuideSteps />
+          <button type="button" className="guide-link" onClick={() => navigate('/guide')}>
+            이용 방법 자세히 보기 <Icon name="arrow" size={16} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function HomePage() {
   const [state, setState] = useAppState();
@@ -96,6 +165,7 @@ export function HomePage() {
         </div>
       </div>
       <div className="pc-filterbar">
+        <GuideTip />
         <div className="filter-chips">
           {quickFilters.map(([key, label]) => (
             <QuickFilter key={key} filterKey={key} label={label} selected={labels.some(([k]) => k === key)} filters={filters} onApply={setFilters} />
@@ -177,29 +247,7 @@ export function HomePage() {
               <br />
               결과를 확인할 때까지.
             </h2>
-            <ol className="guide-steps">
-              <li>
-                <b>1</b>
-                <div>
-                  <strong>나에게 맞는 도우미 찾기</strong>
-                  <p>프로필과 거래 후기를 살펴보세요.</p>
-                </div>
-              </li>
-              <li>
-                <b>2</b>
-                <div>
-                  <strong>원하는 조건으로 직접 요청</strong>
-                  <p>공연, 좌석과 희망 수고비를 알려주세요.</p>
-                </div>
-              </li>
-              <li>
-                <b>3</b>
-                <div>
-                  <strong>최종 조건 확인 후 안전결제</strong>
-                  <p>도우미가 제안한 조건을 확인해요.</p>
-                </div>
-              </li>
-            </ol>
+            <GuideSteps />
             <button className="guide-link" onClick={() => navigate('/guide')}>
               이용 방법 자세히 보기 <Icon name="arrow" size={17} />
             </button>

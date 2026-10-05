@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useAppState, type Mode } from '../AppState';
-import { Icon } from '../ui/Icon';
+import { Icon, type IconName } from '../ui/Icon';
 import { notificationRoleNames, notificationTarget, useNotificationRoles, useNotifications, type Notification } from './notifications';
 import { utcToLocal } from '../transactions/ui';
 
@@ -18,7 +18,7 @@ const BIZ = {
   hosting: '', // 호스팅 서비스 제공자 (예: Amazon Web Services)
   cpo: '', // 개인정보보호책임자 성명
   cpoEmail: '', // 개인정보보호책임자 연락처
-  tel: '', // 고객센터 전화번호 (예: 02-0000-0000 (평일 10:00~18:00))
+  tel: '070-8984-4636', // 고객센터 전화번호 (예: 02-0000-0000 (평일 10:00~18:00))
   email: '', // 고객 문의 이메일
 };
 
@@ -100,9 +100,9 @@ export function AppLayout() {
     if (to) navigate(to);
   }
 
-  const nav: [string, string, string][] = helper
-    ? [['/leads', 'leads', '받은 요청'], ['/matches', 'matches', '매칭 관리']]
-    : [['/', 'home', '도우미 찾기'], ['/requests', 'requests', '내 활동']];
+  const nav: [string, string, string, IconName][] = helper
+    ? [['/leads', 'leads', '받은 요청', 'inbox'], ['/matches', 'matches', '매칭 관리', 'ticket']]
+    : [['/', 'home', '도우미 찾기', 'search'], ['/requests', 'requests', '내 활동', 'ticket']];
   const active = ['my', 'favorites', 'help', 'inquiries', 'terms', 'privacy', 'guide', 'user-profile', 'helper-profile', 'account', 'history', 'application', 'credits', 'reports'].includes(route) ? 'my' : helper ? (route === 'matches' || route === 'availability' ? 'matches' : 'leads') : route === 'requests' ? 'requests' : 'home';
 
   useEffect(() => {
@@ -284,6 +284,16 @@ export function AppLayout() {
       <main id="main" className={`page ${route}`} tabIndex={-1}>
         <Outlet />
       </main>
+      {/* 휴대폰(767px 이하) 하단 탭바. 헤더의 메뉴·이용자/도우미 전환·프로필 버튼이 숨겨지는 폭이라
+          메뉴 2개 + 마이(역할 전환·로그아웃이 있는 마이페이지)로 대신한다. 스타일은 styles.css의 .bottom-nav. */}
+      <nav className="bottom-nav" aria-label="하단 메뉴">
+        {[...nav, ['/my', 'my', '마이', 'user'] as const].map(([to, key, label, icon]) => (
+          <button key={key} className={active === key ? 'active' : ''} aria-current={active === key ? 'page' : undefined} onClick={() => navigate(to)}>
+            <Icon name={icon} size={22} />
+            {label}
+          </button>
+        ))}
+      </nav>
       <footer>
         <div className="footer-top">
           {/* 메인 오른쪽에 있던 '확인할 수 있는 신뢰' 안내를 바닥글 PICO 옆으로 옮겼다(고객센터는 바닥글 메뉴에만 둔다). */}

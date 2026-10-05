@@ -14,9 +14,11 @@
   --tsb-radius: 16px;
   --tsb-side-r: 20px; /* 좌우 가운데 반원 홈 반지름(티켓 실루엣) */
   --tsb-perf-r: 12px; /* 절취선 위아래 끝 반원 홈 반지름(지름 24px) */
-  --tsb-split: 84%; /* 메인 영역 | 스텁 영역 경계(절취선 위치) */
+  /* 메인 영역 | 스텁 영역 경계(절취선 위치). 창을 줄여도 스텁이 150px보다 좁아지지 않게 한다
+     (16%만 쓰면 약 104px까지 줄어 'TICKET OPEN'·날짜가 쪼개졌다). */
+  --tsb-split: min(84%, calc(100% - 150px));
   --tsb-pad-x: 48px; /* 메인 텍스트 왼쪽 여백 */
-  --tsb-pad-y: 32px; /* 메인·스텁 공통 위아래 여백(칩 윗선 = TICKET OPEN 윗선, 버튼 아랫선 = 조작 버튼 아랫선) */
+  --tsb-pad-y: 32px; /* 메인·스텁 공통 위아래 여백(칩 윗선 = TICKET OPEN 윗선) */
   --tsb-dim: #0e1020;
 
   --tsb-move: 0.6s;
@@ -31,14 +33,19 @@
   margin-left: calc(-1 * var(--tsb-left));
   overflow: hidden;
   touch-action: pan-y;
+  user-select: none; /* 마우스로 끌 때 글자가 선택되지 않게 */
 }
 
-/* 가운데 카드를 화면 가운데에 둔다. 본문이 화면 가운데에 있으므로 카드 좌우 끝이 검색창 좌우 끝선과 맞는다. */
+/* 가운데 카드를 화면 가운데에 둔다. 본문이 화면 가운데에 있으므로 카드 좌우 끝이 검색창 좌우 끝선과 맞는다.
+   --tsb-drag는 드래그하는 동안 손가락·마우스를 따라 움직인 거리(컴포넌트가 넣는다). */
 .tsb-track {
   display: flex;
   gap: var(--tsb-gap);
-  transform: translateX(calc((var(--tsb-view) - var(--tsb-card-w)) / 2 - var(--tsb-i) * (var(--tsb-card-w) + var(--tsb-gap))));
+  transform: translateX(calc((var(--tsb-view) - var(--tsb-card-w)) / 2 - var(--tsb-i) * (var(--tsb-card-w) + var(--tsb-gap)) + var(--tsb-drag, 0px)));
   transition: transform var(--tsb-move) var(--tsb-ease);
+}
+.tsb-track[data-dragging='true'] {
+  transition: none; /* 끄는 동안에는 바로 따라오게 */
 }
 .tsb-track[data-jumping='true'],
 .tsb-track[data-jumping='true'] * {
@@ -62,7 +69,6 @@
 }
 .tsb-slide.is-active {
   transform: none;
-  cursor: default;
 }
 
 /* ── 카드: 티켓 실루엣 ── 홈은 배경색 원을 덧그리지 않고 mask로 실제로 뚫는다(뒤의 그라데이션이 그대로 보인다). */
@@ -126,7 +132,7 @@
 }
 
 /* 텍스트 블록: 왼쪽 48px 한 선에 모든 요소를 맞추고, 이미지가 시작하는 지점까지만 쓴다.
-   칩(위)과 버튼(아래)은 스텁과 같은 위아래 여백에 붙이고, 가운데 묶음은 세로 가운데 정렬한다. */
+   칩(위)은 스텁과 같은 위 여백에 붙이고, 가운데 묶음은 세로 가운데 정렬한다. */
 .tsb-copy {
   position: absolute;
   top: 0;
@@ -204,23 +210,6 @@
   margin: 0 8px;
   opacity: 0.5;
 }
-.tsb-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 40px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 999px;
-  background: #fff;
-  color: #111;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.tsb-cta:hover {
-  background: #f1f3f6;
-}
 
 /* ── 절취선: 지름 6px 점 12개를 위아래 홈 사이에 균등 배치 ── */
 .tsb-perf {
@@ -245,7 +234,7 @@
   background: #fff;
 }
 
-/* ── 스텁 영역: 가운데 정렬 ── */
+/* ── 스텁 영역: 위 TICKET OPEN · D-day · 날짜 / 시간(두 줄), 아래 페이지 표시. 가운데 정렬 ── */
 .tsb-stub {
   flex: 1;
   min-width: 0;
@@ -256,12 +245,11 @@
   padding: var(--tsb-pad-y) 8px;
   text-align: center;
 }
-.tsb-stub-top,
-.tsb-stub-bottom {
+.tsb-stub-top {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 .tsb-open-label {
   font-size: 11px;
@@ -275,6 +263,7 @@
   font-weight: 800;
   line-height: 1;
   letter-spacing: -1px;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .tsb-dday.is-word {
@@ -282,9 +271,13 @@
 }
 .tsb-open-at {
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.6;
   color: rgba(255, 255, 255, 0.8);
   font-variant-numeric: tabular-nums;
+}
+.tsb-open-at > span {
+  display: block; /* 날짜 / 시간을 두 줄로(휴대폰 띠에서는 한 줄) */
+  white-space: nowrap;
 }
 .tsb-count {
   font-size: 12px;
@@ -293,36 +286,13 @@
   color: rgba(255, 255, 255, 0.8);
   font-variant-numeric: tabular-nums;
 }
-.tsb-controls {
-  display: flex;
-  gap: 8px;
-}
-.tsb-ctrl {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.36);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  cursor: pointer;
-}
-.tsb-ctrl:hover {
-  background: rgba(255, 255, 255, 0.24);
-}
-.tsb-ctrl-prev svg {
-  transform: rotate(180deg);
-}
-.tsb-cta:focus-visible,
-.tsb-ctrl:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
+/* 가운데 카드 전체가 링크다(누르면 배너 링크로 이동). 마스크로 카드 밖 테두리가 잘리므로 안쪽에 그린다. */
+.tsb-card:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: -6px;
 }
 
-/* ── 카드 전환 시 등장: 칩 → 공연명 → 설명 → 장소 → 버튼 (0.08초 간격, 아래 12px에서 0.5초) ── */
+/* ── 카드 전환 시 등장: 칩 → 공연명 → 설명 → 장소 (0.08초 간격, 아래 12px에서 0.5초) ── */
 @keyframes tsb-rise {
   from {
     opacity: 0;
@@ -421,9 +391,6 @@
   .tsb .tsb-copy .tsb-meta {
     font-size: 12px;
   }
-  .tsb-cta {
-    height: 44px; /* 누르는 영역 최소 44px */
-  }
   /* 절취선: 가로, 점은 왼쪽 → 오른쪽으로 채워진다 */
   .tsb-perf {
     top: calc(100% - var(--tsb-stub-h));
@@ -433,38 +400,30 @@
     transform: translateY(-50%);
     flex-direction: row;
   }
-  /* 스텁: 가로 띠. 왼쪽 D-day · 오픈 일시, 오른쪽 페이지 표시 · 버튼 */
+  /* 스텁: 가로 띠. 왼쪽 D-day · 오픈 일시(한 줄), 오른쪽 페이지 표시 */
   .tsb-stub {
     flex: 0 0 var(--tsb-stub-h);
     flex-direction: row;
-    padding: 0 16px;
+    padding: 0 20px;
     text-align: left;
   }
   .tsb-stub-top {
     flex-direction: row;
     align-items: baseline;
-    gap: 8px;
+    gap: 12px;
   }
   .tsb-open-label {
     display: none;
   }
   .tsb-dday,
   .tsb-dday.is-word {
-    font-size: 22px;
+    font-size: 24px;
   }
-  .tsb-open-at {
-    font-size: 11px;
+  .tsb-open-at > span {
+    display: inline;
   }
-  .tsb-stub-bottom {
-    flex-direction: row;
-    gap: 8px;
-  }
-  .tsb-controls {
-    gap: 4px;
-  }
-  .tsb-ctrl {
-    width: 44px;
-    height: 44px;
+  .tsb-count {
+    flex-shrink: 0;
   }
 }
 

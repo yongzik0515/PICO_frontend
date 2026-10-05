@@ -45,6 +45,11 @@
 .filter-calendar-nav{display:flex;align-items:center;justify-content:center;gap:24px;margin:12px 0;font-size:13px;color:var(--ink-600)}.filter-calendar-nav button{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px}.filter-calendar-nav button:hover{background:#eef2ff}.filter-calendar-nav button:first-child svg{transform:rotate(180deg)}.filter-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}.filter-calendar-grid>*{display:flex;align-items:center;justify-content:center;min-height:36px;font-size:13px;border-radius:50%}.filter-calendar-grid button{aspect-ratio:1;min-height:0}.filter-calendar-grid .calendar-weekday{font-size:12px;color:var(--ink-400)}.filter-calendar-grid button:hover:not(:disabled){background:#edf1ff;color:var(--primary-500)}.filter-calendar-grid button.selected,.filter-calendar-grid button.selected:hover{background:var(--primary-500);color:white}.filter-calendar-grid button:disabled{color:#c5cbd6;cursor:default}.filter-calendar-grid .today:not(.selected){box-shadow:inset 0 0 0 1px #b9c6ff}.calendar-selection{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--primary-500);margin-top:12px}.calendar-selection button{padding:6px;color:var(--ink-600)}
 .modal.discovery-filter-modal{width:560px;border-radius:0;max-height:calc(100vh - 48px)}.discovery-filter-modal .modal-header{padding:28px;border-bottom:1px solid var(--line-200)}.discovery-filter-modal .modal-header h2{font-size:20px;font-weight:500}.discovery-filter-modal .modal-body{padding:0;max-height:calc(100vh - 148px)}#filter-form{padding:32px 28px 0}.filter-section{margin-bottom:28px}.filter-section h3,.filter-section-title label{font-size:14px;font-weight:650;margin-bottom:16px}.filter-section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.filter-section-title label{margin:0}.filter-section-title>span{font-size:13px;color:var(--primary-500)}.filter-rating-options,.filter-sites{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.filter-rating-options .chip,.filter-sites .chip{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 13px;font-size:13px;background:#fff;border:1px solid var(--line-200);border-radius:999px}.filter-rating-options .chip.selected{background:#eef2ff;border-color:#c4ceff;color:var(--primary-500)}.filter-sites input{margin:0;accent-color:var(--primary-500)}.filter-sites .chip:has(input:checked){border-color:#c4ceff;background:#f5f7ff}.filter-percent-input{display:flex;align-items:center;gap:12px}.filter-percent-input input{width:140px}.filter-percent-input span{font-size:13px;color:var(--ink-600)}.filter-other{display:grid;gap:8px;font-size:12px;margin-top:16px}.filter-other[hidden]{display:none}.filter-detail-actions{position:sticky;bottom:0;background:#fff;display:flex;align-items:center;gap:24px;padding:20px 28px;margin:24px -28px 0;border-top:1px solid var(--line-200);z-index:2}.filter-detail-actions>button:first-child{font-size:13px;min-width:64px;padding:12px 0}.filter-detail-actions .btn{flex:1;min-height:44px;border-radius:10px}.discovery-filter-modal .filter-calendar-grid button{max-height:52px;border-radius:12px}.discovery-filter-modal .filter-calendar-nav{margin:16px 0}
 @media(min-width:1000px){.pc-search-row .popular-shows{gap:12px;margin:16px 0 0;flex-wrap:wrap}.pc-search-row .popular-shows button{min-height:38px;padding:9px 16px;line-height:20px;border-radius:999px;border:1px solid #e0e6f0;background:#fff;font-size:13px}.pc-search-row .popular-shows button:hover{background:#eef2ff;border-color:#c5d0ff;color:var(--primary-500)}.pc-search-row .popular-shows>span{margin-right:4px}.pc-filterbar{position:relative;z-index:41}.pc-filterbar .filter-chips{overflow:visible}.quick-filter-anchor>.chip[aria-expanded=true]{border-color:#a9baff;color:var(--primary-500);background:#eef2ff}.quick-filter-anchor>.chip[aria-expanded=true]>svg{transform:rotate(180deg)}}
+/* 상단 고정 헤더(z-index 30)가 홈 필터 줄(41)·칩 드롭다운(40)보다 낮아, 스크롤하면 칩이 헤더 위로 올라왔다.
+   헤더를 그보다 위(45)로 올린다. 알림(100)·헤더 팝오버(110)보다는 아래다. */
+.topbar{z-index:45}
+/* 요청 완료 화면: 원을 파란색으로 칠하면서(transactions.css) 체크 선은 styles.css의 파란색 그대로라 보이지 않았다. 원의 글자색(흰색)을 따른다. */
+.tx-success .success-circle svg{stroke:currentColor}
 /* Figma 173:2 — 01 · 이용자 · 홈 · 1441. */
 @media(min-width:1000px){
  body:has(.page.home){background:linear-gradient(110.454779deg,#fff 9.4256%,#f1f6ff 35.63%,#eff8f6 56.762%,#f5f7fa 72.823%);background-attachment:scroll;background-repeat:no-repeat}
@@ -159,6 +164,21 @@ form[data-account-form="application"] .account-action-strip{background:transpare
 form[data-account-form="application"] .account-form-footer{border-top:1px solid var(--line-200);padding-top:24px;margin-top:28px}
 .account-my-layout{align-items:start}.account-my-layout>aside .content-card{margin-bottom:24px}.account-my-layout .my-identity-line{flex-wrap:wrap;gap:12px}
 .tx-work-summary .matching-summary-actions{display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap;margin-left:auto}.matching-summary-actions .btn{white-space:nowrap}
+/* 휴대폰(767px 이하): 마이페이지(오른쪽 304px)·내 활동(오른쪽 350px)의 두 칸 배치가 모든 폭에 적용돼
+   오른쪽 카드가 본문 위에 겹치고 메뉴 글자가 한두 글자씩 쪼개졌다. 한 칸으로 쌓는다.
+   거래 화면(.tx-layout: 요청 상세·결제·조건·견적·증빙·매칭권 충전)도 transactions.css의 '본문 | 320px'가
+   styles.css의 모바일 한 칸 규칙을 덮어써 본문 폭이 0이 되고 금액·날짜가 한 글자씩 세로로 쌓였다. 같이 한 칸으로 쌓는다.
+   마이페이지 프로필 줄(사진·이름·역할 전환·로그아웃)도 로그아웃 버튼이 화면 밖으로 밀려 아랫줄 오른쪽으로 내린다.
+   받은 요청·매칭 관리 요약은 숫자 3칸과 버튼이 한 줄이라 버튼이 화면 밖으로 밀렸다. 버튼을 아랫줄로 내린다. */
+@media (max-width:767px){
+  .account-my-layout,.activity-layout,.tx-layout{grid-template-columns:minmax(0,1fr)}
+  .account-my-profile .account-preview-heading{flex-wrap:wrap}
+  .account-my-profile .account-preview-heading>.btn{margin-left:auto}
+  .tx-work-summary{flex-wrap:wrap;row-gap:16px;padding:20px 16px}
+  .tx-work-summary>div{padding:0 12px}
+  .tx-work-summary>div:nth-child(3){border-right:0}
+  .tx-work-summary>div.matching-summary-actions{flex-basis:100%;justify-content:flex-start;margin-left:0;padding:0}
+}
 .inquiry-history-list{margin-top:20px}
 
 /* Multi-date availability calendar */
@@ -198,14 +218,11 @@ form[data-account-form="application"] .account-form-footer{border-top:1px solid 
   .nav-wrap{gap:20px}
   .desktop-nav{gap:18px}
 }
+/* 휴대폰(767px 이하): 메뉴·전환·프로필을 헤더에 다 두면 약 463px가 필요해 360~430px 화면에서 가로로 넘쳤다.
+   프로토타입 규칙대로 헤더에서 숨기고 하단 탭바(AppLayout의 .bottom-nav, 3칸)로 대신한다. */
 @media (max-width:767px){
-  .desktop-nav{display:flex}
-  .header-right>.my-avatar{display:inline-flex;align-items:center;justify-content:center}
-  .nav-wrap{gap:12px}
-  .desktop-nav{gap:12px}
-  .desktop-nav button{font-size:14px}
-  .header-right{gap:6px}
-  .mode-switch button{padding:6px 9px;font-size:12px}
+  .header-right>.mode-switch{display:none}
+  .bottom-nav button{width:auto;flex:1}
 }
 
 /* 로그인: 1023px 이하에서는 소개(왼쪽)와 로그인 카드가 두 칸에 끼어 소개 문구가 한 단어씩 줄바꿈되고 티켓 그림이 카드와 겹쳤다. 한 칸으로 바꾸고 소개는 숨긴다. */
@@ -216,8 +233,12 @@ form[data-account-form="application"] .account-form-footer{border-top:1px solid 
 
 /* 좁은 창(768~1023px)에서 거래 화면의 오른쪽 칸(320px)이 고정이라 본문이 370px 정도로 좁아졌다. 오른쪽 칸을 줄여 본문 폭을 확보한다.
    한 칸으로 바꾸면 매칭권 충전처럼 오른쪽 칸에 실행 버튼이 있는 화면에서 버튼이 목록 아래로 밀려나서 두 칸은 유지한다. */
+/* 도우미 프로필도 같은 폭에서 한 칸이 되면 '이 도우미에게 요청하기' 카드가 긴 본문 아래(약 1,500px)로 밀려
+   처음 들어왔을 때 요청 버튼이 보이지 않았다. 거래 화면처럼 두 칸을 유지한다(767px 이하는 하단 고정 바가 대신한다).
+   두 칸이면 본문이 좁아져 카드 모서리에 띄운 하트·공유 버튼(.profile-tools)이 인증 배지와 겹치므로 그 자리를 비운다. */
 @media (min-width:768px) and (max-width:1023px){
-  .tx-layout{grid-template-columns:minmax(0,1fr) 260px;gap:20px}
+  .tx-layout,.profile .detail-layout{grid-template-columns:minmax(0,1fr) 260px;gap:20px}
+  .profile-intro .agent-title{padding-right:76px}
   .page{padding-left:20px;padding-right:20px}
 }
 
@@ -350,3 +371,9 @@ fieldset.account-flagged,.account-image-picker.account-flagged,.account-career-u
 .footer-trust{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-400)}
 .footer-trust>svg{color:var(--trust-500)}
 .footer-trust strong{font-weight:600;color:var(--ink-600)}
+/* 휴대폰(767px 이하): 왼쪽 안내와 오른쪽 링크가 한 줄에 끼어 '확인할 수 / 있는 신뢰'처럼 쪼개졌다. 위아래로 쌓는다. */
+@media (max-width:767px){
+  .footer-top{flex-direction:column}
+  .footer-top>div{justify-content:flex-start}
+  .footer-trust strong{white-space:nowrap}
+}

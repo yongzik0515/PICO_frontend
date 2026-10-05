@@ -1,0 +1,226 @@
+/* 휴대폰(767px 이하) 전용 위계.
+   프로토타입은 모바일 규칙(styles.css)을 먼저 두고 PC 규칙(desktop.css·pc-refinements.css)을 덧씌웠는데,
+   PC 규칙 상당수가 미디어쿼리 없이 모든 폭에 걸려 휴대폰에서도 PC 글자 크기·여백이 나왔다.
+   공용 스타일 중 가장 마지막에 불러와 휴대폰 폭의 크기·여백을 이곳에서 정한다.
+
+   글자            PC → 휴대폰
+   페이지 제목     28~29px → 22px   .pc-page-title h1, 요청 상세 공연명
+   섹션 제목       24~25px → 20px   홈 '이번 주, 주목할 도우미', 마이페이지·도우미 프로필 이름, 도우미 신청 안내
+   카드 제목       18~20px → 17px   h2 기본값
+   강조 숫자       25~32px → 18~26px 보유 매칭권·결제 합계·요약 숫자
+   입력란은 16px을 유지한다(iOS는 16px 미만 입력란을 누르면 화면을 확대한다). 캐러셀은 ticket-carousel.css가 정한다.
+
+   여백            PC → 휴대폰
+   본문 위         38px → 24px
+   경로 → 제목     16px → 8px
+   제목 → 본문     30px → 20px
+   요청 상세 날짜 → 공연명  20px → 12px
+   카드 안쪽       22·19px(로그인 30·34px, 신청 현황 38·35px) → 20·16px(24·20px) */
+
+/* 줄바꿈(모든 폭: 창을 줄여도 생긴다). 한국어는 띄어쓰기에서만 줄을 바꾸는데(styles.css의 keep-all),
+   마지막 줄에 '확인해요.'처럼 한 단어만 남는 일이 잦았다. 그런 줄을 피하고(pretty),
+   제목과 가운데 정렬 안내문은 줄 길이를 고르게 나눈다(balance). 지원하지 않는 브라우저는 지금처럼 줄을 바꾼다. */
+body {
+  text-wrap: pretty;
+}
+:where(h1, h2, h3),
+.tx-success p,
+.tx-success small {
+  text-wrap: balance;
+}
+/* 요청 완료 안내 두 문장: <br>로 이으면 balance가 첫 문장에만 먹어 둘째 문장이 '알림으로 / 알려드릴게요.'로 꺾였다. 문장마다 따로 나눈다. */
+.tx-success p > span {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  /* 글자 */
+  h2,
+  .content-card > h2,
+  .activity-guide h2 {
+    font-size: 17px;
+  }
+  .pc-page-title h1,
+  .tx-detail-header h1 {
+    font-size: 22px;
+    line-height: 1.35;
+    letter-spacing: -0.5px;
+  }
+  .pc-discovery-header h2,
+  .account-preview-heading h2,
+  .account-status-card h2,
+  .profile-title h1 {
+    font-size: 20px;
+  }
+  .profile-stats .info-tile > strong {
+    font-size: 20px;
+  }
+  .tx-credit-balance > strong {
+    font-size: 26px;
+  }
+  .display-price,
+  .my .display-price {
+    font-size: 24px;
+    line-height: 32px;
+  }
+  .display-price small {
+    font-size: 14px;
+  }
+  .tx-work-summary strong {
+    font-size: 22px;
+  }
+  .total-row strong {
+    font-size: 20px;
+  }
+  .tx-history article > div:last-child > strong {
+    font-size: 18px;
+  }
+
+  /* 여백 */
+  .page {
+    padding-top: 24px;
+  }
+  .page-breadcrumbs {
+    margin-bottom: 8px;
+  }
+  .pc-page-title {
+    margin-bottom: 20px;
+  }
+  .content-card {
+    padding: 20px 16px;
+  }
+  .account-auth-main .content-card,
+  .account-status-card {
+    padding: 24px 20px;
+  }
+
+  /* 도우미 카드: 사진 | 정보 | 가격 세 칸이 한 줄이라 정보 칸이 약 120px로 좁아져 인증 배지가 세로로 쌓이고
+     '★3.0 | 거래 10회 | 성공률 40%'가 세 줄로 쪼개져 구분선만 남았다. 가격을 정보 아래 둘째 줄로 내린다. */
+  .pc-agent-card .agent-main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 10px;
+    align-items: start;
+  }
+  .pc-agent-card .pc-card-price {
+    grid-column: 2;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    margin: 0;
+    text-align: left;
+  }
+  .pc-agent-card .pc-card-price > span {
+    margin: 0;
+  }
+
+  /* 요청 상세 맨 위 '요청 날짜 | 상태' 줄: 상태 글자가 길면 날짜가 '오후 / 10:33'처럼 꺾였다.
+     날짜는 한 줄로 두고 자리가 모자라면 상태를 아랫줄로 내린다. 공연명까지의 간격(20px)도 줄인다. */
+  .tx-detail-header .title-between {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .tx-detail-header .title-between > small {
+    white-space: nowrap;
+  }
+  .tx-detail-header h1 {
+    margin-top: 12px;
+  }
+
+  /* 조건 비교표: '항목 | 최초 요청 | 최종 조건' 세 칸이면 값 칸의 글자 폭이 63px뿐이라 한 줄에 4~5자씩 꺾였다.
+     항목 이름을 윗줄로 올리고 두 값이 폭을 반씩 쓴다. */
+  .tx-comparison > div {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .tx-comparison > div > :first-child {
+    grid-column: 1 / -1;
+    padding-bottom: 0;
+  }
+  .tx-comparison > div:not(.tx-comparison-head) > :not(:first-child) {
+    padding-top: 4px;
+  }
+  .tx-comparison-head > :first-child {
+    display: none;
+  }
+
+  /* 이름 | 값 목록(요청 정보·관리자 항목·약관 문서): 이름 칸이 124px(관리자·약관 85px)로 고정이라 값 칸이 144px로 좁아 긴 문장이 4~5줄로 꺾이고,
+     '희망 좌석·요청 내용', '개인정보 처리방침' 같은 긴 이름도 두 줄로 꺾였다. 오른쪽 요약 칸(.tx-side)처럼 이름을 값 위에 둔다.
+     이름이 짧은 도우미 프로필·연락처 목록은 그대로 둔다. */
+  .tx-rows > div,
+  .admin-item .document-rows > div,
+  .account-card .document-rows > div {
+    display: block;
+  }
+  .tx-rows dt,
+  .admin-item .document-rows dt,
+  .account-card .document-rows dt {
+    margin-bottom: 4px;
+  }
+
+  /* 요청서의 '종류 | 연락처' 줄: 두 칸으로 나누면 연락처 칸이 약 150px라 '예: 010-1234-5678'(174px 필요)이 잘렸다. 위아래로 쌓는다. */
+  .form-grid:has(select[name='contactKind']) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 모달: 프로토타입의 모바일 모달은 아래에서 올라오는 전체 폭 시트인데(styles.css),
+     desktop.css의 max-width:calc(100vw - 80px)·margin:auto가 덮어써 좁은 가운데 상자가 됐다.
+     필터 모달은 버튼 두 개가 160px 고정이라 '1명 보기'가 오른쪽에서 잘렸다. */
+  .modal {
+    max-width: 100%;
+    margin: 0;
+  }
+  .modal.discovery-filter-modal {
+    border-radius: 24px 24px 0 0;
+    max-height: 92dvh;
+  }
+  .discovery-filter-modal .modal-header {
+    padding: 20px;
+  }
+  .discovery-filter-modal #filter-form {
+    padding: 20px 20px 0;
+  }
+  .discovery-filter-modal .filter-detail-actions {
+    gap: 12px;
+    padding: 16px 20px;
+    margin: 24px -20px 0;
+  }
+  .discovery-filter-modal .filter-detail-actions > button:first-child {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 10px 12px;
+  }
+  .discovery-filter-modal .filter-detail-actions .btn {
+    flex: 1;
+    width: auto;
+  }
+
+  /* 칩 묶음: 두 줄 이상으로 넘어가지 않고 한 줄로 가로 스크롤한다(홈 필터 칩은 home-layout.css).
+     안쪽 4px 여백은 포커스 테두리가 스크롤 영역에 잘리지 않게 하는 몫이라 바깥 여백으로 되돌린다. */
+  .filter-rating-options,
+  .filter-sites,
+  .account-choice-chips,
+  .availability-dates {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 4px;
+    margin: -4px;
+  }
+  .filter-rating-options > *,
+  .filter-sites > *,
+  .account-choice-chips > *,
+  .availability-dates > * {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  /* 한 줄 칩 폭만큼 바깥 상자가 넓어져 폼 전체가 화면 밖으로 밀리지 않게 한다.
+     fieldset은 기본값이 min-width:min-content이고, styles.css의 한 칸 격자(1fr)도 내용 최소 폭보다 좁아지지 않는다. */
+  fieldset:has(> .account-choice-chips) {
+    min-width: 0;
+  }
+  .detail-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

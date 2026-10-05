@@ -13,6 +13,13 @@
 .admin-actions { display: flex; flex-direction: column; gap: 8px; min-width: 150px; }
 .admin-brand-badge { margin-left: 8px; padding: 3px 8px; border-radius: 6px; background: var(--ink-900); color: #fff; font-size: 12px; font-weight: 600; letter-spacing: 0; }
 .admin-user { font-size: 13px; color: var(--ink-600); }
+/* 휴대폰(767px 이하): 버튼 칸(150px)이 옆에 붙어 정보 칸 값이 한 글자씩 세로로 쌓였다. 버튼을 정보 아래로 내린다.
+   탭 12개는 4줄로 쌓여 화면 위쪽을 차지해 한 줄 가로 스크롤로 바꾼다. */
+@media (max-width: 767px) {
+  .admin-item { flex-direction: column; gap: 12px; }
+  .admin-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .admin-tabs > * { flex-shrink: 0; white-space: nowrap; }
+}
 
 /* 푸터 사업자 정보(전자상거래법 표기). 한 줄 안의 항목은 ' | '로 구분한다. */
 .footer-biz { list-style: none; margin: 10px 0 0; padding: 0; line-height: 1.9; }

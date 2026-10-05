@@ -7,6 +7,8 @@ import './styles/transactions.css'
 import './styles/desktop.css'
 import './styles/pc-refinements.css'
 import './styles/react.css'
+// 휴대폰(767px 이하) 글자·여백 위계. 위 PC 규칙을 덮어써야 해서 공용 스타일 중 마지막에 둔다.
+import './styles/mobile.css'
 import App from './App.tsx'
 import { installDemoMode } from './demo/demoMode'
 

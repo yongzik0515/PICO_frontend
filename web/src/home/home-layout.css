@@ -47,6 +47,115 @@ main.page.home {
   }
 }
 
+/* 휴대폰(767px 이하) 필터 줄.
+   원인: desktop.css가 칩 줄의 가로 스크롤을 꺼서(overflow:visible) 칩 4개(약 310px)가 줄어들지 않아
+         '필터' 버튼이 화면 오른쪽 밖으로 밀렸다. 칩 아래 드롭다운도 칩 위치 기준이라 오른쪽 칩에서는 화면 밖으로 나갔다.
+   해결: '필터' 버튼을 칩 위 줄 오른쪽으로 올리고, 칩은 한 줄로 화면 끝까지 가로 스크롤한다.
+         드롭다운은 기준을 칩이 아닌 필터 줄(.pc-filterbar)로 바꿔, 스크롤 영역에 잘리지 않고 줄 전체 폭으로 펼친다. */
+@media (max-width: 767px) {
+  .home .pc-filterbar {
+    position: relative;
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .home .pc-filterbar .filter-button {
+    order: -1;
+    margin-left: auto;
+    min-height: 36px;
+  }
+  .home .pc-filterbar .filter-chips {
+    flex: 0 0 calc(100% + 40px);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -20px;
+    padding: 4px 20px;
+  }
+  .home .pc-filterbar .quick-filter-anchor {
+    position: static;
+    flex-shrink: 0;
+  }
+  /* '필터' 버튼 줄 왼쪽: 이용 방법 말풍선(HomePage의 GuideTip). PC는 오른쪽 안내 카드가 있어 숨긴다. */
+  .home .pc-filterbar .home-guide-tip {
+    display: block;
+    position: relative;
+    order: -2;
+  }
+  .home .pc-filterbar .quick-filter {
+    right: 0;
+    width: auto;
+  }
+}
+
+/* 인기 검색 칩: desktop.css가 모든 폭에서 안쪽 여백을 0으로 두고 PC(1000px 이상)에서만 9·16px로 되살려,
+   그보다 좁은 화면에서는 글자가 테두리에 붙어 답답했다. 양옆에 글자(12px) 하나만큼씩 여백을 준다. */
+@media (max-width: 999px) {
+  .home .pc-search-row .popular-shows button {
+    padding: 8px 12px;
+    min-height: 36px;
+  }
+}
+
+/* 이용 방법 말풍선: 휴대폰에서만 보인다(위 767px 이하 규칙). 꼬리는 '이용 방법' 버튼 아래를 가리킨다. */
+.home-guide-tip {
+  display: none;
+}
+.home-guide-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  font-size: 13px;
+  color: var(--ink-600);
+}
+.home-guide-trigger[aria-expanded='true'] {
+  color: var(--primary-500);
+}
+.home-guide-bubble {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 42;
+  width: min(300px, calc(100vw - 40px));
+  padding: 18px 16px 8px;
+  background: #fff;
+  border: 1px solid var(--line-200);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px #17224f1f;
+}
+.home-guide-bubble::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 24px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-top: 1px solid var(--line-200);
+  border-left: 1px solid var(--line-200);
+  transform: rotate(45deg);
+}
+.home-guide-bubble .guide-steps {
+  margin: 0;
+  gap: 14px;
+}
+.home-guide-bubble .guide-steps strong {
+  font-size: 13px;
+}
+.home-guide-bubble .guide-steps p {
+  font-size: 12px;
+  margin-top: 2px;
+}
+.home-guide-bubble .guide-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-500);
+}
+
 /* 홈 검색창: 왼쪽에 있던 돋보기를 오른쪽 끝의 누를 수 있는 칩으로 옮겼다.
    (안내 문구 '원하는 공연이 있나요?'는 없앴다) */
 .search-container > .search-chip {

@@ -16,3 +16,11 @@
 .signup-field-action > .signup-status:empty {
   display: none;
 }
+
+/* 휴대폰(767px 이하): 버튼 칸이 160px 고정이라 입력란이 110px 정도로 줄어
+   '아이디 또는 이…', '010-0000-0…'처럼 안내 문구가 잘렸다. 버튼 칸을 글자 폭에 맞춘다. */
+@media (max-width: 767px) {
+  .signup-field-action {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}

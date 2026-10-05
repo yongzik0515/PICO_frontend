@@ -449,7 +449,10 @@ export function installDemoMode() {
 // 화면 우하단 데모 배지 + 상태 점프 버튼. /requests/{id} 화면에서 원하는 단계로 바로 이동할 수 있다.
 function badge() {
   const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:99999;display:flex;flex-wrap:wrap;gap:6px;align-items:center;max-width:min(92vw,560px);justify-content:flex-end;background:#111;color:#fff;font:12px/1.4 system-ui;padding:8px 10px;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);opacity:.95';
+  // 휴대폰(767px 이하): 하단 탭바·도우미 프로필의 하단 요청 바를 가리지 않게 헤더(64px) 바로 아래에 띄우고,
+  // 처음엔 '● 데모'만 보이게 접어 둔다(누르면 버튼이 펼쳐진다).
+  const phone = matchMedia('(max-width:767px)').matches;
+  el.style.cssText = 'position:fixed;right:12px;' + (phone ? 'top:72px' : 'bottom:12px') + ';z-index:99999;display:flex;flex-wrap:wrap;gap:6px;align-items:center;max-width:min(92vw,560px);justify-content:flex-end;background:#111;color:#fff;font:12px/1.4 system-ui;padding:8px 10px;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.35);opacity:.95';
   const label = document.createElement('span');
   label.textContent = '● 데모';
   label.style.cssText = 'font-weight:700';
@@ -467,6 +470,16 @@ function badge() {
   const area = document.createElement('span');
   area.style.cssText = 'display:contents';
   el.append(area);
+  if (phone) {
+    area.style.display = 'none';
+    label.textContent = '● 데모 ▸';
+    label.style.cursor = 'pointer';
+    label.onclick = () => {
+      const open = area.style.display === 'none';
+      area.style.display = open ? 'contents' : 'none';
+      label.textContent = open ? '● 데모 ▾' : '● 데모 ▸';
+    };
+  }
 
   const render = () => {
     area.textContent = '';

@@ -148,7 +148,8 @@ export function ProfilePage() {
   const reviews = tab === 'reviews';
   const detail = a.detail || '희망하는 공연과 좌석 조건을 꼼꼼히 확인하고, 충분히 이야기한 뒤 예매를 준비해요.\n\n진행 상황과 결과를 빠르게 알려드릴게요. 모든 예매는 예매처가 허용하는 방법으로 진행해요.';
   const rowsInfo: [string, string][] = [
-    ['가능 예매처', a.sites.join(' · ') || '미입력'],
+    // '·' 앞은 줄이 바뀌지 않는 공백(\u00a0)이라 다음 줄이 '· 티켓링크'처럼 '·'로 시작하지 않는다.
+    ['가능 예매처', a.sites.join('\u00a0· ') || '미입력'],
     ['주로 맡는 분야', a.category || '미입력'],
     ['활동 가능 시간', a.hours || '미입력'],
     ['최소 착수비', money(a.fee) + '원'],
@@ -308,6 +309,22 @@ export function ProfilePage() {
             <br />→ 이용자 확인·확정 → 안전거래 조건이면 결제
           </p>
         </aside>
+      </div>
+      {/* 휴대폰(767px 이하)은 styles.css가 오른쪽 카드(.sticky-card)를 숨기므로, 요청 버튼을 하단 탭바 위 고정 바로 보여 준다. */}
+      <div className="sticky-mobile-cta">
+        <div>
+          <span>최소 착수비</span>
+          <strong>{money(a.fee)}원부터</strong>
+        </div>
+        {mode === 'user' ? (
+          <button type="button" className="btn primary" onClick={() => navigate(`/quote/${a.id}`)}>
+            이 도우미에게 요청하기
+          </button>
+        ) : (
+          <button type="button" className="btn secondary" onClick={() => setState((s) => ({ ...s, mode: 'user' }))}>
+            이용자로 전환해 요청하기
+          </button>
+        )}
       </div>
     </>
   );
