@@ -63,6 +63,7 @@
 **F. 정리**
 - [ ] 테스트 요청 #61 "[모바일QA] 흐름 점검 공연"이 2026-10-06 22:22에 자동 만료됐는지 확인한다.
 - [ ] 데모 배지는 창 크기를 바꾸면 새로고침해야 위치가 맞는다(`DEMO_MODE_NOTES.md`). 데모를 계속 쓸 거면 정리한다.
+- [ ] 팀원 커밋(`7090c27`)에서 회원가입 화면이 바뀌어 안 쓰이게 된 스타일을 정리한다: `src/pages/signup-form.css`(어디서도 불러오지 않음), `pc-refinements.css`의 `.signup-field-action`·`.signup-inline-action` 규칙.
 - [ ] `woo` → `main` PR.
 
 ## 1. 용어
@@ -80,7 +81,7 @@
 
 | 구간 | 하는 일 | 쓰는 곳 |
 |---|---|---|
-| 767px 이하 | 휴대폰 배치 | `styles.css`(프로토타입의 휴대폰 규칙), `mobile.css`(휴대폰 글자·여백 위계), `pc-refinements.css` 4곳, `home-layout.css`, `react.css`, `signup-form.css`, `notifications.css`, `image-preview.css` |
+| 767px 이하 | 휴대폰 배치 | `styles.css`(프로토타입의 휴대폰 규칙), `mobile.css`(휴대폰 글자·여백 위계), `pc-refinements.css` 4곳, `home-layout.css`, `react.css`, `notifications.css`, `image-preview.css` |
 | 768px 이하 | 캐러셀 휴대폰 배치 | `ticket-carousel.css`. 다른 파일보다 1px 넓어서, 768px에서는 휴대폰 캐러셀과 태블릿 규칙이 함께 걸린다 |
 | 768–1023px | 태블릿·좁은 창 | `styles.css`(본문 768px, 한 칸), `pc-refinements.css`(요청 상세·도우미 프로필은 `본문 \| 260px` 두 칸, 프로필 이름 오른쪽 76px 비움) |
 | 768–1100px | 헤더 간격·카드 축소 | `styles.css` 1곳 |
@@ -110,6 +111,7 @@
   - 넘침·잘림: 화면 밖 넘침, 버튼·입력란 잘림, 글자가 상자 밖으로 나옴, 말줄임(…)
   - 모양 깨짐: 알약 배지가 세로로 늘어남, 원이 타원이 됨, 사진 비율이 찌그러짐
 - **확인 방법**: 자동 검사로 찾은 후보는 모두 캡처로 눈으로 확인했다.
+- **팀원 커밋 반영**: 팀원 커밋(`7090c27`)을 합친 뒤, 그 커밋이 바꾼 화면을 같은 방법으로 다시 점검했다(회원가입·문의·관리자·도우미 신청·매칭권·요청 상세). 새로 깨지는 곳은 없었다.
 - **검사기 검증**: 이전에 고친 '768~1023px 프로필 좋아요·공유 ⨯ 인증 배지' 겹침을 일부러 되살려 돌렸다. 검사기가 바로 잡아냈다.
 
 ### 3-2. 결과 요약
@@ -206,10 +208,9 @@
 | 마이페이지 | 프로필 머리 아래 / 옆 카드 사이 | 24 / 24 | `.account-my-profile .account-preview-heading`, `.account-my-layout > aside .content-card` (pc-refinements.css) |
 | 로그인 | 입력란 위 | 25 | `.account-auth-main .field` (account.css) |
 | 로그인 | 로그인 버튼 위 / 아래 링크 위 | 24 / 24+24 | `.login-actions`, `.login-links` (pc-refinements.css) |
-| 회원가입·프로필 수정·도우미 프로필 | 사진 선택 아래 | 안쪽 26 + 바깥 26 | `.account-image-picker` (account.css) |
+| 프로필 수정·도우미 프로필 | 사진 선택 아래 | 안쪽 26 + 바깥 26 | `.account-image-picker` (account.css) |
 | 회원가입·프로필 수정·문의·도우미 프로필 | 저장 버튼 줄 위 | 바깥 26 + 안쪽 24 | `.account-form-footer` (account.css) |
 | 회원가입 | 약관 동의 위 | 26 | `.account-agreements` (account.css) |
-| 회원가입 | 아이디 줄 아래 | 24 | `.signup-field-action` (pc-refinements.css) |
 | 도우미 프로필 | 선택 묶음(예매처 등) 위아래 | 25 | `.account-fieldset` (account.css) |
 | 도우미 신청 현황 | 버튼 줄 위 | 27 | `.account-status-actions` (account.css) |
 | 요청서 | 요약 위아래 | 24 | `.quote-submit-card .summary-rows` (pc-refinements.css) |
@@ -225,7 +226,6 @@
 | 위치 | 값 | 이유 |
 |---|---|---|
 | 선택 상자(select) 오른쪽 | 34 | 펼침 화살표 자리 |
-| 회원가입 '중복확인' 버튼 위 | 29 | 입력란과 높이를 맞춤 |
 | 분쟁 소명 펼침 줄 오른쪽 | 24 | 펼침 아이콘 자리 |
 | 도우미 프로필 이름 오른쪽 | 45 | 좋아요·공유 아이콘 자리 |
 | 모든 화면 맨 아래 | 105 | 하단 탭바에 가리지 않게 |
@@ -242,7 +242,7 @@
 
 | # | 요청 | 처리 | 주요 파일 |
 |---|---|---|---|
-| 1 | 휴대폰에서 그래픽이 깨지지 않게 (헤더는 '하단 탭바', 탭 3개) | 헤더 메뉴를 숨기고 하단 탭바 3칸을 만들었다(이용자: 도우미 찾기·내 활동·마이 / 도우미: 받은 요청·매칭 관리·마이). 마이페이지·내 활동·거래 화면 두 칸 → 한 칸, 받은 요청 요약 버튼을 아랫줄로, 회원가입 '중복확인' 칸, 관리자 항목 세로 배치, 푸터 세로 배치 | `AppLayout.tsx`, `pc-refinements.css`, `react.css`, `signup-form.css` |
+| 1 | 휴대폰에서 그래픽이 깨지지 않게 (헤더는 '하단 탭바', 탭 3개) | 헤더 메뉴를 숨기고 하단 탭바 3칸을 만들었다(이용자: 도우미 찾기·내 활동·마이 / 도우미: 받은 요청·매칭 관리·마이). 마이페이지·내 활동·거래 화면 두 칸 → 한 칸, 받은 요청 요약 버튼을 아랫줄로, 관리자 항목 세로 배치, 푸터 세로 배치. 회원가입 '중복확인' 칸도 고쳤지만, 팀원 커밋(`7090c27`)에서 회원가입 화면이 바뀌어 그 규칙은 뺐다 | `AppLayout.tsx`, `pc-refinements.css`, `react.css` |
 | 2 | 테스트 계정 제공 | 로그인 화면 점검에만 썼다. 계정 정보는 파일에 남기지 않았다 | – |
 | 3 | 개발 서버 띄우기 | 5173 포트로 띄웠다. 개발 백엔드가 `localhost:5173`에서 온 로그인만 받는다(다른 포트·휴대폰 실기기 주소는 403) | – |
 | 4-1 | 푸터에 전화번호 070-8984-4636 | 사업자 정보에 '고객센터' 줄 추가 | `AppLayout.tsx` |
