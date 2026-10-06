@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBanners, type Banner } from './banners';
 import './ticket-carousel.css';
@@ -164,6 +164,7 @@ export function TicketCarousel() {
   // - 가운데 카드 = 본문 폭(1080px)이라 검색창 좌우 끝선과 맞는다. 화면이 좁아 양옆 카드가 40px보다 덜 보이면 카드를 줄인다.
   // - 모바일(768px 이하)은 화면의 88%.
   const hostRef = useRef<HTMLDivElement>(null);
+  const keyboardNavigation = useRef(false);
   const [size, setSize] = useState<Size | null>(null);
   useEffect(() => {
     const el = hostRef.current;
@@ -186,6 +187,15 @@ export function TicketCarousel() {
     };
   }, []);
 
+  // 방향키 이동과 복제본 → 원본 전환 모두 새 활성 카드로 포커스를 이어 준다.
+  // 사용자가 캐러셀을 떠났거나 포인터로 조작하면 포커스를 가져오지 않는다.
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    if (keyboardNavigation.current && host?.contains(document.activeElement)) {
+      host.querySelector<HTMLElement>('.tsb-slide.is-active .tsb-card')?.focus({ preventScroll: true });
+    }
+  }, [index]);
+
   // 드래그(마우스·터치 공통): 누른 채 가로로 끌면 카드가 따라오고, 카드 폭의 15% 넘게 끌면 넘긴다.
   // 끄는 동안의 위치는 리렌더 없이 트랙의 CSS 변수(--tsb-drag)로만 옮긴다. 세로로 끌면 페이지 스크롤에 맡긴다(touch-action: pan-y).
   const trackRef = useRef<HTMLDivElement>(null);
@@ -194,6 +204,7 @@ export function TicketCarousel() {
   const setOffset = (px: number) => trackRef.current?.style.setProperty('--tsb-drag', `${px}px`);
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    keyboardNavigation.current = false;
     drag.current = { x: e.clientX, y: e.clientY, id: e.pointerId, moving: false };
     dragged.current = false;
   };
@@ -228,9 +239,11 @@ export function TicketCarousel() {
   // 키보드: 가운데 카드에 포커스가 있을 때 좌우 화살표로 이동
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'ArrowLeft') {
+      keyboardNavigation.current = true;
       e.preventDefault();
       go(-1);
     } else if (e.key === 'ArrowRight') {
+      keyboardNavigation.current = true;
       e.preventDefault();
       go(1);
     }
@@ -265,7 +278,12 @@ export function TicketCarousel() {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
-      onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setFocused(false)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          keyboardNavigation.current = false;
+          setFocused(false);
+        }
+      }}
     >
       <div
         className="tsb-viewport"
