@@ -378,6 +378,10 @@
     margin-top: -24px;
     padding: 0 var(--tsb-pad-x) 16px;
   }
+  /* 이미지 파일이 없어 텍스트가 맨 앞 요소가 되면, 위로 올라가지 않고 이미지가 있을 때와 같은 자리(아래쪽)에 둔다 */
+  .tsb-copy:first-child {
+    margin-top: auto;
+  }
   .tsb-copy-mid {
     padding: 8px 0;
   }
