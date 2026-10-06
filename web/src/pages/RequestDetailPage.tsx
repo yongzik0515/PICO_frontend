@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { findPolicy, loadPolicies, usePolicies } from '../api/policies';
+import { BookingTermsNotice } from '../transactions/BookingTermsNotice';
 import { PartialSettlementCard, RefundCard, refundCase } from '../transactions/Settlement';
 import { DisputeCard } from '../transactions/Dispute';
 import { MediationCard } from '../transactions/Mediation';
@@ -833,6 +834,7 @@ export function RequestDetailPage() {
               수락하려면 이용자에게 공개할 대표 연락처가 필요해요. <Link to="/user-profile">연락처 등록</Link> 후 수락해 주세요.
             </Notice>
           )}
+          <BookingTermsNotice />
           <p className="record-note">수락하면 이 거래의 이용자에게 대표 연락처를 제공하는 데 동의해요. <a className="text-link" href={findPolicy(policies, 'CONTACT_SHARING').url} target="_blank" rel="noreferrer">연락처 제공 동의문 보기</a></p>
         </ConfirmModal>
       )}

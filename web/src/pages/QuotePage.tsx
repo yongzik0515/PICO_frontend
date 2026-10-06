@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, unwrap } from '../api/client';
 import { list, pick, str, type Raw } from '../api/pick';
 import { findPolicy, usePolicies } from '../api/policies';
+import { BookingTermsNotice } from '../transactions/BookingTermsNotice';
 import { categoryCodes, categoryNames, toAgent, usePlatforms } from '../discovery/agent';
 import { fetchDetail, fetchRequests, useLoad, type RequestBody, type TxRequest } from '../transactions/model';
 import { Field, Notice, TxCard, useAction } from '../transactions/ui';
@@ -430,7 +431,7 @@ export function QuotePage() {
                 </div>
               ))}
             </div>
-            <p className="record-note">PICO는 중개 플랫폼이며 예매 성공이나 티켓을 보증하지 않습니다.</p>
+            <BookingTermsNotice />
             <div className="account-form-error" aria-live="polite">
               {error}
             </div>
