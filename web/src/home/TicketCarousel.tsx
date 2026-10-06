@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon } from '../ui/Icon';
 import { getBanners, type Banner } from './banners';
 import './ticket-carousel.css';
 
@@ -15,15 +14,8 @@ const SIDE_MIN = 40; // 화면이 좁아도 양옆 카드가 최소 이만큼은
 const MOBILE_MAX = 768;
 const FALLBACK_COLOR = '#2B2F6E';
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-
-// 재생·일시정지 아이콘. 공용 Icon에는 없는 모양이라 이 컴포넌트 안에서만 쓴다.
-function PlayPauseIcon({ playing }: { playing: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      {playing ? <path d="M8 5h3v14H8zm5 0h3v14h-3z" /> : <path d="M8 5.5v13l11-6.5z" />}
-    </svg>
-  );
-}
+const DRAG_START = 6; // 이만큼(px) 가로로 움직여야 드래그로 본다(그 전에는 클릭)
+const DRAG_GO = 0.15; // 카드 폭의 15% 넘게 끌면 다음·이전 배너로 넘긴다
 
 // 티켓 오픈 일시와 오늘을 날짜 단위로 비교해 D-5 / D-DAY / 오픈 중을 만든다.
 function ddayLabel(openAt: string, now: Date) {
@@ -37,12 +29,12 @@ function ddayLabel(openAt: string, now: Date) {
   return { text: '오픈 중', isWord: true };
 }
 
-// 2026-10-08T14:00 → 2026.10.08 (목) 14:00
+// 2026-10-08T14:00 → ['2026.10.08 (목)', '14:00'] (스텁 폭에 따라 한 줄 또는 두 줄로 놓는다)
 function openAtLabel(openAt: string) {
   const d = new Date(openAt);
-  if (Number.isNaN(d.getTime())) return '';
+  if (Number.isNaN(d.getTime())) return null;
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} (${WEEKDAYS[d.getDay()]}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return [`${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} (${WEEKDAYS[d.getDay()]})`, `${pad(d.getHours())}:${pad(d.getMinutes())}`];
 }
 
 // 대표 색상이 비어 있으면 이미지 왼쪽 가장자리(너비의 4%)의 평균 색을 뽑는다.
@@ -100,13 +92,14 @@ export function TicketCarousel() {
 
   const [index, setIndex] = useState(first); // slides 기준 위치
   const [jumping, setJumping] = useState(false); // 복제본에서 진짜 위치로 순간 이동하는 중인지
-  const [playing, setPlaying] = useState(!reduceMotion);
   const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false); // 키보드로 카드에 들어와 있으면 자동 넘김을 멈춘다(일시정지 버튼 대신)
+  const [dragging, setDragging] = useState(false);
   const [visible, setVisible] = useState(true);
   const [filled, setFilled] = useState(0); // 절취선에서 흰색으로 채워진 점 개수
 
   const real = (((index - first) % count) + count) % count; // 지금 가운데 있는 진짜 배너 번호(0부터)
-  const running = playing && !hovered && visible && loop;
+  const running = !reduceMotion && !hovered && !focused && !dragging && visible && loop;
 
   const go = useCallback((step: number) => {
     setJumping(false);
@@ -193,21 +186,46 @@ export function TicketCarousel() {
     };
   }, []);
 
-  // 모바일 좌우 스와이프
-  const drag = useRef<{ x: number; y: number } | null>(null);
-  const onPointerDown = (e: PointerEvent) => {
-    if (e.pointerType === 'mouse') return;
-    drag.current = { x: e.clientX, y: e.clientY };
+  // 드래그(마우스·터치 공통): 누른 채 가로로 끌면 카드가 따라오고, 카드 폭의 15% 넘게 끌면 넘긴다.
+  // 끄는 동안의 위치는 리렌더 없이 트랙의 CSS 변수(--tsb-drag)로만 옮긴다. 세로로 끌면 페이지 스크롤에 맡긴다(touch-action: pan-y).
+  const trackRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; id: number; moving: boolean } | null>(null);
+  const dragged = useRef(false); // 방금 끌었으면 손을 뗄 때 생기는 클릭을 무시한다
+  const setOffset = (px: number) => trackRef.current?.style.setProperty('--tsb-drag', `${px}px`);
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    drag.current = { x: e.clientX, y: e.clientY, id: e.pointerId, moving: false };
+    dragged.current = false;
   };
-  const onPointerUp = (e: PointerEvent) => {
-    const start = drag.current;
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.x;
+    if (!d.moving) {
+      if (Math.abs(dx) < DRAG_START || Math.abs(dx) < Math.abs(e.clientY - d.y)) return;
+      d.moving = true;
+      setDragging(true);
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    setOffset(dx);
+  };
+  const endDrag = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
     drag.current = null;
-    if (!start) return;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1);
+    if (!d?.moving) return;
+    const dx = e.clientX - d.x;
+    dragged.current = true;
+    setDragging(false);
+    setOffset(0);
+    if (Math.abs(dx) > (size?.card ?? 300) * DRAG_GO) go(dx < 0 ? 1 : -1);
   };
-  // 키보드: 캐러셀 안 버튼에 포커스가 있을 때 좌우 화살표로 이동
+  const onClickCapture = (e: MouseEvent) => {
+    if (!dragged.current) return;
+    dragged.current = false;
+    e.stopPropagation();
+    e.preventDefault();
+  };
+  // 키보드: 가운데 카드에 포커스가 있을 때 좌우 화살표로 이동
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
@@ -246,9 +264,18 @@ export function TicketCarousel() {
       onKeyDown={onKeyDown}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setFocused(false)}
     >
-      <div className="tsb-viewport" onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
-        <div className="tsb-track" data-jumping={jumping} style={{ '--tsb-i': index } as CSSProperties}>
+      <div
+        className="tsb-viewport"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={onClickCapture}
+      >
+        <div ref={trackRef} className="tsb-track" data-jumping={jumping} data-dragging={dragging} style={{ '--tsb-i': index } as CSSProperties}>
           {slides.map((banner, i) => (
             <Slide
               key={`${banner.id}-${i}`}
@@ -259,10 +286,6 @@ export function TicketCarousel() {
               page={((((i - first) % count) + count) % count) + 1}
               total={count}
               filled={filled}
-              playing={playing}
-              onPrev={() => go(-1)}
-              onNext={() => go(1)}
-              onToggle={() => setPlaying((p) => !p)}
               onPick={() => go(i - index)}
               onOpen={() => open(banner.href)}
             />
@@ -282,10 +305,6 @@ function Slide({
   page,
   total,
   filled,
-  playing,
-  onPrev,
-  onNext,
-  onToggle,
   onPick,
   onOpen,
 }: {
@@ -296,10 +315,6 @@ function Slide({
   page: number;
   total: number;
   filled: number;
-  playing: boolean;
-  onPrev: () => void;
-  onNext: () => void;
-  onToggle: () => void;
   onPick: () => void;
   onOpen: () => void;
 }) {
@@ -308,8 +323,8 @@ function Slide({
   const [autoColor, setAutoColor] = useState<string | null>(null);
   const color = banner.color || autoColor || FALLBACK_COLOR;
   const dday = ddayLabel(banner.ticketOpenAt, now);
+  const openAt = openAtLabel(banner.ticketOpenAt);
   const pad = (n: number) => String(n).padStart(2, '0');
-  const tab = active ? 0 : -1;
 
   return (
     <div
@@ -318,10 +333,21 @@ function Slide({
       aria-roledescription="배너"
       aria-label={`${page} / ${total}`}
       aria-hidden={!active}
-      // 양옆 카드를 누르면 그 방향으로 넘어간다.
-      onClick={active ? undefined : onPick}
+      // 가운데 카드를 누르면 배너 링크로 가고(도우미 찾기), 양옆 카드를 누르면 그 방향으로 넘어간다.
+      onClick={active ? onOpen : onPick}
     >
-      <div className="tsb-card" style={{ '--tsb-color': color } as CSSProperties}>
+      <div
+        className="tsb-card"
+        style={{ '--tsb-color': color } as CSSProperties}
+        role={active ? 'link' : undefined}
+        tabIndex={active ? 0 : -1}
+        aria-label={active ? `${banner.title} 도우미 찾기` : undefined}
+        onKeyDown={(e) => {
+          if (!active || (e.key !== 'Enter' && e.key !== ' ')) return;
+          e.preventDefault();
+          onOpen();
+        }}
+      >
         <div className="tsb-main">
           {imgOk && (
             <img
@@ -330,6 +356,7 @@ function Slide({
               alt={banner.imageAlt}
               loading={eager ? 'eager' : 'lazy'}
               decoding="async"
+              draggable={false}
               onLoad={(e) => !banner.color && setAutoColor(edgeColor(e.currentTarget))}
               onError={() => setImgOk(false)}
             />
@@ -351,9 +378,6 @@ function Slide({
                 {banner.period}
               </p>
             </div>
-            <button className="tsb-cta tsb-rise" style={{ '--d': 4 } as CSSProperties} type="button" tabIndex={tab} onClick={onOpen}>
-              도우미 찾기 <Icon name="chevron" size={16} />
-            </button>
           </div>
         </div>
 
@@ -368,24 +392,15 @@ function Slide({
           <div className="tsb-stub-top">
             <span className="tsb-open-label">TICKET OPEN</span>
             <strong className={`tsb-dday${dday.isWord ? ' is-word' : ''}`}>{dday.text}</strong>
-            <span className="tsb-open-at">{openAtLabel(banner.ticketOpenAt)}</span>
+            {openAt && (
+              <span className="tsb-open-at">
+                <span>{openAt[0]}</span> <span>{openAt[1]}</span>
+              </span>
+            )}
           </div>
-          <div className="tsb-stub-bottom">
-            <span className="tsb-count">
-              {pad(page)} / {pad(total)}
-            </span>
-            <div className="tsb-controls">
-              <button className="tsb-ctrl tsb-ctrl-prev" type="button" aria-label="이전 배너" tabIndex={tab} onClick={onPrev}>
-                <Icon name="chevron" size={16} />
-              </button>
-              <button className="tsb-ctrl" type="button" aria-label={playing ? '자동 넘김 일시정지' : '자동 넘김 재생'} aria-pressed={!playing} tabIndex={tab} onClick={onToggle}>
-                <PlayPauseIcon playing={playing} />
-              </button>
-              <button className="tsb-ctrl" type="button" aria-label="다음 배너" tabIndex={tab} onClick={onNext}>
-                <Icon name="chevron" size={16} />
-              </button>
-            </div>
-          </div>
+          <span className="tsb-count">
+            {pad(page)} / {pad(total)}
+          </span>
         </div>
 
         <div className="tsb-dim" aria-hidden="true" />

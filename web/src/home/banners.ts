@@ -15,7 +15,7 @@ export type Banner = {
   image: string; // 이미지 경로. public 폴더 기준이라 /images/banners/파일명 으로 적는다
   imageAlt: string; // 이미지 대체 텍스트 (화면을 못 보는 분과 검색엔진이 읽는다)
   color?: string; // 대표 색상(카드 배경). 비워 두면 이미지 왼쪽 가장자리 색을 자동으로 뽑아 쓴다
-  href: string; // '도우미 찾기' 버튼을 눌렀을 때 이동할 주소. '#search'처럼 #으로 시작하면 이 화면의 그 요소(검색창)로 이동한다
+  href: string; // 가운데 카드를 눌렀을 때 이동할 주소(도우미 찾기). '#search'처럼 #으로 시작하면 이 화면의 그 요소(검색창)로 이동한다
 };
 
 export const BANNERS: Banner[] = [

@@ -98,7 +98,8 @@ function Progress({ step }: { step: number }) {
 function DetailPreview({ p, platformNames, image, footer }: { p: ProfileBody; platformNames: string[]; image?: string; footer?: ReactNode }) {
   const name = p.activityName || '활동 닉네임';
   const rows: [string, string][] = [
-    ['가능 예매처', platformNames.join(' · ') || '미입력'],
+    // '·' 앞은 줄이 바뀌지 않는 공백(\u00a0)이라 다음 줄이 '·'로 시작하지 않는다(ProfilePage와 같음).
+    ['가능 예매처', platformNames.join('\u00a0· ') || '미입력'],
     ['주로 맡는 분야', categoryNames[p.primaryCategory] ?? '미입력'],
     ['활동 가능 시간', p.contactHoursNote || '미입력'],
     ['최소 착수비', money(p.upfrontFeeKrw) + '원'],
