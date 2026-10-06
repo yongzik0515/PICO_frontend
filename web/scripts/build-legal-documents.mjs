@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 const legalDocuments = JSON.parse(await readFile(new URL('../src/legal/legalDocuments.json', import.meta.url), 'utf8'));
 
 // Published bytes are immutable. Change the version when changing a published document.
-const version = '2026-10-06.1';
+const version = '2026-10-06.2';
 const directory = new URL(`../public/legal/${version}/`, import.meta.url);
 const escape = (value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 function article(document) {

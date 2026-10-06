@@ -9,10 +9,10 @@ import { PageTitle } from '../ui/PageTitle';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 transactions.js의 creditsPage(). 도우미가 요청을 수락할 때 매칭권 1장이 차감된다.
-// 10장 패키지 4,500원 / 자유 수량 2~100장 개당 500원. 결제창은 서버 주문 금액만 사용한다.
+// 10장 패키지 4,500원 / 자유 수량 2~10장 개당 500원. 결제창은 서버 주문 금액만 사용한다.
 const UNIT_PRICE = 500;
 const MIN_UNITS = 2;
-const MAX_UNITS = 100;
+const MAX_UNITS = 10;
 const PENDING_KEY = 'pico.pendingPassPayment';
 
 type Pending = { purchaseId: number; orderNumber: string; units: number };
@@ -242,7 +242,7 @@ export function CreditsPage() {
                 </button>
               </div>
             </Field>}
-            <p className="record-note">10장 패키지 4,500원 / 자유 수량 1장당 500원 · 유효기간 없음 · 요청을 수락할 때 1장씩 사용해요. 카드 결제 최소 금액(1,000원) 때문에 자유 수량은 2장부터 구매할 수 있고, 자유 수량 10장은 5,000원이에요.</p>
+            <p className="record-note">10장 패키지 4,500원 / 자유 수량 1장당 500원 · 신규 구매분은 결제 완료 확인 후 지급일부터 330일간 사용 · 요청을 수락할 때 1장씩 사용해요. 카드 결제 최소 금액(1,000원) 때문에 자유 수량은 한 번에 2~10장 구매할 수 있고, 자유 수량 10장은 5,000원이에요.</p>
             {charged !== null && (
               <Notice tone="success">
                 매칭권 {charged}장을 충전했어요. 지금 보유 {load.status === 'done' ? load.data.balance : '-'}장이에요.

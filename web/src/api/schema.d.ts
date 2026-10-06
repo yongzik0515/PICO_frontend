@@ -1127,7 +1127,7 @@ export interface paths {
         put?: never;
         /**
          * 매칭권 구매 생성
-         * @description 인증된 회원의 희망 수량을 서버 판매 정책과 대조하고 서버가 가격·유효기간·주문번호를 결정합니다. PACKAGE_10은 10장 4,500원, CUSTOM은 2~100장 개당 500원입니다. CUSTOM 10장은 5,000원이며 상품을 생략한 기존 요청의 10장은 패키지로 처리합니다. 유효기간은 없습니다(validDays=null). 1장 또는 상품과 맞지 않는 수량은 400입니다. pass_purchases와 PENDING 결제 주문을 함께 생성하며 결제 승인 전에는 사용 권리(grantedAt)가 없습니다. 이용 정지·탈퇴·도우미 정지 계정은 403입니다.
+         * @description 인증된 회원의 희망 수량을 서버 판매 정책과 대조하고 서버가 가격·유효기간·주문번호를 결정합니다. PACKAGE_10은 10장 4,500원, CUSTOM은 2~10장 개당 500원입니다. CUSTOM 10장은 5,000원이며 상품을 생략한 기존 요청의 10장은 패키지로 처리합니다. 신규 구매분은 결제 완료 확인 후 지급일부터 330일간 사용할 수 있습니다(validDays=330). 종전 구매분의 기간은 유지됩니다. 1장 또는 상품과 맞지 않는 수량은 400입니다. pass_purchases와 PENDING 결제 주문을 함께 생성하며 결제 승인 전에는 사용 권리(grantedAt)가 없습니다. 이용 정지·탈퇴·도우미 정지 계정은 403입니다.
          */
         post: operations["createPurchase"];
         delete?: never;
@@ -4310,7 +4310,7 @@ export interface components {
              */
             purchasedUnits: number;
             /**
-             * @description PACKAGE_10: 10개 4,500원 패키지. CUSTOM: 개당 500원, 2~100개 자유 선택. 생략하면 기존 호환으로 패키지 수량은 패키지, 나머지는 CUSTOM.
+             * @description PACKAGE_10: 10개 4,500원 패키지. CUSTOM: 개당 500원, 2~10개 자유 선택. 생략하면 기존 호환으로 패키지 수량은 패키지, 나머지는 CUSTOM.
              * @enum {string}
              */
             productType?: "PACKAGE_10" | "CUSTOM";
@@ -4343,8 +4343,8 @@ export interface components {
             priceKrw: number;
             /**
              * Format: int32
-             * @description pass_purchases.valid_days. null이면 기한 없음
-             * @example 30
+             * @description pass_purchases.valid_days. 신규 구매분은 지급일부터 330일. null인 종전 구매분은 기한 없음
+             * @example 330
              */
             validDays?: number | null;
             /**
