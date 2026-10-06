@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { BrowserRouter, Link, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { AppStateProvider } from './AppState';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { RequireAuth } from './auth/RequireAuth';
@@ -165,7 +165,7 @@ export default function App() {
                 <Route path="matches" element={auth(<AgentActivityPage key="matches" kind="matches" />)} />
                 <Route path="recovery" element={<RecoveryPage />} />
                 <Route path="reset-password" element={<ResetPasswordPage />} />
-                <Route path="help" element={<Pending title="고객 문의" />} />
+                <Route path="help" element={<Navigate to="/inquiries" replace />} />
                 <Route path="guide" element={<Pending title="이용 방법" />} />
                 <Route path="terms" element={<TermsOfServicePage />} />
                 <Route path="privacy" element={<PrivacyPage />} />

@@ -183,7 +183,7 @@ export function AppLayout() {
             ))}
           </nav>
           <div className="header-right" ref={right}>
-            <button className="support-link" onClick={() => navigate('/help')}>
+            <button className="support-link" onClick={() => navigate('/inquiries')}>
               고객 문의
             </button>
             <div className="mode-switch" aria-label="이용 역할">
@@ -309,7 +309,7 @@ export function AppLayout() {
           </div>
           <div>
             <button onClick={() => navigate('/guide')}>이용 방법</button>
-            <button onClick={() => navigate('/help')}>고객센터</button>
+            <button onClick={() => navigate('/inquiries')}>고객센터</button>
             <button onClick={() => navigate('/terms')}>이용약관</button>
             <button className="footer-privacy" onClick={() => navigate('/privacy')}>
               개인정보처리방침
