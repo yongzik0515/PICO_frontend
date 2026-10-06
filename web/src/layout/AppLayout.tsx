@@ -14,9 +14,9 @@ const BIZ = {
   ceo: '박진영',
   bizNo: '278-02-03958',
   address: '서울특별시 마포구 신촌로24길 14, 301호(노고산동)',
-  mailOrderNo: '', // 통신판매업 신고번호 — 신고 완료 후 '제2026-서울마포-0000호' 형태로 기재(결제 오픈 전 필수)
-  hosting: '', // 호스팅 서비스 제공자 (예: Amazon Web Services)
-  cpo: '', // 개인정보보호책임자 성명
+  mailOrderNo: '미신고', // 통신판매업 신고번호 — 신고 완료 후 '제2026-서울마포-0000호' 형태로 기재(결제 오픈 전 필수)
+  hosting: 'Amazon Web Services (AWS)', // 호스팅 서비스 제공자 (예: Amazon Web Services)
+  cpo: '박진영', // 개인정보보호책임자 성명
   cpoEmail: '', // 개인정보보호책임자 연락처
   tel: '070-8984-4636', // 고객센터 전화번호 (예: 02-0000-0000 (평일 10:00~18:00))
   email: '', // 고객 문의 이메일
@@ -316,7 +316,7 @@ export function AppLayout() {
             </button>
           </div>
         </div>
-        <p>PICO는 이용자와 도우미를 연결하며 예매 성공이나 티켓을 보증하지 않습니다.</p>
+        <p>PICO는 만 19세 이상의 이용자와 도우미를 연결하며 예매 성공이나 티켓을 보증하지 않습니다.</p>
         <ul className="footer-biz">
           {bizLines().map((line, i) => (
             <li key={i}>

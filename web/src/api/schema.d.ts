@@ -367,7 +367,7 @@ export interface paths {
         put?: never;
         /**
          * 지정 도우미에게 견적요청
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. applicationOpenDate/Time 및 scheduledUseDate/Time은 한국 현지 시각, expiresAt은 UTC입니다. 도우미의 본인·계좌 인증 및 게시 프로필, 지원 분야·신청처, 이용자 연락처·동의가 필요합니다. 요청은 정책 검토 대기로 생성됩니다. agencyBudgetDesired는 희망 수고비, agencyBudgetMax는 최대 수고비이며 둘 다 입력하면 희망 금액은 최대 금액 이하여야 합니다. platformId 또는 otherPlatformName 중 하나만 입력합니다. 활성 예매처는 정책 미입력도 요청 가능하며 BLOCK인 예매처는 진행할 수 없습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자 본인인증(VERIFIED)이 필요하며 미인증은 403입니다. applicationOpenDate/Time 및 scheduledUseDate/Time은 한국 현지 시각, expiresAt은 UTC입니다. 도우미의 본인·계좌 인증 및 게시 프로필, 지원 분야·신청처, 이용자 연락처·동의가 필요합니다. 요청은 정책 검토 대기로 생성됩니다. agencyBudgetDesired는 희망 수고비, agencyBudgetMax는 최대 수고비이며 둘 다 입력하면 희망 금액은 최대 금액 이하여야 합니다. platformId 또는 otherPlatformName 중 하나만 입력합니다. 활성 예매처는 정책 미입력도 요청 가능하며 BLOCK인 예매처는 진행할 수 없습니다.
          */
         post: operations["create"];
         delete?: never;
@@ -1003,7 +1003,7 @@ export interface paths {
         put?: never;
         /**
          * 본인인증 완료 검증
-         * @description 발급받은 identityVerificationId로 PortOne 인증 결과를 서버가 조회해 발급 회원·완료 상태·채널·CI·이름·생년월일과 인증 완료 후 유효시간(기본 30분)을 확인한 뒤 CI 해시와 실명·전체 생년월일 암호문을 저장합니다. CI를 주지 않는 인증 수단(KG이니시스 카카오 인증 등)은 409입니다. 탈퇴한 회원과 같은 CI이면 재가입 제한 기간(탈퇴 후 30일, 도우미 활동 정지 중 탈퇴는 3년) 동안 409입니다. 인증 연동 설정이 없으면 503으로 종료하며 상태를 변경하지 않습니다.
+         * @description 발급받은 identityVerificationId로 PortOne 인증 결과를 서버가 조회해 발급 회원·완료 상태·채널·CI·이름·생년월일과 인증 완료 후 유효시간(기본 30분)을 확인한 뒤 서울 날짜 기준 만 19세 이상인 경우에만 CI 해시와 실명·전체 생년월일 암호문을 저장합니다. 만 19세 미만은 403이며 인증 상태와 개인정보를 저장하지 않습니다. CI를 주지 않는 인증 수단(KG이니시스 카카오 인증 등)은 409입니다. 탈퇴한 회원과 같은 CI이면 재가입 제한 기간(탈퇴 후 30일, 도우미 활동 정지 중 탈퇴는 3년) 동안 409입니다. 인증 연동 설정이 없으면 503으로 종료하며 상태를 변경하지 않습니다.
          */
         post: operations["verifyIdentity"];
         delete?: never;
@@ -1251,7 +1251,7 @@ export interface paths {
         put?: never;
         /**
          * 소셜 신규 가입 완료
-         * @description 검증된 제공자 ID와 닉네임·최신 약관 동의로 신규 계정 생성. 본인인증은 별도이며 기존 이메일 계정과 자동 병합하지 않습니다.
+         * @description 검증된 제공자 ID와 닉네임·최신 약관 동의로 신규 계정 생성. adultConfirmed=true 필수이며 누락·null·false는 400입니다. 가입 후 본인인증에서 만 19세 이상을 확인합니다. 본인인증은 별도이며 기존 이메일 계정과 자동 병합하지 않습니다.
          */
         post: operations["register"];
         delete?: never;
@@ -1291,7 +1291,7 @@ export interface paths {
         put?: never;
         /**
          * 이메일·비밀번호 회원가입
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. adultConfirmed=true 필수입니다. 누락·null·false는 400이며 회원을 생성하지 않습니다. 가입 시 확인은 연령 검증이 아니며 가입 후 본인인증에서 만 19세 이상을 확인합니다.
          */
         post: operations["register_1"];
         delete?: never;
@@ -4458,6 +4458,8 @@ export interface components {
             termsDocumentId?: number;
             /** Format: int64 */
             privacyDocumentId?: number;
+            /** @description 만 19세 이상이라는 가입자 확인. true 필수이며 실제 연령 검증은 본인인증에서 수행합니다. */
+            adultConfirmed: boolean;
         };
         Register: {
             /** Format: email */
@@ -4468,6 +4470,8 @@ export interface components {
             termsDocumentId: number;
             /** Format: int64 */
             privacyDocumentId: number;
+            /** @description 만 19세 이상이라는 가입자 확인. true 필수이며 실제 연령 검증은 본인인증에서 수행합니다. */
+            adultConfirmed: boolean;
         };
         Refresh: {
             refreshToken: string;

@@ -40,7 +40,7 @@ export function SocialCallbackPage() {
     setPending(true); setError('');
     try {
       const data = await socialRequest<SocialResult>('/api/auth/social/register', { flowSecret: flow.flowSecret,
-        nickname: String(new FormData(form).get('nickname')).trim(), termsDocumentId, privacyDocumentId });
+        nickname: String(new FormData(form).get('nickname')).trim(), termsDocumentId, privacyDocumentId, adultConfirmed: new FormData(form).get('agreement_age') === 'on' });
       if (!data.tokens) throw new Error('로그인 정보를 받지 못했어요.');
       setTokens(data.tokens); clearSocialFlow(); navigate(flow.from, { replace: true });
     } catch (e) { setError(e instanceof Error ? e.message : '가입하지 못했어요.'); }
@@ -66,10 +66,13 @@ export function SocialCallbackPage() {
         <AccountNote>이미 PICO 계정이 있다면 기존 계정으로 로그인한 뒤 프로필에서 소셜 로그인을 연결해 주세요. 새로 가입하면 기존 거래·본인인증 내역이 이어지지 않아요.</AccountNote>
         <Link to="/login" onClick={clearSocialFlow}>기존 계정으로 로그인하기</Link>
         <AccountInput name="nickname" label="닉네임" required maxLength={50} />
+        <p className="prose">PICO는 이용자·도우미 모두 만 19세 이상만 이용할 수 있어요. 가입 후 거래를 시작하려면 본인인증이 필요해요.</p>
+        <label className="check-row"><input type="checkbox" name="agreement_age" required /> 만 19세 이상입니다. (필수)</label>
         {(['TERMS', 'PRIVACY'] as const).map(type => <div key={type} className="check-row">
           <label><input type="checkbox" required /> {type === 'TERMS' ? '서비스 이용약관' : '개인정보 수집·이용'} 동의 (필수)</label>
-          <a href={findPolicy(policies, type).url || (type === 'TERMS' ? '/terms' : '/privacy')} target="_blank" rel="noreferrer">보기</a>
+          <a href={findPolicy(policies, type).url || (type === 'TERMS' ? '/terms' : '/signup-privacy')} target="_blank" rel="noreferrer">보기</a>
         </div>)}
+        <p className="prose"><a href="/privacy" target="_blank" rel="noreferrer">개인정보처리방침</a>에서 전체 처리 내용을 확인할 수 있어요.</p>
         <button className="btn primary" disabled={pending}>가입 완료</button>
       </form>}
       {result?.status === 'REAUTHENTICATED' && <>

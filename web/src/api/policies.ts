@@ -13,16 +13,32 @@ const fallback: Record<PolicyType, number | undefined> = {
   CONTACT_SHARING: num(import.meta.env.VITE_FALLBACK_CONTACT_SHARING_ID),
 };
 
+// 서버에 등록된 실제 원문을 우선한다. 개발용 example.com 주소는 공개 문서로 대체한다.
+export const policyPaths: Record<PolicyType, string> = {
+  TERMS: '/terms', PRIVACY: '/signup-privacy', CONTACT_SHARING: '/contact-sharing',
+};
+
+function policyUrl(value: unknown, type: PolicyType): string {
+  const raw = str(value);
+  if (raw) {
+    try {
+      const url = new URL(raw, window.location.origin);
+      if (['http:', 'https:'].includes(url.protocol) && url.hostname !== 'example.com' && !url.hostname.endsWith('.example.com')) return raw;
+    } catch { /* 등록 전이거나 잘못된 주소이면 공개 문서를 표시한다. */ }
+  }
+  return policyPaths[type];
+}
+
 export interface PolicyDoc {
   id?: number;
-  url?: string;
+  url: string;
 }
 
 export function findPolicy(list: Raw[] | null, type: PolicyType): PolicyDoc {
   const doc = list?.find((p) => [p.type, p.documentType].includes(type));
   const id = num(doc?.id ?? doc?.documentId);
-  if (id && id > 0) return { id, url: str(doc?.contentUrl) };
-  return { id: fallback[type] };
+  if (id && id > 0) return { id, url: policyUrl(doc?.contentUrl, type) };
+  return { id: fallback[type], url: policyPaths[type] };
 }
 
 let cache: Promise<Raw[]> | null = null;

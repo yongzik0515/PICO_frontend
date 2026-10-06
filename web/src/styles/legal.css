@@ -1,0 +1,11 @@
+.legal-links{display:flex;flex-wrap:wrap;gap:12px 20px;margin-bottom:24px;font-size:13px}
+.legal-links a{text-decoration:underline;text-underline-offset:3px}
+.legal-links a[aria-current="page"]{font-weight:700;color:var(--primary-500)}
+.legal-document .content-card h2{line-height:1.5}
+.legal-document .prose+.prose{margin-top:12px}
+.legal-table-scroll{max-width:100%;overflow-x:auto;margin-top:20px}
+.legal-table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.8;text-align:left;word-break:keep-all;overflow-wrap:anywhere}
+.legal-table th,.legal-table td{border:1px solid var(--line-200);padding:12px;vertical-align:top}
+.legal-table thead th{background:var(--canvas);font-weight:700}
+.legal-table tbody th{min-width:100px;font-weight:600}
+@media(max-width:767px){.legal-table{font-size:12px}.legal-table th,.legal-table td{padding:10px}.legal-table tbody th{min-width:72px}.legal-links{font-size:12px}}

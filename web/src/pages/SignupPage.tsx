@@ -12,7 +12,7 @@ import { PageTitle } from '../ui/PageTitle';
 // 프로토타입의 가입 목적(이용자/도우미) 선택도 Register에 없어 뺐다. 모드는 가입 후 헤더에서 바꾸고 PATCH /api/me로 저장한다.
 const agreementItems = [
   ['terms', 'TERMS', '서비스 이용약관', '/terms'],
-  ['privacy', 'PRIVACY', '개인정보 수집·이용', '/privacy'],
+  ['privacy', 'PRIVACY', '개인정보 수집·이용', '/signup-privacy'],
 ] as const;
 
 export function SignupPage() {
@@ -27,7 +27,7 @@ export function SignupPage() {
     e.preventDefault();
     const form = e.currentTarget;
     const agreed = [...form.querySelectorAll<HTMLInputElement>('[name^=agreement_]')].every((c) => c.checked);
-    setAgreementError(agreed ? '' : '필수 약관에 모두 동의해 주세요.');
+    setAgreementError(agreed ? '' : '만 19세 이상 확인과 필수 약관 동의를 완료해 주세요.');
     if (!form.checkValidity()) return form.querySelector<HTMLElement>(':invalid')?.focus();
     const termsDocumentId = findPolicy(policies, 'TERMS').id;
     const privacyDocumentId = findPolicy(policies, 'PRIVACY').id;
@@ -44,6 +44,7 @@ export function SignupPage() {
             nickname: String(data.get('nickname')),
             termsDocumentId,
             privacyDocumentId,
+            adultConfirmed: data.get('agreement_age') === 'on',
           },
         }),
       );
@@ -94,7 +95,14 @@ export function SignupPage() {
                 helper="10자 이상 72자 이하로 입력해 주세요."
               />
               <AccountInput name="nickname" label="닉네임" required maxLength={50} />
+              <p className="prose">PICO는 이용자·도우미 모두 만 19세 이상만 이용할 수 있어요. 가입 후 거래를 시작하려면 본인인증이 필요해요.</p>
               <div className="account-agreements">
+                <div>
+                  <label className="check-row">
+                    <input type="checkbox" name="agreement_age" required onChange={() => setAgreementError('')} />
+                    <span>만 19세 이상입니다. <small>(필수)</small></span>
+                  </label>
+                </div>
                 {agreementItems.map(([key, type, t, to]) => (
                   <div key={key}>
                     <label className="check-row">
@@ -103,7 +111,7 @@ export function SignupPage() {
                         {t} <small>(필수)</small>
                       </span>
                     </label>
-                    {/* 서버가 준 약관 원문(contentUrl)이 있으면 새 창으로 연다. */}
+                    {/* 원문은 새 창에서 확인해 입력 중인 가입 정보를 유지한다. */}
                     {findPolicy(policies, type).url ? (
                       <a className="text-link" href={findPolicy(policies, type).url} target="_blank" rel="noreferrer">
                         보기
@@ -120,6 +128,7 @@ export function SignupPage() {
                 </small>
               </div>
           </>
+          <p className="prose"><a className="text-link" href="/privacy" target="_blank" rel="noreferrer">개인정보처리방침</a>에서 전체 처리 내용을 확인할 수 있어요.</p>
           <div className="account-form-error" aria-live="polite">
             {error}
           </div>

@@ -11,7 +11,7 @@ import { AgentActivityPage, UserActivityPage } from './pages/ActivityPage';
 import { ApiCheckPage } from './pages/ApiCheckPage';
 import { AdminPage } from './pages/AdminPage';
 import { ApplicationPage } from './pages/ApplicationPage';
-import { PrivacyPage, TermsOfServicePage } from './pages/LegalPage';
+import { ContactSharingPage, PrivacyPage, SignupPrivacyPage, TermsOfServicePage } from './pages/LegalPage';
 import { AvailabilityPage } from './pages/AvailabilityPage';
 import { RecoveryPage, ResetPasswordPage } from './pages/RecoveryPage';
 import { ReviewPage } from './pages/ReviewPage';
@@ -169,6 +169,8 @@ export default function App() {
                 <Route path="guide" element={<Pending title="이용 방법" />} />
                 <Route path="terms" element={<TermsOfServicePage />} />
                 <Route path="privacy" element={<PrivacyPage />} />
+                <Route path="signup-privacy" element={<SignupPrivacyPage />} />
+                <Route path="contact-sharing" element={<ContactSharingPage />} />
                 <Route path="*" element={<Pending title="페이지를 찾을 수 없어요" notFound />} />
               </Route>
             </Routes>

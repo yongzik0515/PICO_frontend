@@ -404,7 +404,7 @@ export function QuotePage() {
                 <strong>최종 조건에서 확정</strong>
               </div>
             </div>
-            <Notice>요청을 보내는 시점에는 결제하지 않아요. 도우미가 보낸 최종 조건이 안전거래면 확정한 뒤 결제하고, 직접 거래면 플랫폼 결제 없이 진행돼요.</Notice>
+            <Notice>요청을 보내려면 먼저 마이페이지에서 본인인증을 완료해 주세요. 요청을 보내는 시점에는 결제하지 않아요. 도우미가 보낸 최종 조건이 안전거래면 확정한 뒤 결제하고, 직접 거래면 플랫폼 결제 없이 진행돼요.</Notice>
             <div className="quote-agreements">
               <label className="check-row quote-agree-all">
                 <input type="checkbox" checked={allAgreed} onChange={(e) => setAgreed({ terms: e.target.checked, privacy: e.target.checked, contact: e.target.checked })} />
@@ -423,7 +423,7 @@ export function QuotePage() {
                     {label} (필수)
                   </label>
                   {findPolicy(policies, type).url && (
-                    <a className="quote-terms-view" href={findPolicy(policies, type).url} target="_blank" rel="noreferrer" aria-label={`${label} 보기`}>
+                    <a className="quote-terms-view" href={type === 'PRIVACY' ? '/privacy' : findPolicy(policies, type).url} target="_blank" rel="noreferrer" aria-label={`${label} 보기`}>
                       보기
                     </a>
                   )}
