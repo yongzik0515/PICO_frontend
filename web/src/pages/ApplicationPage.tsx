@@ -334,7 +334,29 @@ function StatusView({ state, onResume }: { state: AgentState; onResume: () => vo
   );
 }
 
-export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean }) {
+type LocalApplicationDraft = { profileId: number | null; body: ProfileBody };
+function readApplicationDraft(key: string): LocalApplicationDraft | null {
+  try {
+    const cached = JSON.parse(localStorage.getItem(key) || 'null') as LocalApplicationDraft | null;
+    const body = cached?.body;
+    if (!body || (cached.profileId !== null && !Number.isSafeInteger(cached.profileId))) return null;
+    if (!['activityName', 'headline', 'bio', 'contactHoursNote', 'primaryCategory'].every((field) => typeof body[field as keyof ProfileBody] === 'string')) return null;
+    if (!Array.isArray(body.platformIds) || !body.platformIds.every(Number.isSafeInteger)
+      || !Array.isArray(body.categories) || !body.categories.every((value) => categories.includes(value))
+      || !['upfrontFeeKrw', 'successFeeMin', 'successFeeMax'].every((field) => Number.isSafeInteger(body[field as keyof ProfileBody]))) return null;
+    return cached;
+  } catch { return null; }
+}
+
+export function ApplicationPage({ edit = false }: { edit?: boolean }) {
+  const { userKey } = useAuth();
+  return <ApplicationEditor key={`${userKey}:${edit}`} editRoute={edit} userKey={userKey} />;
+}
+
+function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey: string }) {
+  const storageKey = `pico:application-draft:${userKey}`;
+  const [localDraft, setLocalDraft] = useState(() => readApplicationDraft(storageKey));
+  const [saveFailed, setSaveFailed] = useState(false);
   const navigate = useNavigate();
   const toast = useToast();
   const { me, reloadMe } = useAuth();
@@ -382,11 +404,24 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
 
   // 작성 중이던 초안 → 반려·수정이면 마지막 버전 → 처음이면 빈 양식
   const base = (edit ? state.approved?.body : latest?.body) ?? { ...emptyProfile(), activityName: str(me?.nickname) ?? '' };
-  const saved = draft ?? base;
+  const restored = !edit && localDraft?.profileId === (latest?.id ?? null) ? localDraft.body : null;
+  const saved = draft ?? restored ?? base;
   // 이전에 골랐지만 지금 목록에 없는 예매처(관리자가 삭제)는 선택에서 빼고 저장한다. 목록을 받기 전에는 판단하지 않는다.
   const removedPlatforms = platformsLoaded ? saved.platformIds.filter((id) => !platforms.some((x) => x.id === id)) : [];
   const p = removedPlatforms.length ? { ...saved, platformIds: saved.platformIds.filter((id) => !removedPlatforms.includes(id)) } : saved;
-  const set = (patch: Partial<ProfileBody>) => setDraft({ ...p, ...patch });
+  const set = (patch: Partial<ProfileBody>) => {
+    const next = { ...p, ...patch };
+    setDraft(next);
+    if (edit) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ profileId: latest?.id ?? null, body: next }));
+      setSaveFailed(false);
+    } catch { setSaveFailed(true); }
+  };
+  function clearLocalDraft() {
+    setLocalDraft(null);
+    try { localStorage.removeItem(storageKey); } catch { /* 서버 저장 성공은 유지한다. */ }
+  }
   const caseStates = careerCaseStates(state.evidence);
   // 경력 인증은 정상 파일을 포함한 최신 사례 1건 이상을 요구한다.
   const careerCase = caseStates.find((c) => c.caseNumber === 1);
@@ -430,6 +465,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
         setImage(null);
         return reload();
       }
+      clearLocalDraft();
       setDraft(body);
       setStep(1);
       reload();
@@ -458,6 +494,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
       if (business.trim() && saved.id) await unwrap(api.PUT('/api/me/agent/profiles/{profileId}/business', { params: { path: { profileId: saved.id } }, body: { registrationNumber: business.trim() } }));
     });
     if (ok) {
+      clearLocalDraft();
       setStep(2);
       reload();
     }
@@ -467,6 +504,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
     if (!latest) return;
     const ok = await run(() => unwrap(api.POST('/api/me/agent/profiles/{profileId}/submit', { params: { path: { profileId: latest.id } } })), '도우미 신청을 제출했어요. 심사 결과는 알림으로 알려드릴게요.');
     if (ok) {
+      clearLocalDraft();
       setStarted(false);
       setDraft(null);
       setStep(0);
@@ -683,11 +721,12 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
           차근차근 준비해요.
         </h2>
         <p>
-          단계마다 서버에 임시저장돼요.
+          프로필 작성 내용은 이 브라우저에 자동 임시저장돼요.
           <br />
-          잠시 나갔다 와도 이어서 작성할 수 있어요.
+          ‘다음’을 누르면 서버에도 저장돼요. 파일·계좌·연락처·사업자번호·동의 체크는 자동저장에서 제외돼요.
         </p>
         <Progress step={step} />
+        {saveFailed && <Note kind="error">자동 임시저장에 실패했어요. 화면을 떠나기 전에 작성 내용을 복사해 주세요.</Note>}
       </aside>
       <div>
         <PageTitle title={titles[0]} crumbs={[{ label: '마이페이지', to: '/my' }]} />

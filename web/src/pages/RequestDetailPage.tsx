@@ -808,6 +808,7 @@ export function RequestDetailPage() {
       </div>
 
       {dialog === 'accept' && (
+        <BookingTermsNotice>
         <ConfirmModal title="요청을 수락할까요?" submitText="수락하기" onClose={close} onConfirm={accept}>
           <p className="prose">
             <strong>{r.targetName}</strong>
@@ -834,9 +835,9 @@ export function RequestDetailPage() {
               수락하려면 이용자에게 공개할 대표 연락처가 필요해요. <Link to="/user-profile">연락처 등록</Link> 후 수락해 주세요.
             </Notice>
           )}
-          <BookingTermsNotice />
           <p className="record-note">수락하면 이 거래의 이용자에게 대표 연락처를 제공하는 데 동의해요. <a className="text-link" href={findPolicy(policies, 'CONTACT_SHARING').url} target="_blank" rel="noreferrer">연락처 제공 동의문 보기</a></p>
         </ConfirmModal>
+        </BookingTermsNotice>
       )}
       {dialog === 'reject' && (
         <ReasonModal title="요청을 거절할까요?" label="거절 사유" submitText="요청 거절" danger onClose={close} onSubmit={(reason) => act(() => unwrap(api.POST('/api/requests/{requestId}/reject', { ...path, body: { reason } })), '요청을 거절했어요.')}>
