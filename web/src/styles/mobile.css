@@ -159,6 +159,29 @@ body {
     margin-bottom: 4px;
   }
 
+  /* 요청서 날짜·시간: 모바일 두 칸 배치에서는 네이티브 입력값이 잘린다.
+     한 칸으로 쌓고, iOS 날짜 입력의 기본 최소 너비도 카드 안으로 제한한다. */
+  #tx-quote-form .form-grid:has(input[type='date']) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  #tx-quote-form .field {
+    min-width: 0;
+  }
+  #tx-quote-form input:is([type='date'], [type='time'], [type='datetime-local']) {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  #tx-quote-form input::-webkit-date-and-time-value {
+    min-width: 0;
+    text-align: left;
+  }
+
   /* 요청서의 '종류 | 연락처' 줄: 두 칸으로 나누면 연락처 칸이 약 150px라 '예: 010-1234-5678'(174px 필요)이 잘렸다. 위아래로 쌓는다. */
   .form-grid:has(select[name='contactKind']) {
     grid-template-columns: minmax(0, 1fr);
