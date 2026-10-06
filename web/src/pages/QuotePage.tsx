@@ -6,7 +6,7 @@ import { findPolicy, policyPaths, usePolicies } from '../api/policies';
 import { BookingTermsNotice } from '../transactions/BookingTermsNotice';
 import { useAuth } from '../auth/AuthContext';
 import { categoryCodes, categoryNames, toAgent, usePlatforms } from '../discovery/agent';
-import { fetchDetail, fetchRequests, useLoad, type RequestBody, type TxRequest } from '../transactions/model';
+import { fetchDetail, useLoad, type RequestBody } from '../transactions/model';
 import { Field, Notice, TxCard, useAction } from '../transactions/ui';
 import { Modal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
@@ -57,13 +57,7 @@ function readDraft(key: string): Record<string, string> {
   return {};
 }
 
-/** 폼의 입력칸에 값을 채워 넣는다(불러오기·임시저장 복원 공용). */
-function fillForm(form: HTMLFormElement, values: Record<string, string>) {
-  for (const name of DRAFT_FIELDS) {
-    const el = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
-    if (el && values[name] != null) el.value = values[name];
-  }
-}
+type DraftSource = { key: string; values: Record<string, string> };
 
 /** 응답 기한 기본값: 지금부터 24시간 뒤 */
 const defaultExpiry = () => toLocalInput(new Date(Date.now() + 24 * 3600e3));
@@ -85,7 +79,7 @@ export function QuotePage() {
 
 function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: number; editId: number }) {
   const storageKey = draftKey(userKey, agentId, editId);
-  const [restored] = useState(() => readDraft(storageKey));
+  const [restored, setRestored] = useState(() => readDraft(storageKey));
   const navigate = useNavigate();
   const policies = usePolicies();
   const platforms = usePlatforms();
@@ -96,8 +90,10 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
   // 어떤 입력칸이 왜 잘못됐는지 칸별로 들고 있다가, 해당 칸에 빨간 테두리와 이유를 함께 보여 준다.
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loadOpen, setLoadOpen] = useState(false);
-  const [sources, setSources] = useState<TxRequest[] | null>(null);
-  const [picked, setPicked] = useState(0);
+  const [sources, setSources] = useState<DraftSource[]>([]);
+  const [picked, setPicked] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [formRevision, setFormRevision] = useState(0);
   const [savedAt, setSavedAt] = useState('');
   const [saveFailed, setSaveFailed] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -164,6 +160,10 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
       if (el) values[name] = el.value;
     }
     values.platform = selectedPlatform;
+    persistDraft(values, manual);
+  }
+
+  function persistDraft(values: Record<string, string>, manual = false) {
     try {
       localStorage.setItem(storageKey, JSON.stringify(values));
       setSavedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
@@ -179,37 +179,54 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
     try { localStorage.removeItem(storageKey); } catch { /* 저장소 오류로 전송 성공을 실패 처리하지 않는다. */ }
   }
 
-  // 불러오기: 내가 보낸 다른 요청의 내용을 그대로 복사해 온다.
+  // 불러오기: 현재 계정으로 이 브라우저에 저장한 초안만 보여 준다.
   function openLoad() {
-    setLoadOpen(true);
-    setPicked(0);
-    if (sources) return;
-    void fetchRequests('REQUESTER')
-      .then((all) => setSources(all.filter((r) => r.id !== editId)))
-      .catch(() => setSources([]));
+    try {
+      const prefix = `pico_quote_draft_${userKey}_`;
+      const drafts: DraftSource[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key?.startsWith(prefix) || !/^(agent|edit)-\d+$/.test(key.slice(prefix.length))) continue;
+        const values = readDraft(key);
+        if (Object.keys(values).length) drafts.push({ key, values });
+      }
+      setSources(drafts);
+      setPicked('');
+      setDeleteConfirm(false);
+      setLoadOpen(true);
+    } catch {
+      toast('임시저장 목록을 읽지 못했어요. 브라우저의 저장소 설정을 확인해 주세요.');
+    }
   }
 
   function applyLoad() {
-    const form = formRef.current;
-    const src = sources?.find((r) => r.id === picked);
-    if (!form || !src) return;
-    fillForm(form, {
-      targetName: src.targetName ?? '',
-      serviceCategory: src.serviceCategory ?? '',
-      scheduledUseDate: src.scheduledUseDate ?? '',
-      scheduledUseTime: src.scheduledUseTime ?? '',
-      applicationOpenDate: src.applicationOpenDate ?? '',
-      applicationOpenTime: src.applicationOpenTime ?? '',
-      applicationRound: src.applicationRound ?? '',
-      requirements: src.requirements ?? '',
-      successConditions: src.successConditions ?? '',
-      agencyBudgetDesired: src.agencyBudgetDesired != null ? String(src.agencyBudgetDesired) : '',
-      additionalNote: src.additionalNote ?? '',
-    });
-    saveDraft();
+    const src = sources.find((r) => r.key === picked);
+    if (!src) return;
+    const values = Object.fromEntries(DRAFT_FIELDS.map((name) => [name, src.values[name] ?? '']));
+    // 다른 도우미의 초안이라 지원하지 않는 예매처면 다시 선택받는다.
+    if (platforms.length > 0 && values.platform !== 'other' && !options.some((p) => String(p.id) === values.platform)) values.platform = '';
+    setRestored(values);
+    setPlatformChoice(values.platform);
+    setFormRevision((n) => n + 1);
+    setAgreed({ terms: false, privacy: false, contact: false });
+    persistDraft(values);
     setLoadOpen(false);
     setErrors({});
-    toast('선택한 요청의 내용을 불러왔어요. 날짜와 기한은 꼭 다시 확인해 주세요.');
+    setError('');
+    toast('임시저장한 내용을 불러왔어요. 예매처·날짜·응답 기한을 다시 확인해 주세요.');
+  }
+
+  function deleteDraft() {
+    try {
+      localStorage.removeItem(picked);
+      setSources((all) => all.filter((r) => r.key !== picked));
+      if (picked === storageKey) setSavedAt('');
+      setPicked('');
+      setDeleteConfirm(false);
+      toast('임시저장한 내용을 삭제했어요. 작성 화면의 내용은 그대로예요.');
+    } catch {
+      toast('임시저장한 내용을 삭제하지 못했어요. 다시 시도해 주세요.');
+    }
   }
 
   /** 잘못된 칸으로 화면을 옮기고 그 칸에 표시를 남긴다. */
@@ -301,6 +318,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
       }}>
         <div>
           <TxCard
+            key={formRevision}
             title="요청서"
             actions={
               <div className="tx-load-actions">
@@ -458,37 +476,41 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
         </aside>
       </form>
       {loadOpen && (
-        <Modal title="다른 요청 불러오기" onClose={() => setLoadOpen(false)}>
-          <p className="prose">선택한 요청의 공연·일정·좌석·성공 요건·수고비를 복사해 와요. 지금 입력한 내용은 덮어써요.</p>
-          {sources === null ? (
-            <div className="empty" role="status">
-              <p>요청을 불러오는 중이에요.</p>
-            </div>
-          ) : sources.length ? (
+        <Modal title="임시저장 불러오기" onClose={() => setLoadOpen(false)}>
+          <p className="prose">이 브라우저에서 내 계정으로 임시저장한 요청서예요. 선택한 내용을 불러오면 작성 중인 요청서를 덮어써요. 요청을 받을 도우미는 바뀌지 않아요.</p>
+          {sources.length ? (
             <div className="tx-load-list">
               {sources.map((r) => (
-                <label key={r.id} className="tx-load-choice">
-                  <input type="radio" name="loadSource" value={r.id} checked={picked === r.id} onChange={() => setPicked(r.id)} />
+                <label key={r.key} className="tx-load-choice">
+                  <input type="radio" name="loadSource" value={r.key} checked={picked === r.key} onChange={() => { setPicked(r.key); setDeleteConfirm(false); }} />
                   <span>
-                    <strong>{r.targetName}</strong>
+                    <strong>{r.values.targetName || '제목 없는 요청서'}</strong>
                     <small>
-                      {r.applicationOpenDate || '오픈일 미정'} · {categoryNames[r.serviceCategory as keyof typeof categoryNames] ?? r.serviceCategory}
+                      {r.values.applicationOpenDate || '오픈일 미정'} · {categoryNames[r.values.serviceCategory as keyof typeof categoryNames] ?? r.values.serviceCategory}
+                      {r.key === storageKey ? ' · 현재 요청서' : ''}
                     </small>
                   </span>
                 </label>
               ))}
             </div>
           ) : (
-            <p className="empty">불러올 다른 요청이 없어요.</p>
+            <p className="empty">임시저장한 요청서가 없어요.</p>
           )}
-          <div className="modal-actions">
-            <button type="button" className="btn secondary" onClick={() => setLoadOpen(false)}>
-              취소
-            </button>
-            <button type="button" className="btn primary" disabled={!picked} onClick={applyLoad}>
-              선택한 요청 불러오기
-            </button>
-          </div>
+          {deleteConfirm ? (
+            <>
+              <p role="alert">선택한 임시저장 내용을 삭제할까요? 삭제하면 복구할 수 없어요. 작성 화면의 내용은 남고, 다시 입력하면 자동 저장돼요.</p>
+              <div className="modal-actions">
+                <button type="button" className="btn secondary" onClick={() => setDeleteConfirm(false)}>취소</button>
+                <button type="button" className="btn primary" onClick={deleteDraft}>삭제 확인</button>
+              </div>
+            </>
+          ) : (
+            <div className="modal-actions">
+              <button type="button" className="btn secondary" onClick={() => setLoadOpen(false)}>닫기</button>
+              <button type="button" className="btn secondary" disabled={!picked} onClick={() => setDeleteConfirm(true)}>삭제</button>
+              <button type="button" className="btn primary" disabled={!picked} onClick={applyLoad}>선택한 임시저장 불러오기</button>
+            </div>
+          )}
         </Modal>
       )}
     </>
