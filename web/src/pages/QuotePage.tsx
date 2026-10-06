@@ -424,7 +424,7 @@ export function QuotePage() {
                     {label} (필수)
                   </label>
                   {findPolicy(policies, type).url && (
-                    <a className="quote-terms-view" href={type === 'PRIVACY' ? '/privacy' : findPolicy(policies, type).url} target="_blank" rel="noreferrer" aria-label={`${label} 보기`}>
+                    <a className="quote-terms-view" href={findPolicy(policies, type).url} target="_blank" rel="noreferrer" aria-label={`${label} 보기`}>
                       보기
                     </a>
                   )}
