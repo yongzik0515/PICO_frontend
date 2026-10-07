@@ -59,6 +59,7 @@ export function PartialSettlementCard({ r, a, partial, agent, reload, refund }: 
   const [amountInput, setAmountInput] = useState<number | null>(null);
   const [amountMissing, setAmountMissing] = useState(false);
   const [note, setNote] = useState('');
+  const [reviewed, setReviewed] = useState<{ requestId: number; round: number; proposed: number; remainder: number } | null>(null);
   const [dialog, setDialog] = useState<'' | 'propose' | 'accept' | 'reject' | 'escalate'>('');
   // 409(상대방이 먼저 처리·운영팀에 넘어감 등): 서버 메시지를 보여 주고 최신 상세로 다시 불러온다.
   const { pending, run } = useAction({
@@ -215,10 +216,10 @@ export function PartialSettlementCard({ r, a, partial, agent, reload, refund }: 
           {mediating && !settled && mediationStatus !== 'FAILED' && <Notice>운영팀 조정이 진행 중이라 금액을 직접 제안하거나 동의·반려할 수 없어요. 아래 조정안에 응답해 주세요.</Notice>}
           {status === 'PROPOSED' && !agent && !mediating && (
             <div className="tx-request-actions">
-              <button type="button" className="btn primary" disabled={pending} onClick={() => setDialog('accept')}>
+              <button type="button" className="btn primary" disabled={pending} onClick={() => { if (round < 1 || proposed === undefined) return; setReviewed({ requestId: r.id, round, proposed, remainder }); setDialog('accept'); }}>
                 동의하기
               </button>
-              <button type="button" className="btn ghost" disabled={pending} onClick={() => setDialog('reject')}>
+              <button type="button" className="btn ghost" disabled={pending} onClick={() => { if (round < 1 || proposed === undefined) return; setReviewed({ requestId: r.id, round, proposed, remainder }); setDialog('reject'); }}>
                 반려하고 다시 협의
               </button>
             </div>
@@ -247,21 +248,21 @@ export function PartialSettlementCard({ r, a, partial, agent, reload, refund }: 
           </div>
         </Modal>
       )}
-      {dialog === 'accept' && (
+      {dialog === 'accept' && reviewed && reviewed.requestId === r.id && (
         <Modal title="정산 금액에 동의할까요?" onClose={() => setDialog('')}>
           <form
             noValidate
             onSubmit={async (e) => {
               e.preventDefault();
-              if (remainder > 0 && !e.currentTarget.checkValidity()) return;
-              const body = remainder > 0 ? { refundBankCode: account.bank, refundAccountNumber: account.number, refundAccountHolder: account.holder.trim() } : {};
+              if (reviewed.remainder > 0 && !e.currentTarget.checkValidity()) return;
+              const body = reviewed.remainder > 0 ? { expectedRound: reviewed.round, refundBankCode: account.bank, refundAccountNumber: account.number, refundAccountHolder: account.holder.trim() } : { expectedRound: reviewed.round };
               done('')(await run(() => unwrap(api.POST('/api/requests/{requestId}/partial-settlement/accept', { ...path, body })), '정산 금액에 동의했어요.'));
             }}
           >
             <p className="prose">
-              도우미 몫 {won(proposed)}이 지급되고, {remainder > 0 ? `나머지 ${won(remainder)}은 아래 계좌로 환불돼요.` : '환불할 금액은 없어요.'}
+              도우미 몫 {won(reviewed.proposed)}이 지급되고, {reviewed.remainder > 0 ? `나머지 ${won(reviewed.remainder)}은 아래 계좌로 환불돼요.` : '환불할 금액은 없어요.'}
             </p>
-            {remainder > 0 && <RefundAccount value={account} onChange={setAccount} />}
+            {reviewed.remainder > 0 && <RefundAccount value={account} onChange={setAccount} />}
             <div className="modal-actions">
               <button type="button" className="btn secondary" onClick={() => setDialog('')}>
                 돌아가기
@@ -273,7 +274,7 @@ export function PartialSettlementCard({ r, a, partial, agent, reload, refund }: 
           </form>
         </Modal>
       )}
-      {dialog === 'reject' && (
+      {dialog === 'reject' && reviewed && reviewed.requestId === r.id && (
         <Modal title="정산 금액을 반려할까요?" onClose={() => setDialog('')}>
           <form
             noValidate
@@ -283,7 +284,7 @@ export function PartialSettlementCard({ r, a, partial, agent, reload, refund }: 
               if (!rejectNote.trim() || (counterValue !== undefined && (!Number.isInteger(counterValue) || counterValue < 0 || counterValue > a.successFeeKrw))) return;
               done('')(
                 await run(
-                  () => unwrap(api.POST('/api/requests/{requestId}/partial-settlement/reject', { ...path, body: { note: rejectNote.trim(), counterAmountKrw: counterValue } })),
+                  () => unwrap(api.POST('/api/requests/{requestId}/partial-settlement/reject', { ...path, body: { expectedRound: reviewed.round, note: rejectNote.trim(), counterAmountKrw: counterValue } })),
                   '반려했어요. 도우미가 새 금액을 제안할 수 있어요.',
                 ),
               );
@@ -291,6 +292,7 @@ export function PartialSettlementCard({ r, a, partial, agent, reload, refund }: 
               setCounterInput('');
             }}
           >
+            <Rows rows={[['제안', `${reviewed.round}차 · 도우미 몫 ${won(reviewed.proposed)}`]]} />
             <Field label="반려 사유" required>
               <textarea rows={3} required maxLength={1000} value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} />
             </Field>

@@ -25,8 +25,12 @@ function proposalText(kind: MediationKind, p: Raw, feeKrw?: number) {
 
 export function MediationCard({ requestId, kind, feeKrw, agent, reloadDetail }: { requestId: number; kind: MediationKind; feeKrw?: number; agent: boolean; reloadDetail?: () => void }) {
   const other = agent ? '이용자' : '도우미';
-  const [load, reload] = useLoad(() => unwrap<unknown>(api.GET('/api/requests/{requestId}/mediation', { params: { path: { requestId }, query: { kind } } })) as Promise<Raw>, [requestId, kind], { refreshOnFocus: true });
+  const [load, reload] = useLoad(async () => ({
+    requestId, kind,
+    mediation: await unwrap<unknown>(api.GET('/api/requests/{requestId}/mediation', { params: { path: { requestId }, query: { kind } } })) as Raw,
+  }), [requestId, kind], { refreshOnFocus: true });
   const [dialog, setDialog] = useState<'' | 'accept' | 'reject'>('');
+  const [reviewed, setReviewed] = useState<{ proposal: Raw; requestId: number; kind: MediationKind } | null>(null);
   const [note, setNote] = useState('');
   // 409(기한이 지났거나 상대방이 먼저 처리): 서버 메시지를 보여 주고 최신 상태로 다시 불러온다.
   const { pending, run } = useAction({
@@ -36,8 +40,9 @@ export function MediationCard({ requestId, kind, feeKrw, agent, reloadDetail }: 
       reloadDetail?.();
     },
   });
-  if (load.status !== 'done') return null;
-  const m = load.data;
+  // 거래·조정 종류 전환 중에는 이전 조회 결과로 새 대상에 응답할 수 없다.
+  if (load.status !== 'done' || load.data.requestId !== requestId || load.data.kind !== kind) return null;
+  const m = load.data.mediation;
   const status = str(m.status) ?? 'NONE';
   if (status === 'NONE') return null;
   const used = num(m.roundsUsed) ?? 0;
@@ -51,8 +56,10 @@ export function MediationCard({ requestId, kind, feeKrw, agent, reloadDetail }: 
   const obj = kind === 'RESULT' ? '결과를' : '정산 금액을';
 
   async function respond(accept: boolean) {
+    const expectedRound = num(reviewed?.proposal.round);
+    if (!expectedRound || reviewed?.requestId !== requestId || reviewed.kind !== kind) return;
     const ok = await run(
-      () => unwrap(api.POST('/api/requests/{requestId}/mediation/respond', { params: { path: { requestId } }, body: { kind, accept, note: note.trim() || null } })),
+      () => unwrap(api.POST('/api/requests/{requestId}/mediation/respond', { params: { path: { requestId } }, body: { kind, accept, expectedRound, note: note.trim() || null } })),
       accept ? '조정안을 수락했어요.' : '조정안을 거부했어요.',
     );
     if (ok) {
@@ -81,10 +88,10 @@ export function MediationCard({ requestId, kind, feeKrw, agent, reloadDetail }: 
           />
           {canRespond ? (
             <div className="tx-request-actions">
-              <button type="button" className="btn primary" disabled={pending} onClick={() => setDialog('accept')}>
+              <button type="button" className="btn primary" disabled={pending} onClick={() => { setReviewed({ proposal: { ...active }, requestId, kind }); setDialog('accept'); }}>
                 수락하기
               </button>
-              <button type="button" className="btn ghost" disabled={pending} onClick={() => setDialog('reject')}>
+              <button type="button" className="btn ghost" disabled={pending} onClick={() => { setReviewed({ proposal: { ...active }, requestId, kind }); setDialog('reject'); }}>
                 거부하기
               </button>
             </div>
@@ -115,9 +122,9 @@ export function MediationCard({ requestId, kind, feeKrw, agent, reloadDetail }: 
             ))}
         </details>
       )}
-      {dialog && active && canRespond && (
+      {dialog && reviewed && reviewed.requestId === requestId && reviewed.kind === kind && (
         <Modal title={dialog === 'accept' ? '조정안을 수락할까요?' : '조정안을 거부할까요?'} onClose={() => setDialog('')}>
-          <Rows rows={[['조정안', proposalText(kind, active, feeKrw)]]} />
+          <Rows rows={[['조정안', `${num(reviewed.proposal.round)}차 · ${proposalText(kind, reviewed.proposal, feeKrw)}`], ['근거', str(reviewed.proposal.note) ?? '']]} />
           <p className="prose">
             {dialog === 'accept'
               ? `이용자와 도우미가 모두 수락하면 확정되고, 확정 뒤에는 바꿀 수 없어요. ${other}가 거부하면 확정되지 않아요.`

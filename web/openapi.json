@@ -3641,7 +3641,7 @@
             }
           },
           "409": {
-            "description": "응답 대기 중인 제안이 아님·조정 시작(SETTLEMENT_IN_MEDIATION)",
+            "description": "제안 회차 불일치·응답 대기 중인 제안이 아님·조정 시작(SETTLEMENT_IN_MEDIATION)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3797,7 +3797,8 @@
                 "$ref": "#/components/schemas/PartialSettlementAcceptRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -3811,7 +3812,7 @@
             }
           },
           "400": {
-            "description": "환불 수취 계좌 누락·형식 오류",
+            "description": "expectedRound 누락·형식 오류 또는 환불 수취 계좌 누락·형식 오류",
             "content": {
               "application/json": {
                 "schema": {
@@ -3841,7 +3842,7 @@
             }
           },
           "409": {
-            "description": "응답 대기 중인 제안이 아님·조정 시작(SETTLEMENT_IN_MEDIATION)",
+            "description": "제안 회차 불일치·응답 대기 중인 제안이 아님·조정 시작(SETTLEMENT_IN_MEDIATION)",
             "content": {
               "application/json": {
                 "schema": {
@@ -16875,9 +16876,17 @@
             "description": "이용자가 바라는 도우미 몫(원, 선택). 0 이상 합의 성공보수 이하. 도우미가 참고하는 값이며 확정되지 않음",
             "example": 6000,
             "minimum": 0
+          },
+          "expectedRound": {
+            "type": "integer",
+            "format": "int32",
+            "description": "화면에서 확인한 제안 회차. 현재 회차와 다르면 409이며 최신 제안 재확인 필요",
+            "example": 1,
+            "exclusiveMinimum": 0
           }
         },
         "required": [
+          "expectedRound",
           "note"
         ]
       },
@@ -16928,8 +16937,18 @@
             "example": "홍길동",
             "maxLength": 30,
             "minLength": 1
+          },
+          "expectedRound": {
+            "type": "integer",
+            "format": "int32",
+            "description": "화면에서 확인한 제안 회차. 현재 회차와 다르면 409이며 최신 제안 재확인 필요",
+            "example": 1,
+            "exclusiveMinimum": 0
           }
-        }
+        },
+        "required": [
+          "expectedRound"
+        ]
       },
       "MediationKind": {
         "type": "string",
@@ -16959,10 +16978,18 @@
             "description": "응답에 덧붙일 말(선택). 거부 사유로 적으면 다음 조정안에 참고됩니다. 양측과 운영팀에 공개",
             "maxLength": 1000,
             "minLength": 0
+          },
+          "expectedRound": {
+            "type": "integer",
+            "format": "int32",
+            "description": "화면에서 확인한 제안 회차. 현재 회차와 다르면 409이며 최신 제안 재확인 필요",
+            "example": 1,
+            "exclusiveMinimum": 0
           }
         },
         "required": [
           "accept",
+          "expectedRound",
           "kind"
         ]
       },

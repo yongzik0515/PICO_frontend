@@ -3585,6 +3585,12 @@ export interface components {
              * @example 6000
              */
             counterAmountKrw?: number | null;
+            /**
+             * Format: int32
+             * @description 화면에서 확인한 제안 회차. 현재 회차와 다르면 409이며 최신 제안 재확인 필요
+             * @example 1
+             */
+            expectedRound: number;
         };
         /** @description 부분성공 정산을 운영팀에 넘기기. 도우미와 이용자 누구나 요청할 수 있음 */
         PartialSettlementEscalateRequest: {
@@ -3611,6 +3617,12 @@ export interface components {
              * @example 홍길동
              */
             refundAccountHolder?: string | null;
+            /**
+             * Format: int32
+             * @description 화면에서 확인한 제안 회차. 현재 회차와 다르면 409이며 최신 제안 재확인 필요
+             * @example 1
+             */
+            expectedRound: number;
         };
         /**
          * @description 조정 대상. RESULT는 분쟁(DISPUTED) 거래의 결과, SETTLEMENT는 부분성공 성공보수 정산의 도우미 몫
@@ -3625,6 +3637,12 @@ export interface components {
             accept: boolean;
             /** @description 응답에 덧붙일 말(선택). 거부 사유로 적으면 다음 조정안에 참고됩니다. 양측과 운영팀에 공개 */
             note?: string | null;
+            /**
+             * Format: int32
+             * @description 화면에서 확인한 제안 회차. 현재 회차와 다르면 409이며 최신 제안 재확인 필요
+             * @example 1
+             */
+            expectedRound: number;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseMediationResponse: {
@@ -8052,7 +8070,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 응답 대기 중인 제안이 아님·조정 시작(SETTLEMENT_IN_MEDIATION) */
+            /** @description 제안 회차 불일치·응답 대기 중인 제안이 아님·조정 시작(SETTLEMENT_IN_MEDIATION) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -8160,7 +8178,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
                 "application/json": components["schemas"]["PartialSettlementAcceptRequest"];
             };
@@ -8175,7 +8193,7 @@ export interface operations {
                     "*/*": components["schemas"]["ApiResponsePartialSettlementResponse"];
                 };
             };
-            /** @description 환불 수취 계좌 누락·형식 오류 */
+            /** @description expectedRound 누락·형식 오류 또는 환불 수취 계좌 누락·형식 오류 */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -8211,7 +8229,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 응답 대기 중인 제안이 아님·조정 시작(SETTLEMENT_IN_MEDIATION) */
+            /** @description 제안 회차 불일치·응답 대기 중인 제안이 아님·조정 시작(SETTLEMENT_IN_MEDIATION) */
             409: {
                 headers: {
                     [name: string]: unknown;
