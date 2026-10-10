@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>도우미 신청 · 사전 신청</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face{font-family:'Pretendard Variable';src:url('/_blob/21fe0ac276d3b307f537ac0bfb44ce92') format('woff2');font-weight:45 920;font-style:normal;font-display:swap}
+body{margin:0}
+a{color:#2D48D6}a:hover{color:#1F37B0}
+input::placeholder,textarea::placeholder{color:#8A90A0}
+input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid #3A5BFF;outline-offset:2px}
+.pk-halo{animation:pk-halo 1.6s ease-out infinite}
+.pk-ring{animation:pk-ring 1.6s ease-out infinite}
+.pk-pop{animation:pk-pop .35s cubic-bezier(.2,.8,.2,1) both}
+@keyframes pk-halo{0%{transform:scale(1);opacity:.9}70%{transform:scale(1.05);opacity:0}100%{transform:scale(1.05);opacity:0}}
+@keyframes pk-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.8);opacity:0}}
+@keyframes pk-pop{0%{transform:translateY(12px);opacity:0}100%{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F5F7FA; color: #16181D; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; word-break: keep-all">
+  <header style="position: relative; height: 56px; background: #FFFFFF; border-bottom: 1px solid #E6E9EF; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 20px; box-sizing: border-box">
+    <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.4px">PICO</span>
+    <div style="display: flex; align-items: center; gap: 4px">
+      <button type="button" aria-label="알림" style="width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4B5160" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path></svg></button>
+      <span style="width: 34px; height: 34px; border-radius: 50%; background: #EEF2FF; color: #2D48D6; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center">체</span>
+    </div>
+  </header>
+  <div style="position: absolute; top: 56px; left: 0; right: 0; bottom: 66px; overflow-y: auto; padding: 16px 20px 24px; box-sizing: border-box">
+    
+<h1 style="margin: 0 0 16px; font-size: 22px; line-height: 1.35; font-weight: 800; letter-spacing: -0.5px">도우미 신청</h1>
+    <section style="padding: 22px 18px; border-radius: 16px; background: linear-gradient(135deg, #3A5BFF, #2D48D6); color: #FFFFFF">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <svg width="44" height="44" viewBox="0 0 96 96" aria-hidden="true" style="flex: 0 0 44px"><path d="M24 18H72A16 16 0 0 1 88 34V41A9 9 0 0 0 88 59V66A16 16 0 0 1 72 82H24A16 16 0 0 1 8 66V59A9 9 0 0 0 8 41V34A16 16 0 0 1 24 18Z" fill="#3A5BFF"></path><circle cx="30" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="48" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="31" cy="47" r="3" fill="#16181D"></circle><circle cx="49" cy="47" r="3" fill="#16181D"></circle><path d="M32 58Q39 64 46 58" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" fill="none"></path></svg>
+        <div>
+          <span style="display: inline-block; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,0.18); font-size: 11px; font-weight: 700">오픈 전 사전 신청</span>
+          <h2 style="margin: 6px 0 0; font-size: 20px; line-height: 1.35; font-weight: 800; letter-spacing: -0.4px">지금 신청하면 이런 혜택이 있어요</h2>
+        </div>
+      </div>
+      <ul style="list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+        <li style="display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.12)">
+          <span aria-hidden="true" style="flex: 0 0 36px; height: 36px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2D48D6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4Z"></path><path d="M16 6v2m0 3v2m0 3v2"></path></svg></span>
+          <span><strong style="display: block; font-size: 15px">매칭권 OO장 무료</strong><span style="display: block; margin-top: 3px; font-size: 13px; line-height: 1.5; color: #E3E8FF">오픈하면 바로 요청을 수락할 수 있게 넣어 드려요.</span></span>
+        </li>
+        <li style="display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.12)">
+          <span aria-hidden="true" style="flex: 0 0 36px; height: 36px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2D48D6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg></span>
+          <span><strong style="display: block; font-size: 15px">심사 먼저 진행</strong><span style="display: block; margin-top: 3px; font-size: 13px; line-height: 1.5; color: #E3E8FF">오픈 전에 공개 프로필과 인증 자료를 먼저 확인해요.</span></span>
+        </li>
+        <li style="display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.12)">
+          <span aria-hidden="true" style="flex: 0 0 36px; height: 36px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2D48D6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4 4"></path></svg></span>
+          <span><strong style="display: block; font-size: 15px">도우미 목록 상단 노출</strong><span style="display: block; margin-top: 3px; font-size: 13px; line-height: 1.5; color: #E3E8FF">오픈 후 OO일 동안 이용자에게 먼저 보여요.</span></span>
+        </li>
+      </ul>
+      <sc-if value="{{ready}}" hint-placeholder-val="{{ true }}">
+        <button type="button" onClick="{{apply}}" style="display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; cursor: pointer; box-sizing: border-box; margin-top: 16px; background: #FFFFFF; color: #2D48D6">사전 신청하고 회원가입하기</button>
+      </sc-if>
+      <sc-if value="{{applied}}" hint-placeholder-val="{{ false }}">
+        <p role="status" class="pk-pop" style="margin: 16px 0 0; padding: 14px 16px; border-radius: 12px; background: rgba(255,255,255,0.16); font-size: 14px; line-height: 1.5; color: #FFFFFF"><strong style="display: block">회원가입 화면으로 넘어가요</strong><span style="display: block; margin-top: 2px; font-size: 12px; color: #E3E8FF">실제 사이트에서는 여기서 회원가입(/signup)으로 이동해요.</span></p>
+      </sc-if>
+    </section>
+
+    <section style="margin-top: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 22px 16px; text-align: center">
+      <span aria-hidden="true" style="display: inline-flex; width: 56px; height: 56px; border-radius: 50%; background: #EEF2FF; align-items: center; justify-content: center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#3A5BFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg></span>
+      <div style="margin-top: 10px"><span style="display: inline-block; padding: 4px 10px; border-radius: 999px; background: #F0F2F6; font-size: 12px; font-weight: 600; color: #4B5160">신청 전</span></div>
+      <h2 style="margin: 10px 0 0; font-size: 19px; font-weight: 800">아직 도우미 신청 전이에요</h2>
+      <p style="margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: #4B5160">공개 프로필과 인증·경력 자료를 준비해 신청해 주세요. 단계마다 저장돼서 나눠서 작성해도 돼요.</p>
+    </section>
+
+    <section style="margin-top: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 20px 16px">
+  <h2 style="margin: 0; font-size: 16px; font-weight: 800">가입 후 이렇게 진행돼요</h2>
+  <ol style="list-style: none; margin: 16px 0 0; padding: 0">
+        <li style="position: relative; display: flex; gap: 12px; padding-bottom: 16px"><span aria-hidden="true" style="position: absolute; left: 13px; top: 30px; bottom: 0; border-left: 1px solid #E6E9EF"></span>
+          <b style="flex: 0 0 27px; height: 27px; border-radius: 50%; background: #3A5BFF; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">1</b>
+          <span><strong style="display: block; font-size: 14px">회원가입</strong><span style="display: block; margin-top: 2px; font-size: 12px; line-height: 1.5; color: #6B7180">사전 신청을 누르면 바로 시작해요.</span></span>
+        </li>
+        <li style="position: relative; display: flex; gap: 12px; padding-bottom: 16px"><span aria-hidden="true" style="position: absolute; left: 13px; top: 30px; bottom: 0; border-left: 1px solid #E6E9EF"></span>
+          <b style="flex: 0 0 27px; height: 27px; border-radius: 50%; background: #F0F2F6; color: #4B5160; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">2</b>
+          <span><strong style="display: block; font-size: 14px">공개 프로필</strong><span style="display: block; margin-top: 2px; font-size: 12px; line-height: 1.5; color: #6B7180">이용자가 보게 될 소개를 만들어요.</span></span>
+        </li>
+        <li style="position: relative; display: flex; gap: 12px; padding-bottom: 16px"><span aria-hidden="true" style="position: absolute; left: 13px; top: 30px; bottom: 0; border-left: 1px solid #E6E9EF"></span>
+          <b style="flex: 0 0 27px; height: 27px; border-radius: 50%; background: #F0F2F6; color: #4B5160; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">3</b>
+          <span><strong style="display: block; font-size: 14px">인증과 경력</strong><span style="display: block; margin-top: 2px; font-size: 12px; line-height: 1.5; color: #6B7180">본인인증·연락 방법·정산 계좌와 경력 자료를 확인해요.</span></span>
+        </li>
+        <li style="position: relative; display: flex; gap: 12px; padding-bottom: 0px">
+          <b style="flex: 0 0 27px; height: 27px; border-radius: 50%; background: #F0F2F6; color: #4B5160; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">4</b>
+          <span><strong style="display: block; font-size: 14px">미리보기·제출</strong><span style="display: block; margin-top: 2px; font-size: 12px; line-height: 1.5; color: #6B7180">공개 프로필을 확인하고 심사를 신청해요.</span></span>
+        </li>
+      </ol>
+      <div style="display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 14px 16px; background: #EEF2FF; border: 1px solid #E0E6FF; border-radius: 12px; font-size: 13px; line-height: 1.65; color: #4B5160"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3A5BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: 0 0 18px; margin-top: 2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg><span>요청 수락 시 매칭권 1장을 사용해요. 이용자의 안전거래 결제와는 별개입니다. 예매처의 이용 기준을 준수하고, 계정정보 수집·매크로·재판매·티켓 양도를 요구하거나 제공할 수 없어요.</span></div>
+      <sc-if value="{{ready}}" hint-placeholder-val="{{ true }}">
+        <button type="button" onClick="{{apply}}" style="display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; cursor: pointer; box-sizing: border-box; margin-top: 16px">사전 신청하고 회원가입하기</button>
+      </sc-if>
+      <sc-if value="{{applied}}" hint-placeholder-val="{{ false }}">
+        <p role="status" class="pk-pop" style="margin: 16px 0 0; padding: 14px 16px; border-radius: 12px; background: #EEF2FF; font-size: 14px; line-height: 1.5; color: #2D48D6"><strong style="display: block">회원가입 화면으로 넘어가요</strong><span style="display: block; margin-top: 2px; font-size: 12px; color: #4B5160">실제 사이트에서는 여기서 회원가입(/signup)으로 이동해요.</span></p>
+      </sc-if>
+</section>
+  </div>
+
+  <nav aria-label="하단 메뉴" style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 10; height: 66px; background: #FFFFFF; border-top: 1px solid #E6E9EF; display: flex">
+    <button type="button" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; font-family: inherit; font-size: 11px; font-weight: 600; color: #5F6575">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+      도우미 찾기
+    </button>
+    <button type="button" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; font-family: inherit; font-size: 11px; font-weight: 600; color: #5F6575">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4Z"></path><path d="M16 6v2m0 3v2m0 3v2"></path></svg>
+      내 활동
+    </button>
+    <button type="button" aria-current="page" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; font-family: inherit; font-size: 11px; font-weight: 700; color: #3A5BFF">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21v-2a8 8 0 0 1 16 0v2"></path></svg>
+      마이
+    </button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { applied: false };
+  }
+  renderVals() {
+    return {
+      ready: !this.state.applied,
+      applied: this.state.applied,
+      apply: () => this.setState({ applied: true }),
+    };
+  }
+}
+</script>
+</body>
+</html>

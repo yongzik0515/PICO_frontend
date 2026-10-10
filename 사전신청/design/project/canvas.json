@@ -1,0 +1,272 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "M2-welcome-character.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "1 메인 · 캐릭터가 한 번에 소개",
+      "page": "v2",
+      "is_interactive": true
+    },
+    "M3-my.dc.html": {
+      "x": 0,
+      "y": 1244,
+      "w": 390,
+      "h": 844,
+      "title": "2-1 마이 · 도우미로 바꾸기",
+      "page": "v2",
+      "is_interactive": true
+    },
+    "M4-leads.dc.html": {
+      "x": 470,
+      "y": 1244,
+      "w": 390,
+      "h": 844,
+      "title": "2-2 받은 요청",
+      "page": "v2",
+      "is_interactive": true
+    },
+    "M5-detail.dc.html": {
+      "x": 940,
+      "y": 1244,
+      "w": 390,
+      "h": 844,
+      "title": "2-3 요청 상세 · 요청서 확인·수락",
+      "page": "v2",
+      "is_interactive": true
+    },
+    "M7-terms.dc.html": {
+      "x": 1410,
+      "y": 1244,
+      "w": 390,
+      "h": 844,
+      "title": "2-4 조건 보내기",
+      "page": "v2",
+      "is_interactive": true
+    },
+    "M8-start.dc.html": {
+      "x": 1880,
+      "y": 1244,
+      "w": 390,
+      "h": 844,
+      "title": "2-5 요청 상세 · 예매 착수",
+      "page": "v2",
+      "is_interactive": true
+    },
+    "M9-result.dc.html": {
+      "x": 2350,
+      "y": 1244,
+      "w": 390,
+      "h": 844,
+      "title": "2-6 결과 등록·증빙 제출",
+      "page": "v2",
+      "is_interactive": true
+    },
+    "M10-cases.dc.html": {
+      "x": 2820,
+      "y": 1244,
+      "w": 390,
+      "h": 844,
+      "title": "2-7 이런 경우도 있어요 · 소개만",
+      "page": "v2",
+      "is_interactive": true
+    },
+    "M6-practice.dc.html": {
+      "x": 0,
+      "y": 2488,
+      "w": 390,
+      "h": 844,
+      "title": "3 혼자 해 보기 · 빈칸 · 강조 없음",
+      "page": "v2",
+      "is_interactive": true
+    },
+    "A-mobile.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "3-1 A안 딤 · 2장 요청 수락하기",
+      "w": 390,
+      "x": 0,
+      "y": 3100,
+      "page": "v1"
+    },
+    "A-pc.dc.html": {
+      "h": 800,
+      "is_interactive": true,
+      "title": "2-1 A안 딤 · 1장 받은 요청 둘러보기",
+      "w": 1280,
+      "x": 0,
+      "y": 1900,
+      "page": "v1"
+    },
+    "B-mobile.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "3-2 B안 강조 · 2장 요청 수락하기",
+      "w": 390,
+      "x": 470,
+      "y": 3100,
+      "page": "v1"
+    },
+    "B-pc.dc.html": {
+      "h": 800,
+      "is_interactive": true,
+      "title": "2-2 B안 강조 · 1장 받은 요청 둘러보기",
+      "w": 1280,
+      "x": 1360,
+      "y": 1900,
+      "page": "v1"
+    },
+    "Chapter-end.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "4-1 장 마침",
+      "w": 390,
+      "x": 0,
+      "y": 4344,
+      "page": "v1"
+    },
+    "Dispute.dc.html": {
+      "expand": "fill",
+      "h": 1900,
+      "is_interactive": true,
+      "title": "4-2 5장 이의 제기가 생기면",
+      "w": 1280,
+      "x": 470,
+      "y": 4344,
+      "page": "v1"
+    },
+    "Main.dc.html": {
+      "expand": "fill",
+      "h": 1500,
+      "is_interactive": true,
+      "title": "1-1 시작 화면 · PC",
+      "w": 1280,
+      "x": 0,
+      "y": 0,
+      "page": "v1"
+    },
+    "Start-mobile.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "1-2 시작 화면 · 휴대폰",
+      "w": 390,
+      "x": 1360,
+      "y": 0,
+      "page": "v1"
+    },
+    "M11-apply.dc.html": {
+      "x": 470,
+      "y": 2488,
+      "w": 390,
+      "h": 844,
+      "title": "4 도우미 신청 · 사전 신청",
+      "page": "v2",
+      "is_interactive": true
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-08T15:10:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas",
+    "page": "v2"
+  },
+  "notes": {
+    "v2row1": {
+      "kind": "title1",
+      "maxW": 860,
+      "text": "1. 메인에서 시작 — 캐릭터가 메인을 한 번에 소개",
+      "x": 0,
+      "y": -300,
+      "page": "v2"
+    },
+    "v2row2": {
+      "kind": "title1",
+      "maxW": 3210,
+      "text": "2. 함께 해 보기 (B안 강조) — 요청 수락부터 결과 등록까지, 실패·부분 성공·이의 제기는 소개만",
+      "x": 0,
+      "y": 964,
+      "page": "v2"
+    },
+    "v2row3": {
+      "kind": "title1",
+      "maxW": 860,
+      "text": "3. 혼자 해 보기 — 빈칸에 아무 내용이나 적으며 전 과정 → 4. 사전 신청",
+      "x": 0,
+      "y": 2208,
+      "page": "v2"
+    },
+    "row1": {
+      "kind": "title1",
+      "maxW": 1750,
+      "text": "1. 시작 화면 — 장 고르기",
+      "w": 240,
+      "x": 0,
+      "y": -300,
+      "page": "v1"
+    },
+    "row2": {
+      "kind": "title1",
+      "maxW": 2640,
+      "text": "2. 같은 단계, A안 딤 vs B안 강조 (PC)",
+      "w": 240,
+      "x": 0,
+      "y": 1620,
+      "page": "v1"
+    },
+    "row3": {
+      "kind": "title1",
+      "maxW": 860,
+      "text": "3. 휴대폰 A안 vs B안",
+      "w": 240,
+      "x": 0,
+      "y": 2820,
+      "page": "v1"
+    },
+    "row4": {
+      "kind": "title1",
+      "maxW": 1750,
+      "text": "4. 장 마침 · 이의 제기 사례",
+      "w": 240,
+      "x": 0,
+      "y": 4064,
+      "page": "v1"
+    }
+  },
+  "order": [
+    "M2-welcome-character.dc.html",
+    "M3-my.dc.html",
+    "M4-leads.dc.html",
+    "M5-detail.dc.html",
+    "M7-terms.dc.html",
+    "M8-start.dc.html",
+    "M9-result.dc.html",
+    "M10-cases.dc.html",
+    "M6-practice.dc.html",
+    "M11-apply.dc.html",
+    "Main.dc.html",
+    "Start-mobile.dc.html",
+    "A-pc.dc.html",
+    "B-pc.dc.html",
+    "A-mobile.dc.html",
+    "B-mobile.dc.html",
+    "Chapter-end.dc.html",
+    "Dispute.dc.html"
+  ],
+  "pages": [
+    {
+      "id": "v2",
+      "name": "2차 시안 · 휴대폰"
+    },
+    {
+      "id": "v1",
+      "name": "1차 시안"
+    }
+  ],
+  "title": "PICO 도우미 온보딩 시안"
+}

@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>B안 강조 · 받은 요청 둘러보기</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face{font-family:'Pretendard Variable';src:url('/_blob/21fe0ac276d3b307f537ac0bfb44ce92') format('woff2');font-weight:45 920;font-style:normal;font-display:swap}
+body{margin:0}
+a{color:#2D48D6}a:hover{color:#1F37B0}
+.pk-halo{animation:pk-halo 1.6s ease-out infinite}
+.pk-ring{animation:pk-ring 1.6s ease-out infinite}
+@keyframes pk-halo{0%{transform:scale(1);opacity:.9}70%{transform:scale(1.05);opacity:0}100%{transform:scale(1.05);opacity:0}}
+@keyframes pk-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.8);opacity:0}}
+@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 800px; overflow: hidden; background: #F5F7FA; color: #16181D; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; word-break: keep-all">
+
+  <header style="height: 72px; background: #FFFFFF; border-bottom: 1px solid #E6E9EF; display: flex; align-items: center; justify-content: space-between; padding: 0 80px; box-sizing: border-box">
+    <div style="display: flex; align-items: center; gap: 36px">
+      <span style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px">PICO</span>
+      <nav aria-label="주 메뉴" style="display: flex; gap: 8px">
+        <button type="button" style="height: 72px; padding: 0 12px; border: 0; border-bottom: 3px solid #3A5BFF; background: none; font-family: inherit; font-size: 15px; font-weight: 700; color: #16181D; box-sizing: border-box">받은 요청</button>
+        <button type="button" style="height: 72px; padding: 0 12px; border: 0; border-bottom: 3px solid transparent; background: none; font-family: inherit; font-size: 15px; font-weight: 600; color: #4B5160; box-sizing: border-box">매칭 관리</button>
+      </nav>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px">
+      <div style="display: flex; padding: 3px; border-radius: 999px; background: #F0F2F6">
+        <button type="button" style="min-height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: none; font-family: inherit; font-size: 13px; font-weight: 600; color: #4B5160">이용자</button>
+        <button type="button" aria-pressed="true" style="min-height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(22,24,29,0.12); font-family: inherit; font-size: 13px; font-weight: 700; color: #16181D">도우미</button>
+      </div>
+      <button type="button" aria-label="알림" style="width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; display: flex; align-items: center; justify-content: center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4B5160" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path></svg>
+      </button>
+      <span style="width: 40px; height: 40px; border-radius: 50%; background: #E6F7F3; color: #0B7A67; font-size: 15px; font-weight: 800; display: flex; align-items: center; justify-content: center">나</span>
+    </div>
+  </header>
+
+  <main style="width: 1120px; margin: 0 auto; padding-top: 32px">
+    <h1 style="margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.6px">받은 요청</h1>
+
+    <div style="margin-top: 20px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 22px 28px; display: flex; align-items: center">
+      <div style="padding-right: 32px; border-right: 1px solid #E6E9EF">
+        <div style="font-size: 13px; color: #4B5160">답변할 요청</div>
+        <div style="margin-top: 4px; font-size: 26px; font-weight: 800">2<span style="margin-left: 2px; font-size: 14px; font-weight: 600">건</span></div>
+      </div>
+      <div style="padding: 0 32px; border-right: 1px solid #E6E9EF">
+        <div style="font-size: 13px; color: #4B5160">결과 확인 중</div>
+        <div style="margin-top: 4px; font-size: 26px; font-weight: 800">0<span style="margin-left: 2px; font-size: 14px; font-weight: 600">건</span></div>
+      </div>
+      <div style="padding-left: 32px">
+        <div style="{{w2}}">
+          <div style="font-size: 13px; color: #4B5160">보유 매칭권</div>
+          <div style="margin-top: 4px; font-size: 26px; font-weight: 800">10<span style="margin-left: 2px; font-size: 14px; font-weight: 600">장</span></div>
+          <sc-if value="{{s2}}" hint-placeholder-val="{{ false }}">
+            <span aria-hidden="true" class="pk-halo" style="position: absolute; inset: -10px; border: 2px solid #3A5BFF; border-radius: 20px; pointer-events: none"></span>
+            <span aria-hidden="true" style="position: absolute; top: -9px; right: -9px; width: 14px; height: 14px; pointer-events: none">
+              <span class="pk-ring" style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF"></span>
+              <span style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF; box-shadow: 0 0 0 3px #FFFFFF"></span>
+            </span>
+            <div role="dialog" aria-label="2단계 안내" style="position: absolute; top: calc(100% + 22px); left: -12px; z-index: 40; width: 320px; background: #16181D; color: #FFFFFF; border-radius: 14px; padding: 16px 18px 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.3); box-sizing: border-box">
+              <span style="position: absolute; top: -6px; left: 44px; width: 12px; height: 12px; background: #16181D; transform: rotate(45deg)"></span>
+              <div style="font-size: 12px; font-weight: 600; color: #A9AFBC">2 / 3</div>
+              <div style="margin-top: 6px; font-size: 16px; font-weight: 700; line-height: 1.4">수락할 때 매칭권 1장을 써요</div>
+              <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.55; color: #D3D7E0">요청을 받거나 거절할 때는 쓰이지 않아요. 모자라면 '매칭권 충전'에서 채워요.</p>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px">
+                <button type="button" onClick="{{prev}}" style="min-height: 44px; padding: 0 4px; border: 0; background: none; font-family: inherit; font-size: 14px; font-weight: 600; color: #C9CDD6; cursor: pointer">이전</button>
+                <button type="button" onClick="{{next}}" style="min-height: 44px; padding: 0 20px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 14px; font-weight: 700; color: #FFFFFF; cursor: pointer">다음</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 12px">
+        <button type="button" style="min-height: 44px; padding: 0 16px; border: 1px solid #D5D9E2; border-radius: 12px; background: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #16181D">매칭권 충전</button>
+        <div style="{{w1}}">
+          <button type="button" role="switch" aria-checked="{{on}}" onClick="{{toggle}}" style="display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; border: 1px solid #D5D9E2; border-radius: 12px; background: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #16181D; cursor: pointer">
+            <span style="{{trackStyle}}"><span style="{{knobStyle}}"></span></span>
+            활동 중 {{onLabel}}
+          </button>
+          <sc-if value="{{s1}}" hint-placeholder-val="{{ false }}">
+            <span aria-hidden="true" class="pk-halo" style="position: absolute; inset: -6px; border: 2px solid #3A5BFF; border-radius: 18px; pointer-events: none"></span>
+            <span aria-hidden="true" style="position: absolute; top: -5px; right: -5px; width: 14px; height: 14px; pointer-events: none">
+              <span class="pk-ring" style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF"></span>
+              <span style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF; box-shadow: 0 0 0 3px #FFFFFF"></span>
+            </span>
+            <div role="dialog" aria-label="1단계 안내" style="position: absolute; top: calc(100% + 18px); right: -6px; z-index: 40; width: 300px; background: #16181D; color: #FFFFFF; border-radius: 14px; padding: 16px 18px 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.3); box-sizing: border-box">
+              <span style="position: absolute; top: -6px; right: 70px; width: 12px; height: 12px; background: #16181D; transform: rotate(45deg)"></span>
+              <div style="font-size: 12px; font-weight: 600; color: #A9AFBC">1 / 3</div>
+              <div style="margin-top: 6px; font-size: 16px; font-weight: 700; line-height: 1.4">먼저 활동을 켜요</div>
+              <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.55; color: #D3D7E0">켜야 이용자에게 프로필이 보이고 새 요청을 받아요.</p>
+              <div style="display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; font-weight: 700; color: #A8B8FF">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"></path></svg>
+                스위치를 눌러 보세요
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <div role="tablist" aria-label="받은 요청 분류" style="margin-top: 28px; display: flex; gap: 24px; border-bottom: 1px solid #E6E9EF">
+      <button type="button" role="tab" aria-selected="true" style="min-height: 46px; padding: 0 2px; border: 0; border-bottom: 2px solid #3A5BFF; margin-bottom: -1px; background: none; font-family: inherit; font-size: 15px; font-weight: 700; color: #16181D">미응답</button>
+      <button type="button" role="tab" aria-selected="false" style="min-height: 46px; padding: 0 2px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; font-family: inherit; font-size: 15px; font-weight: 600; color: #4B5160">응답 종료</button>
+    </div>
+
+    <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 12px">
+      <div style="{{w3}}">
+        <button type="button" onClick="{{openCard}}" style="display: block; width: 100%; padding: 0; border: 1px solid #E6E9EF; border-radius: 18px; background: #FFFFFF; font-family: inherit; text-align: left; color: #16181D; cursor: pointer">
+          <span style="display: flex; align-items: center; gap: 14px; padding: 18px 24px">
+            <span style="width: 44px; height: 44px; border-radius: 12px; background: #EEF2FF; color: #2D48D6; font-size: 17px; font-weight: 800; display: flex; align-items: center; justify-content: center">김</span>
+            <span style="display: flex; flex-direction: column; gap: 2px">
+              <span style="font-size: 16px; font-weight: 700">김이용 <span style="margin-left: 6px; font-size: 13px; font-weight: 500; color: #5F6575">요청 2026-10-08</span></span>
+              <span style="font-size: 13px; color: #5F6575">신청한 이용자</span>
+            </span>
+            <span style="margin-left: auto; font-size: 13px; font-weight: 700; color: #8A5300; background: #FFF4E0; padding: 6px 12px; border-radius: 999px">요청 대기중</span>
+          </span>
+          <span style="display: block; border-top: 1px dashed #DDE1E8"></span>
+          <span style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px">
+            <span style="display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.3px">레드 하트 앙코르 콘서트</span>
+              <span style="font-size: 14px; color: #4B5160">2026-12-26 · NOL 티켓</span>
+            </span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A90A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"></path></svg>
+          </span>
+        </button>
+        <sc-if value="{{s3}}" hint-placeholder-val="{{ false }}">
+          <span aria-hidden="true" class="pk-halo" style="position: absolute; inset: -8px; border: 2px solid #3A5BFF; border-radius: 24px; pointer-events: none"></span>
+          <span aria-hidden="true" style="position: absolute; top: -7px; right: -7px; width: 14px; height: 14px; pointer-events: none">
+            <span class="pk-ring" style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF"></span>
+            <span style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF; box-shadow: 0 0 0 3px #FFFFFF"></span>
+          </span>
+          <div role="dialog" aria-label="3단계 안내" style="position: absolute; top: calc(100% + 18px); left: 24px; z-index: 40; width: 320px; background: #16181D; color: #FFFFFF; border-radius: 14px; padding: 16px 18px 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.3); box-sizing: border-box">
+            <span style="position: absolute; top: -6px; left: 44px; width: 12px; height: 12px; background: #16181D; transform: rotate(45deg)"></span>
+            <div style="font-size: 12px; font-weight: 600; color: #A9AFBC">3 / 3</div>
+            <div style="margin-top: 6px; font-size: 16px; font-weight: 700; line-height: 1.4">새 요청을 눌러 확인해요</div>
+            <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.55; color: #D3D7E0">공연·좌석·수고비를 보고 수락할지 정해요.</p>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px">
+              <button type="button" onClick="{{prev}}" style="min-height: 44px; padding: 0 4px; border: 0; background: none; font-family: inherit; font-size: 14px; font-weight: 600; color: #C9CDD6; cursor: pointer">이전</button>
+              <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #A8B8FF">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"></path></svg>
+                카드를 눌러 보세요
+              </span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <article style="background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 18px">
+        <div style="display: flex; align-items: center; gap: 14px; padding: 18px 24px">
+          <span style="width: 44px; height: 44px; border-radius: 12px; background: #EEF2FF; color: #2D48D6; font-size: 17px; font-weight: 800; display: flex; align-items: center; justify-content: center">박</span>
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 16px; font-weight: 700">박관람 <span style="margin-left: 6px; font-size: 13px; font-weight: 500; color: #5F6575">요청 2026-10-07</span></span>
+            <span style="font-size: 13px; color: #5F6575">신청한 이용자</span>
+          </div>
+          <span style="margin-left: auto; font-size: 13px; font-weight: 700; color: #8A5300; background: #FFF4E0; padding: 6px 12px; border-radius: 999px">요청 대기중</span>
+        </div>
+        <div style="border-top: 1px dashed #DDE1E8"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px">
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.3px">여름 편지 팬미팅</span>
+            <span style="font-size: 14px; color: #4B5160">2026-12-05 · YES24 티켓</span>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A90A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"></path></svg>
+        </div>
+      </article>
+    </div>
+
+    <p style="margin: 16px 0 0; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #4B5160">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4B5160" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6m0-10v1"></path></svg>
+      요청 수락 시 매칭권 1장이 사용돼요. 안전거래 결제는 이용자가 최종 조건을 확정한 뒤 별도로 진행해요.
+    </p>
+  </main>
+
+  <sc-if value="{{touring}}" hint-placeholder-val="{{ true }}">
+    <div role="status" aria-live="polite" style="position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 14px; padding: 6px 6px 6px 20px; border-radius: 999px; background: #16181D; color: #FFFFFF; box-shadow: 0 8px 24px rgba(0,0,0,0.25); white-space: nowrap">
+      <span style="font-size: 13px; font-weight: 700">1장 · 받은 요청 둘러보기</span>
+      <span style="display: block; width: 96px; height: 4px; border-radius: 4px; background: rgba(255,255,255,0.2)"><span style="{{barStyle}}"></span></span>
+      <span style="font-size: 13px; color: #A9AFBC">{{stepNo}} / 3</span>
+      <button type="button" onClick="{{skip}}" style="min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: rgba(255,255,255,0.12); font-family: inherit; font-size: 13px; font-weight: 600; color: #FFFFFF; cursor: pointer">건너뛰기</button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+    <div role="status" style="position: absolute; left: 50%; bottom: 32px; transform: translateX(-50%); z-index: 40; width: 460px; background: #16181D; color: #FFFFFF; border-radius: 16px; padding: 20px 22px; box-shadow: 0 16px 40px rgba(0,0,0,0.3); box-sizing: border-box">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span style="width: 28px; height: 28px; border-radius: 50%; background: #0FA38A; display: flex; align-items: center; justify-content: center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>
+        </span>
+        <span style="font-size: 17px; font-weight: 700">{{doneTitle}}</span>
+      </div>
+      <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.55; color: #D3D7E0">{{doneText}}</p>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px">
+        <button type="button" onClick="{{restart}}" style="min-height: 44px; padding: 0 16px; border: 1px solid rgba(255,255,255,0.24); border-radius: 10px; background: none; font-family: inherit; font-size: 14px; font-weight: 600; color: #FFFFFF; cursor: pointer">처음부터</button>
+        <a href="B-mobile.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 10px; background: #3A5BFF; font-size: 14px; font-weight: 700; color: #FFFFFF; text-decoration: none; box-sizing: border-box">2장 요청 수락하기</a>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { step: 1, on: false, skipped: false };
+  }
+  renderVals() {
+    const s = this.state.step;
+    const on = this.state.on;
+    const set = (p) => this.setState(p);
+    const ring = 'z-index: 30; outline: 2px solid #3A5BFF; outline-offset: 3px;';
+    const wrap = (n, shape) => 'position: relative; ' + shape + (s === n ? ring : '');
+    const shown = Math.min(s, 3);
+    return {
+      s1: s === 1,
+      s2: s === 2,
+      s3: s === 3,
+      touring: s < 4,
+      done: s === 4,
+      stepNo: shown,
+      barStyle: 'display: block; height: 4px; border-radius: 4px; background: #3A5BFF; width: ' + Math.round((shown / 3) * 100) + '%',
+      w1: wrap(1, 'display: inline-flex; border-radius: 12px; '),
+      w2: wrap(2, 'padding: 8px 12px; margin: -8px -12px; border-radius: 12px; '),
+      w3: wrap(3, 'border-radius: 18px; '),
+      on: on,
+      onLabel: on ? 'ON' : 'OFF',
+      trackStyle: 'position: relative; display: inline-block; width: 40px; height: 24px; border-radius: 999px; transition: background 0.2s; background: ' + (on ? '#3A5BFF' : '#C2C8D3'),
+      knobStyle: 'position: absolute; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0,0,0,0.25); transition: left 0.2s; left: ' + (on ? '19px' : '3px'),
+      doneTitle: this.state.skipped ? '1장을 건너뛰었어요' : '1장을 마쳤어요',
+      doneText: this.state.skipped ? '언제든 처음부터 다시 볼 수 있어요. 다음 장에서는 요청 상세에서 수락해 봐요.' : '활동을 켜고 새 요청을 열었어요. 다음 장에서는 요청 상세에서 수락해 볼게요.',
+      toggle: () => set(s === 1 ? { on: true, step: 2 } : { on: !on }),
+      next: () => set({ step: s + 1 }),
+      prev: () => set({ step: Math.max(1, s - 1) }),
+      openCard: () => {
+        if (s === 3) set({ step: 4, skipped: false });
+      },
+      skip: () => set({ step: 4, skipped: true }),
+      restart: () => set({ step: 1, on: false, skipped: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>

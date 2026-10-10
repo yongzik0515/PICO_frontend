@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>결과 등록·증빙 제출 · 함께 해 보기</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face{font-family:'Pretendard Variable';src:url('/_blob/21fe0ac276d3b307f537ac0bfb44ce92') format('woff2');font-weight:45 920;font-style:normal;font-display:swap}
+body{margin:0}
+a{color:#2D48D6}a:hover{color:#1F37B0}
+input::placeholder,textarea::placeholder{color:#8A90A0}
+input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid #3A5BFF;outline-offset:2px}
+.pk-halo{animation:pk-halo 1.6s ease-out infinite}
+.pk-ring{animation:pk-ring 1.6s ease-out infinite}
+.pk-pop{animation:pk-pop .35s cubic-bezier(.2,.8,.2,1) both}
+@keyframes pk-halo{0%{transform:scale(1);opacity:.9}70%{transform:scale(1.05);opacity:0}100%{transform:scale(1.05);opacity:0}}
+@keyframes pk-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.8);opacity:0}}
+@keyframes pk-pop{0%{transform:translateY(12px);opacity:0}100%{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F5F7FA; color: #16181D; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; word-break: keep-all">
+  <header style="position: relative; height: 56px; background: #FFFFFF; border-bottom: 1px solid #E6E9EF; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 20px; box-sizing: border-box">
+    <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.4px">PICO</span>
+    <div style="display: flex; align-items: center; gap: 4px">
+      <button type="button" aria-label="알림" style="width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4B5160" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path></svg></button>
+      <span style="width: 34px; height: 34px; border-radius: 50%; background: #E6F7F3; color: #0B7A67; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center">체</span>
+    </div>
+    <span role="progressbar" aria-label="체험 진행" aria-valuemin="0" aria-valuemax="15" aria-valuenow="{{progN}}" style="position: absolute; left: 0; bottom: -1px; width: {{progW}}; height: 3px; background: #3A5BFF; transition: width 0.3s"></span>
+  </header>
+  <div ref="{{boxRef}}" onScroll="{{onScroll}}" style="position: absolute; top: 56px; left: 0; right: 0; bottom: 66px; overflow-y: auto; padding: 16px 20px 24px; box-sizing: border-box">
+    <nav aria-label="현재 위치" style="margin-bottom: 8px; font-size: 13px; color: #6B7180">요청 상세 <span aria-hidden="true">›</span> <span aria-current="page">예매 결과 등록</span></nav>
+<h1 style="margin: 0 0 16px; font-size: 22px; line-height: 1.35; font-weight: 800; letter-spacing: -0.5px">예매 결과 등록</h1>
+    <sc-if value="{{onPick}}" hint-placeholder-val="{{ true }}">
+      <div style="position: relative; border-radius: 16px">
+        <section style="background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 20px 16px">
+  <h2 style="margin: 0; font-size: 16px; font-weight: 800">1. 예매 결과</h2>
+          <div role="group" aria-label="예매 결과" style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px">
+            <button type="button" onClick="{{pickSUCCESS}}" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px 14px; border: 1px solid #E6E9EF; border-radius: 12px; background: #FFFFFF; font-family: inherit; text-align: left; color: #16181D; cursor: pointer; box-sizing: border-box">
+        <span aria-hidden="true" style="flex: 0 0 36px; height: 36px; border-radius: 50%; background: #E6F7F3; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B7A67" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg></span>
+        <span style="flex: 1; min-width: 0"><strong style="display: block; font-size: 15px">성공</strong><small style="display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; color: #6B7180">성공 요건을 모두 충족했어요. 예매 내역 화면을 첨부하면 이용자가 바로 확인해요(선택).</small></span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A90A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"></path></svg>
+      </button>
+            <button type="button" onClick="{{pickPARTIAL}}" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px 14px; border: 1px solid #E6E9EF; border-radius: 12px; background: #FFFFFF; font-family: inherit; text-align: left; color: #16181D; cursor: pointer; box-sizing: border-box">
+        <span aria-hidden="true" style="flex: 0 0 36px; height: 36px; border-radius: 50%; background: #FFF4E0; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="#8A5300" stroke-width="2.2"></circle><path d="M12 4a8 8 0 0 1 0 16Z" fill="#8A5300"></path></svg></span>
+        <span style="flex: 1; min-width: 0"><strong style="display: block; font-size: 15px">부분 성공</strong><small style="display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; color: #6B7180">일부만 충족했어요. 증빙은 선택이에요. 안전거래는 완료 후 부분성공 정산으로 금액을 정해요.</small></span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A90A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"></path></svg>
+      </button>
+            <button type="button" onClick="{{pickFAILURE}}" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px 14px; border: 1px solid #E6E9EF; border-radius: 12px; background: #FFFFFF; font-family: inherit; text-align: left; color: #16181D; cursor: pointer; box-sizing: border-box">
+        <span aria-hidden="true" style="flex: 0 0 36px; height: 36px; border-radius: 50%; background: #FDECEA; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"></path></svg></span>
+        <span style="flex: 1; min-width: 0"><strong style="display: block; font-size: 15px">실패</strong><small style="display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; color: #6B7180">예매하지 못했어요. 예매를 시도한 화면(시도 증빙)이 반드시 필요해요.</small></span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A90A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"></path></svg>
+      </button>
+          </div>
+        </section>
+        <span aria-hidden="true" class="pk-halo" style="position: absolute; inset: -6px; border: 2px solid #3A5BFF; border-radius: 20px; pointer-events: none"></span>
+<span aria-hidden="true" style="position: absolute; top: -7px; right: -7px; width: 12px; height: 12px; pointer-events: none"><span class="pk-ring" style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF"></span><span style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF; box-shadow: 0 0 0 3px #FFFFFF"></span></span>
+      </div>
+      <div style="display: flex; justify-content: center; margin-top: 14px">
+  <div role="status" class="pk-pop" style="position: relative; display: flex; align-items: center; gap: 8px; background: #16181D; color: #FFFFFF; border-radius: 12px; padding: 10px 16px 10px 10px; box-shadow: 0 6px 16px rgba(0,0,0,0.16); white-space: nowrap">
+    <span aria-hidden="true" style="position: absolute; top: -5px; left: 50%; margin-left: -5px; width: 10px; height: 10px; background: #16181D; transform: rotate(45deg)"></span>
+    <svg width="24" height="24" viewBox="0 0 96 96" aria-hidden="true" style="flex: 0 0 24px"><path d="M24 18H72A16 16 0 0 1 88 34V41A9 9 0 0 0 88 59V66A16 16 0 0 1 72 82H24A16 16 0 0 1 8 66V59A9 9 0 0 0 8 41V34A16 16 0 0 1 24 18Z" fill="#3A5BFF"></path><circle cx="30" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="48" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="31" cy="47" r="3" fill="#16181D"></circle><circle cx="49" cy="47" r="3" fill="#16181D"></circle><path d="M32 58Q39 64 46 58" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" fill="none"></path></svg>
+    <span><span style="display: block; font-size: 15px; font-weight: 700">결과를 골라요</span><span style="display: block; margin-top: 1px; font-size: 13px; color: #C9CDD6">결과마다 화면이 달라요</span></span>
+  </div>
+</div>
+    </sc-if>
+    <sc-if value="{{onForm}}" hint-placeholder-val="{{ false }}">
+      <section style="background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 20px 16px">
+  <h2 style="margin: 0; font-size: 16px; font-weight: 800">1. 예매 결과</h2>
+        <div style="display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 14px; border: 1px solid #3A5BFF; border-radius: 12px; background: #F8F9FF">
+          <sc-if value="{{isSUCCESS}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="flex: 0 0 36px; height: 36px; border-radius: 50%; background: #E6F7F3; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B7A67" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg></span></sc-if><sc-if value="{{isPARTIAL}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="flex: 0 0 36px; height: 36px; border-radius: 50%; background: #FFF4E0; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="#8A5300" stroke-width="2.2"></circle><path d="M12 4a8 8 0 0 1 0 16Z" fill="#8A5300"></path></svg></span></sc-if><sc-if value="{{isFAILURE}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="flex: 0 0 36px; height: 36px; border-radius: 50%; background: #FDECEA; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"></path></svg></span></sc-if>
+          <span style="flex: 1; min-width: 0"><strong style="display: block; font-size: 15px">{{kindLabel}}</strong><small style="display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; color: #6B7180">{{kindDesc}}</small></span>
+        </div>
+        <button type="button" onClick="{{backToPick}}" style="display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; padding: 0; border: 0; background: none; font-family: inherit; font-size: 14px; font-weight: 600; color: #2D48D6; cursor: pointer">다른 결과 고르기</button>
+      </section>
+      <section style="margin-top: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 20px 16px">
+  <h2 style="margin: 0; font-size: 16px; font-weight: 800">2. 결과 설명</h2>
+        <div style="margin-top: 16px; font-size: 13px; font-weight: 700">{{noteLabel}} <em style="font-style: normal; font-size: 10px; color: #B42318">*</em></div><div style="margin-top: 6px; min-height: 76px; padding: 12px 14px; border: 1px solid #D5D9E2; border-radius: 10px; background: #FFFFFF; font-size: 14px; line-height: 1.5; box-sizing: border-box">{{noteText}}</div>
+        <sc-if value="{{showSeats}}" hint-placeholder-val="{{ true }}"><div style="margin-top: 16px; font-size: 13px; font-weight: 700">확보한 좌석과 수량</div><div style="margin-top: 6px; padding: 12px 14px; border: 1px solid #D5D9E2; border-radius: 10px; background: #FFFFFF; font-size: 14px; line-height: 1.5; box-sizing: border-box">{{seatsText}}</div></sc-if>
+        <h3 style="margin: 20px 0 0; font-size: 14px">{{evLabel}} <span style="{{evTagStyle}}">{{evTag}}</span></h3>
+        <p style="margin: 4px 0 0; font-size: 12px; line-height: 1.6; color: #6B7180">{{evDesc}}</p>
+        <div style="position: relative; margin-top: 10px; border-radius: 12px">
+          <sc-if value="{{noFile}}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{attach}}" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 10px 14px; border: 1.5px dashed #B4BAC6; border-radius: 12px; background: #FAFBFC; font-family: inherit; text-align: left; color: #16181D; cursor: pointer; box-sizing: border-box">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3A5BFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m-5 5 5-5 5 5"></path><path d="M4 16v4h16v-4"></path></svg>
+          <span><span style="display: block; font-size: 14px; font-weight: 700">파일 선택 또는 추가 첨부</span><span style="display: block; font-size: 12px; color: #5F6575">파일당 최대 20MB</span></span>
+        </button>
+            <span aria-hidden="true" class="pk-halo" style="position: absolute; inset: -6px; border: 2px solid #3A5BFF; border-radius: 16px; pointer-events: none"></span>
+<span aria-hidden="true" style="position: absolute; top: -7px; right: -7px; width: 12px; height: 12px; pointer-events: none"><span class="pk-ring" style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF"></span><span style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF; box-shadow: 0 0 0 3px #FFFFFF"></span></span>
+          </sc-if>
+          <sc-if value="{{file}}" hint-placeholder-val="{{ false }}"><div style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 14px; border: 1px solid #D5D9E2; border-radius: 12px; box-sizing: border-box">
+          <span aria-hidden="true" style="flex: 0 0 40px; height: 40px; border-radius: 8px; background: #DDE3F5; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2D48D6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="m3 16 5-5 4 4 3-3 6 6"></path></svg></span>
+          <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 14px; font-weight: 700">{{fileName}}</span><span style="display: block; font-size: 12px; color: #0B7A67">첨부했어요</span></span>
+        </div></sc-if>
+        </div>
+        <sc-if value="{{noFile}}" hint-placeholder-val="{{ true }}"><div style="display: flex; justify-content: center; margin-top: 14px">
+  <div role="status" class="pk-pop" style="position: relative; display: flex; align-items: center; gap: 8px; background: #16181D; color: #FFFFFF; border-radius: 12px; padding: 10px 16px 10px 10px; box-shadow: 0 6px 16px rgba(0,0,0,0.16); white-space: nowrap">
+    <span aria-hidden="true" style="position: absolute; top: -5px; left: 50%; margin-left: -5px; width: 10px; height: 10px; background: #16181D; transform: rotate(45deg)"></span>
+    <svg width="24" height="24" viewBox="0 0 96 96" aria-hidden="true" style="flex: 0 0 24px"><path d="M24 18H72A16 16 0 0 1 88 34V41A9 9 0 0 0 88 59V66A16 16 0 0 1 72 82H24A16 16 0 0 1 8 66V59A9 9 0 0 0 8 41V34A16 16 0 0 1 24 18Z" fill="#3A5BFF"></path><circle cx="30" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="48" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="31" cy="47" r="3" fill="#16181D"></circle><circle cx="49" cy="47" r="3" fill="#16181D"></circle><path d="M32 58Q39 64 46 58" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" fill="none"></path></svg>
+    <span><span style="display: block; font-size: 15px; font-weight: 700">{{upTitle}}</span><span style="display: block; margin-top: 1px; font-size: 13px; color: #C9CDD6">{{upSub}}</span></span>
+  </div>
+</div></sc-if>
+        <div style="display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 14px 16px; background: #EEF2FF; border: 1px solid #E0E6FF; border-radius: 12px; font-size: 13px; line-height: 1.65; color: #4B5160"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3A5BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: 0 0 18px; margin-top: 2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg><span>계정정보 등 민감한 내용은 가려 주세요. 결과는 한 번만 제출할 수 있어요. 이용자가 동의하면 거래가 완료되고, 이의를 제기하면 운영팀이 증빙을 보고 정해요. 이용자가 3일 동안 답하지 않으면 운영팀이 확정할 수 있어요.</span></div>
+        <p role="status" style="margin: 16px 0 10px; font-size: 13px; color: #B42318">{{blockNote}}</p>
+        <sc-if value="{{notDone}}" hint-placeholder-val="{{ true }}">
+          <div ref="{{targetRef}}" style="position: relative; border-radius: 10px">
+            <button type="button" onClick="{{submit}}" style="display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; cursor: pointer; box-sizing: border-box">결과 등록</button>
+            <sc-if value="{{s15}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" class="pk-halo" style="position: absolute; inset: -6px; border: 2px solid #3A5BFF; border-radius: 14px; pointer-events: none"></span>
+<span aria-hidden="true" style="position: absolute; top: -7px; right: -7px; width: 12px; height: 12px; pointer-events: none"><span class="pk-ring" style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF"></span><span style="position: absolute; inset: 0; border-radius: 50%; background: #3A5BFF; box-shadow: 0 0 0 3px #FFFFFF"></span></span></sc-if>
+          </div>
+          <sc-if value="{{s15}}" hint-placeholder-val="{{ false }}"><div style="display: flex; justify-content: center; margin-top: 14px">
+  <div role="status" class="pk-pop" style="position: relative; display: flex; align-items: center; gap: 8px; background: #16181D; color: #FFFFFF; border-radius: 12px; padding: 10px 16px 10px 10px; box-shadow: 0 6px 16px rgba(0,0,0,0.16); white-space: nowrap">
+    <span aria-hidden="true" style="position: absolute; top: -5px; left: 50%; margin-left: -5px; width: 10px; height: 10px; background: #16181D; transform: rotate(45deg)"></span>
+    <svg width="24" height="24" viewBox="0 0 96 96" aria-hidden="true" style="flex: 0 0 24px"><path d="M24 18H72A16 16 0 0 1 88 34V41A9 9 0 0 0 88 59V66A16 16 0 0 1 72 82H24A16 16 0 0 1 8 66V59A9 9 0 0 0 8 41V34A16 16 0 0 1 24 18Z" fill="#3A5BFF"></path><circle cx="30" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="48" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="31" cy="47" r="3" fill="#16181D"></circle><circle cx="49" cy="47" r="3" fill="#16181D"></circle><path d="M32 58Q39 64 46 58" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" fill="none"></path></svg>
+    <span style="font-size: 15px; font-weight: 700">결과를 등록해요</span>
+  </div>
+</div></sc-if>
+        </sc-if>
+        <sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+          <div role="status" class="pk-pop" style="padding: 14px 16px; border: 1px solid #E6E9EF; border-radius: 16px; background: #FFFFFF; box-shadow: 0 6px 16px rgba(22,24,29,0.08)">
+            <div style="display: flex; align-items: center; gap: 10px"><svg width="32" height="32" viewBox="0 0 96 96" aria-hidden="true" style="flex: 0 0 32px"><path d="M24 18H72A16 16 0 0 1 88 34V41A9 9 0 0 0 88 59V66A16 16 0 0 1 72 82H24A16 16 0 0 1 8 66V59A9 9 0 0 0 8 41V34A16 16 0 0 1 24 18Z" fill="#3A5BFF"></path><circle cx="30" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="48" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="31" cy="47" r="3" fill="#16181D"></circle><circle cx="49" cy="47" r="3" fill="#16181D"></circle><path d="M32 58Q39 64 46 58" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" fill="none"></path></svg><div><div style="font-size: 18px; font-weight: 800; letter-spacing: -0.3px">잘했어요!</div><div style="margin-top: 1px; font-size: 14px; color: #4B5160">기본 흐름을 모두 마쳤어요</div></div></div>
+            <a href="M10-cases.dc.html" style="display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; cursor: pointer; box-sizing: border-box; margin-top: 12px">다음</a>
+          </div>
+        </sc-if>
+      </section>
+    </sc-if>
+    <section style="margin-top: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 20px 16px">
+  <h2 style="margin: 0; font-size: 16px; font-weight: 800">확정된 조건</h2>
+  <h3 style="margin: 10px 0 0; font-size: 15px">레드 하트 앙코르 콘서트</h3>
+  <dl style="margin: 6px 0 0">
+    <div style="padding: 12px 0;"><dt style="margin-bottom: 4px; font-size: 12px; color: #6B7180">희망 좌석·요청 내용</dt><dd style="margin: 0; font-size: 14px; line-height: 1.5; color: #4B5160; white-space: pre-line">1층 R석 2매, 통로 쪽이면 좋아요</dd></div>
+    <div style="padding: 12px 0; border-top: 1px solid #F0F2F6;"><dt style="margin-bottom: 4px; font-size: 12px; color: #6B7180">성공 요건</dt><dd style="margin: 0; font-size: 14px; line-height: 1.5; color: #4B5160; white-space: pre-line">R석 이상 2매 연석</dd></div>
+    <div style="padding: 12px 0; border-top: 1px solid #F0F2F6;"><dt style="margin-bottom: 4px; font-size: 12px; color: #6B7180">실패·환불 처리</dt><dd style="margin: 0; font-size: 14px; line-height: 1.5; color: #4B5160; white-space: pre-line">수고비 전액 환불, 착수비는 시도 증빙 검토 후 처리</dd></div>
+  </dl>
+</section>
+  </div>
+
+  <nav aria-label="하단 메뉴" style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 10; height: 66px; background: #FFFFFF; border-top: 1px solid #E6E9EF; display: flex">
+    <button type="button" aria-current="page" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; font-family: inherit; font-size: 11px; font-weight: 700; color: #3A5BFF">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3-2 12v6h22v-6L21 3ZM1 15h6l2 3h6l2-3h6"></path></svg>
+      받은 요청
+    </button>
+    <button type="button" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; font-family: inherit; font-size: 11px; font-weight: 600; color: #5F6575">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4Z"></path><path d="M16 6v2m0 3v2m0 3v2"></path></svg>
+      매칭 관리
+    </button>
+    <button type="button" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; font-family: inherit; font-size: 11px; font-weight: 600; color: #5F6575">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21v-2a8 8 0 0 1 16 0v2"></path></svg>
+      마이
+    </button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { kind: '', file: false, done: false };
+    this.boxRef = (el) => { this.box = el; };
+    this.targetRef = (el) => { this.target = el; };
+    this.onScroll = () => {};
+  }
+  renderVals() {
+    const st = this.state;
+    const set = (p) => this.setState(p);
+    const kinds = {
+      SUCCESS: {
+        label: '성공', desc: '성공 요건을 모두 충족했어요. 예매 내역 화면을 첨부하면 이용자가 바로 확인해요(선택).',
+        noteLabel: '결과 설명', note: '요청하신 1층 R석 2매를 예매했어요.', seats: '1층 5구역 8열, 연석 2매',
+        evLabel: '성공 증빙 자료', evTag: '선택', evDesc: '성공한 예매 내역 화면을 첨부할 수 있어요.', fileName: '예매내역.png',
+        upTitle: '증빙 사진을 올려요', upSub: '예매 내역 화면이면 돼요',
+      },
+      PARTIAL: {
+        label: '부분 성공', desc: '일부만 충족했어요. 증빙은 선택이에요. 안전거래는 완료 후 부분성공 정산으로 금액을 정해요.',
+        noteLabel: '결과 설명', note: '요청하신 2매 중 1매만 예매했어요.', seats: '1층 5구역 8열, 1매',
+        evLabel: '결과 증빙 자료', evTag: '선택', evDesc: '확보한 만큼의 예매 내역 화면을 첨부할 수 있어요.', fileName: '예매내역.png',
+        upTitle: '증빙 사진을 올려요', upSub: '확보한 좌석이 보이면 돼요',
+      },
+      FAILURE: {
+        label: '실패', desc: '예매하지 못했어요. 예매를 시도한 화면(시도 증빙)이 반드시 필요해요.',
+        noteLabel: '실패 사유', note: '오픈 3분 만에 전석 매진됐어요.', seats: '',
+        evLabel: '시도 증빙 자료', evTag: '*', evDesc: '예매 대기·좌석 선택·매진 화면처럼 예매를 시도한 화면을 1개 이상 첨부해 주세요.', fileName: '시도화면.png',
+        upTitle: '시도 증빙을 올려요', upSub: '대기열·매진 화면이면 돼요',
+      },
+    };
+    const k = kinds[st.kind] || kinds.SUCCESS;
+    const onForm = st.kind !== '';
+    const failure = st.kind === 'FAILURE';
+    const n = !onForm ? 13 : !st.file ? 14 : 15;
+    const top = () => { if (this.box) this.box.scrollTop = 0; };
+    const pick = (kind) => () => { set({ kind: kind, file: false, done: false }); top(); };
+    return {
+      progN: n,
+      progW: n / 15 * 100 + '%',
+      boxRef: this.boxRef,
+      targetRef: this.targetRef,
+      onScroll: this.onScroll,
+      onPick: !onForm,
+      onForm: onForm,
+      pickSUCCESS: pick('SUCCESS'),
+      pickPARTIAL: pick('PARTIAL'),
+      pickFAILURE: pick('FAILURE'),
+      backToPick: () => { set({ kind: '', file: false, done: false }); top(); },
+      isSUCCESS: st.kind === 'SUCCESS',
+      isPARTIAL: st.kind === 'PARTIAL',
+      isFAILURE: failure,
+      kindLabel: k.label,
+      kindDesc: k.desc,
+      noteLabel: k.noteLabel,
+      noteText: k.note,
+      showSeats: !failure,
+      seatsText: k.seats,
+      evLabel: k.evLabel,
+      evTag: failure ? '*' : '선택',
+      evTagStyle: failure ? 'font-weight: 700; color: #B42318' : 'font-size: 12px; font-weight: 500; color: #6B7180',
+      evDesc: k.evDesc,
+      fileName: k.fileName,
+      upTitle: k.upTitle,
+      upSub: k.upSub,
+      file: st.file,
+      noFile: !st.file,
+      blockNote: failure && !st.file ? '실패 결과는 시도 증빙 파일을 첨부해야 제출할 수 있어요.' : '',
+      s15: st.file && !st.done,
+      notDone: !st.done,
+      done: st.done,
+      attach: () => {
+        set({ file: true });
+        setTimeout(() => {
+          if (this.box && this.target) this.box.scrollTo({ top: Math.max(0, this.target.offsetTop - 320), behavior: 'smooth' });
+        }, 30);
+      },
+      submit: () => {
+        if (st.file) set({ done: true });
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>
