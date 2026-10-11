@@ -41,7 +41,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    document.title = `${board.title} · PICO 도우미 미리 해 보기`
+    document.title = `${board.title} · PICO 도우미 사전 신청`
   }, [board])
 
   const go = (file: string) => {
