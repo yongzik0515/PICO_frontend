@@ -15554,6 +15554,77 @@
           }
         }
       }
+    },
+    "/api/admin/requests/{requestId}/matching-pass-restoration": {
+      "post": {
+        "tags": [
+          "admin-pass-restoration-controller"
+        ],
+        "operationId": "restore",
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassRestorationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMapStringObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -20152,6 +20223,32 @@
           "data",
           "message",
           "success"
+        ]
+      },
+      "PassRestorationRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "ILLNESS_OR_ACCIDENT",
+              "EVENT_CANCELLED",
+              "BOOKING_SITE_FAILURE",
+              "PLATFORM_FAILURE"
+            ]
+          },
+          "decisionNote": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "evidenceVerified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "decisionNote",
+          "reason"
         ]
       }
     },

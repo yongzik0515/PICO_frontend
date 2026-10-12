@@ -17,10 +17,11 @@ import { PageTitle } from '../ui/PageTitle';
 // 권한은 서버가 검사한다(ROLE_ADMIN이 아니면 403). 메뉴에는 노출하지 않고 /admin 주소로 들어온다.
 // 목록 응답 필드가 명세에 없는 API가 많아(data: object) pick()으로 찾고, 항목마다 원본 응답을 펼쳐 볼 수 있게 했다.
 
-type Tab = 'inquiries' | 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'payments' | 'reports' | 'reviews' | 'users' | 'setup';
+type Tab = 'pass-restoration' | 'inquiries' | 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'payments' | 'reports' | 'reviews' | 'users' | 'setup';
 const tabs: [Tab, string][] = [
   ['policy', '요청 정책 검토'],
   ['inquiries', '문의 답변'],
+  ['pass-restoration', '매칭권 예외 복원'],
   ['files', '증빙 파일 검토'],
   ['profiles', '도우미 심사'],
   ['attempts', '시도 증빙 대리 승인'],
@@ -1752,6 +1753,44 @@ function SetupTab() {
   );
 }
 
+function PassRestorationTab() {
+  type Reason = components['schemas']['PassRestorationRequest']['reason'];
+  const [requestId, setRequestId] = useState('');
+  const [reason, setReason] = useState<Reason>('ILLNESS_OR_ACCIDENT');
+  const [note, setNote] = useState('');
+  const [verified, setVerified] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [result, setResult] = useState<Raw | null>(null);
+  const { pending, run } = useAction();
+  const reasons: [Reason, string][] = [['ILLNESS_OR_ACCIDENT', '질병·사고'], ['EVENT_CANCELLED', '공식 공연·예매 취소'], ['BOOKING_SITE_FAILURE', '예매처 장애'], ['PLATFORM_FAILURE', '플랫폼 장애']];
+  async function approve() {
+    const ok = await run(async () => {
+      const response = await unwrap<Raw>(api.POST('/api/admin/requests/{requestId}/matching-pass-restoration', {
+        params: { path: { requestId: Number(requestId) } },
+        body: { reason, decisionNote: note.trim(), evidenceVerified: verified },
+      }));
+      setResult(response);
+    }, '매칭권 복원 내역을 확인했어요. 이미 복원된 거래는 중복 지급하지 않아요.');
+    if (ok) { setConfirming(false); setVerified(false); }
+  }
+  return <section className="content-card">
+    <h2>도우미 매칭권 예외 복원</h2>
+    <p className="prose">도우미가 취소한 거래 중 불가피한 사유를 확인한 경우에만 사용해 주세요. 단순 변심은 대상이 아니며, 이 작업은 현금 환불을 처리하지 않아요.</p>
+    <form onSubmit={(e) => { e.preventDefault(); setResult(null); setConfirming(true); }}>
+      <Field label="요청 번호" required><input type="number" min="1" step="1" required value={requestId} onChange={(e) => setRequestId(e.target.value)} /></Field>
+      <Field label="확인한 사유" required><select value={reason} onChange={(e) => setReason(e.target.value as Reason)}>{reasons.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+      <Field label="확인 근거" required helper="문의 번호·공식 공지 등 판단 근거를 적어 주세요. 진단명·인증정보 등 민감한 원문은 입력하지 마세요."><textarea required maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+      <label className="check-row"><input type="checkbox" required checked={verified} onChange={(e) => setVerified(e.target.checked)} />사유와 실제 업무 수행에 미친 영향을 확인했습니다.</label>
+      <button className="btn primary" type="submit" disabled={pending || !verified || !note.trim()}>복원 검토 완료</button>
+    </form>
+    {result && <Notice>요청 #{requestId}의 매칭권 1회 복원 내역입니다. 복원 시각: {utcToLocal(s(result, 'restoredAt'))}. 복원 유효기간: {s(result, 'expiresAt') ? utcToLocal(s(result, 'expiresAt')) : '기한 없음'}.</Notice>}
+    {confirming && <Modal title="매칭권 1회 복원" onClose={() => { if (!pending) setConfirming(false); }}>
+      <p className="prose">요청 #{requestId}의 도우미에게 매칭권 1회를 복원합니다. 이미 복원한 요청은 추가 지급하거나 만료일을 연장하지 않습니다.</p>
+      <div className="modal-actions"><button className="btn secondary" disabled={pending} onClick={() => setConfirming(false)}>돌아가기</button><button className="btn primary" disabled={pending} onClick={approve}>복원 승인</button></div>
+    </Modal>}
+  </section>;
+}
+
 export function AdminPage() {
   const [tab, setTab] = useState<Tab>('policy');
   return (
@@ -1769,6 +1808,7 @@ export function AdminPage() {
       {tab === 'files' && <FilesTab />}
       {tab === 'profiles' && <ProfilesTab />}
       {tab === 'inquiries' && <InquiriesTab />}
+      {tab === 'pass-restoration' && <PassRestorationTab />}
       {tab === 'attempts' && <AttemptsTab />}
       {tab === 'settlements' && <SettlementsTab />}
       {tab === 'requests' && <RequestsTab />}
