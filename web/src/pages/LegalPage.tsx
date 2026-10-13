@@ -16,7 +16,7 @@ function LegalDocument({ document }: { document: keyof typeof legalDocuments }) 
   return (
     <div className="account-contained legal-document">
       <PageTitle title={title} crumbs={[{ label: '홈', to: '/' }]} />
-      <p className="prose">시행일: 2026년 10월 12일</p>
+      <p className="prose">시행일: {document === 'privacy' || document === 'signupPrivacy' ? '2026년 10월 13일' : '2026년 10월 12일'}</p>
       <nav className="legal-links" aria-label="약관 및 개인정보 문서">
         {links.map(([to, label]) => <Link key={to} to={to} aria-current={label === title ? 'page' : undefined}>{label}</Link>)}
       </nav>
