@@ -365,9 +365,6 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
                   done={state.payoutVerified}
                   doneText={state.payoutMasked ? `확인 완료 · ${state.payoutMasked}` : undefined}
                 />
-                {state.payoutVerified && !state.payoutRegistered && (
-                  <AccountNote>지급대행 연동 전에 확인한 계좌예요. 착수비·성공보수를 받으려면 계좌를 한 번 다시 등록해 주세요.</AccountNote>
-                )}
                 <Field label="은행" required>
                   <select value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
                     {banks.map(([code, bankName]) => (
