@@ -320,7 +320,7 @@ function StatusView({ state, onResume }: { state: AgentState; onResume: () => vo
           )}
         </div>
         {state.approved?.careerSourceProfileId && <Note>공개 내용은 수정해 바로 게시한 버전이에요. 인증·경력은 기존에 승인된 자료를 유지하고 있어요.</Note>}
-        {s === 'none' && <Note>요청 수락 시 매칭권 1장을 사용해요. 이용자의 안전거래 결제와는 별개입니다. 예매처의 이용 기준을 준수하고, 계정정보 수집·매크로·재판매·티켓 양도를 요구하거나 제공할 수 없어요.</Note>}
+        {s === 'none' && <Note>요청 수락 시 매칭권 1장을 사용해요. 예매처의 이용 기준을 준수하고, 계정정보 수집·매크로·재판매·티켓 양도를 요구하거나 제공할 수 없어요.</Note>}
         {latest?.submittedAt && <small className="account-caption">신청일 {kstDay(latest.submittedAt)}</small>}
       </section>
       {previewOpen && latest && (

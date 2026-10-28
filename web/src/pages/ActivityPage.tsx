@@ -139,7 +139,7 @@ export function UserActivityPage() {
         </section>
         <aside className="activity-guide content-card">
           <h2>요청 후에는 이렇게 진행해요</h2>
-          <p>직접 거래는 조건 확정으로 매칭을 완료하고 후기를 남겨요. 아래 착수·결과 확인 단계는 안전거래에 해당해요.</p>
+          <p>최종 조건을 확정하면 매칭이 완료되고 후기를 남길 수 있어요.</p>
           <ol className="guide-steps">
             <li>
               <b>1</b>
@@ -281,7 +281,7 @@ export function AgentActivityPage({ kind }: { kind: 'leads' | 'matches' }) {
           {load.status !== 'done' ? <Loading state={load} retry={reload} /> : shown.length ? shown.map((r) => <Ticket key={r.id} r={r} agent />) : <Empty />}
         </div>
       </section>
-      {received && <Notice>요청 수락 시 매칭권 1장이 사용돼요. 안전거래 결제는 이용자가 최종 조건을 확정한 뒤 별도로 진행해요.</Notice>}
+      {received && <Notice>요청 수락 시 매칭권 1장이 사용돼요.</Notice>}
     </>
   );
 }

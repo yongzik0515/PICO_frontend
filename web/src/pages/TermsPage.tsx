@@ -5,12 +5,12 @@ import { useAuth } from '../auth/AuthContext';
 import { api, unwrap } from '../api/client';
 import { str, pick } from '../api/pick';
 import { agreementRows } from '../transactions/requestRows';
-import { fetchDetail, latestAgreement, roleIn, safetyFee, useLoad, type AgreementBody, type Detail } from '../transactions/model';
+import { fetchDetail, latestAgreement, roleIn, useLoad, type AgreementBody, type Detail } from '../transactions/model';
 import { Field, MoneyInput, Notice, Rows, TxCard, useAction, won } from '../transactions/ui';
 import { PageTitle } from '../ui/PageTitle';
-import { money } from '../ui/format';
 
 // Each party may propose. Drafts are isolated by account and request, including their base agreement version.
+// 안전거래는 당분간 제공하지 않는다: 새 조건은 항상 직접 거래(safePayment=false)로 보낸다.
 export function TermsPage() {
   const { id } = useParams();
   const requestId = Number(id);
@@ -58,9 +58,9 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
   const [draft, setDraft] = useState<Draft>(() => {
     const initial: Draft = {
       upfrontFeeKrw: initialTerms?.upfrontFeeKrw ?? 0, successFeeKrw: initialTerms?.successFeeKrw ?? r.agencyBudgetDesired ?? r.agencyBudgetMax ?? 0,
-      safePayment: initialTerms?.safePayment ?? true, requirements: initialTerms?.requirements || r.requirements,
+      safePayment: false, requirements: initialTerms?.requirements || r.requirements,
       successConditions: initialTerms?.successConditions || r.successConditions, attemptRule: initialTerms?.attemptRule || '',
-      refundRule: initialTerms?.refundRule || '수고비 전액 환불, 착수비는 시도 증빙 검토 후 처리',
+      refundRule: initialTerms?.refundRule || '실패 시 수고비 전액 환불, 착수비는 당사자끼리 합의해 처리',
       contactDeadlineRule: initialTerms?.contactDeadlineRule || r.contactDeadlineRule || '예매 종료 후 30분 이내', expectedAgreementVersion: version,
       additionalNote: initialTerms?.additionalNote ?? r.additionalNote ?? '', reason: '',
     };
@@ -80,14 +80,13 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
     try { sessionStorage.setItem(storageKey, JSON.stringify(draft)); setSaveFailed(false); }
     catch { setSaveFailed(true); }
   }, [draft, storageKey]);
-  const current = { upfront: draft.upfrontFeeKrw, success: draft.successFeeKrw, safe: draft.safePayment };
-  const setFees = (next: typeof current) => setDraft((old) => ({ ...old, upfrontFeeKrw: next.upfront, successFeeKrw: next.success, safePayment: next.safe }));
+  const current = { upfront: draft.upfrontFeeKrw, success: draft.successFeeKrw };
+  const setFees = (next: typeof current) => setDraft((old) => ({ ...old, upfrontFeeKrw: next.upfront, successFeeKrw: next.success, safePayment: false }));
   const reproposing = stage === 'ready' || stage === 'payment';
   const counteroffering = stage === 'terms_sent' && prev?.proposedByRole !== (myRole === 'agent' ? 'AGENT' : 'REQUESTER');
   const canPropose = r.status === 'MATCHED' && ((stage === 'terms_needed' && myRole === 'agent') || stage === 'revision_requested' || reproposing || counteroffering);
   const newConditions = version !== draft.expectedAgreementVersion;
   const blocked = !canPropose || newConditions;
-  const fee = safetyFee(current.success, current.safe);
   const MAX_FEE = 100_000_000;
   const tooMuch = current.upfront > MAX_FEE || current.success > MAX_FEE;
 
@@ -129,9 +128,10 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
     setBlockNote('');
     const body: AgreementBody = {
       ...draft,
+      safePayment: false, // 임시저장된 예전 초안이 안전거래여도 직접 거래로 보낸다
       additionalNote: draft.additionalNote.trim(), reason: counteroffering ? draft.reason.trim() : undefined,
       requirements: draft.requirements.trim(), successConditions: draft.successConditions.trim(),
-      attemptRule: current.safe ? draft.attemptRule.trim() : '직접 거래: 착수 증빙을 플랫폼에 제출하지 않음',
+      attemptRule: '직접 거래: 착수 증빙을 플랫폼에 제출하지 않음',
       refundRule: draft.refundRule.trim(), contactDeadlineRule: draft.contactDeadlineRule.trim(),
     };
     const ok = await run(() => unwrap(api.POST('/api/requests/{requestId}/agreements', { params: { path: { requestId } }, body })), `최종 조건을 보냈어요. ${other}의 확인을 기다려 주세요.`);
@@ -166,11 +166,7 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
             <Field label="성공 요건" required error={errors.successConditions}>
               <textarea name="successConditions" rows={3} required maxLength={10000} value={draft.successConditions} onChange={(e) => setDraft((old) => ({ ...old, successConditions: e.target.value }))} />
             </Field>
-            {current.safe ? (
-              <Field label="예매 시도 방식" required error={errors.attemptRule}>
-                <textarea name="attemptRule" rows={3} required maxLength={10000} value={draft.attemptRule} onChange={(e) => setDraft((old) => ({ ...old, attemptRule: e.target.value }))} placeholder="예: 티켓 오픈 시각에 PC 1대로 예매를 시도하고, 대기열 화면을 증빙으로 남겨요." />
-              </Field>
-            ) : <Notice>직접 거래는 착수·결과 증빙을 플랫폼에 등록하지 않아요.</Notice>}
+            <Notice>착수·결과 증빙은 플랫폼에 등록하지 않아요. 조건이 확정되면 매칭이 완료되고, 결제·정산은 당사자끼리 직접 해요.</Notice>
           </TxCard>
           <TxCard title="비용과 결과 안내">
             <div className="form-grid">
@@ -181,23 +177,6 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
                 <MoneyInput name="successFeeKrw" required max={MAX_FEE} value={current.success} onChange={(n) => setFees({ ...current, success: n })} />
               </Field>
             </div>
-            <fieldset className="tx-methods">
-              <legend>거래 방식</legend>
-              <label>
-                <input type="radio" name="safePayment" checked={current.safe} onChange={() => setFees({ ...current, safe: true })} />
-                <span>
-                  <strong>안전거래</strong>
-                  <small>이용자가 PICO에 결제하고, 조건에 따라 정산돼요. 수수료 {money(safetyFee(current.success))}원(수고비의 3%, 최소 1,000원)</small>
-                </span>
-              </label>
-              <label>
-                <input type="radio" name="safePayment" checked={!current.safe} onChange={() => setFees({ ...current, safe: false })} />
-                <span>
-                  <strong>직접 거래</strong>
-                  <small>조건 확정으로 매칭이 완료돼요. 착수·결과 등록 없이 당사자끼리 진행하고 이용자가 후기를 남겨요. 결제·환불은 직접 처리해요.</small>
-                </span>
-              </label>
-            </fieldset>
             <div className="summary-rows">
               <div>
                 <span>착수비</span>
@@ -207,15 +186,11 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
                 <span>수고비</span>
                 <strong>{won(current.success)}</strong>
               </div>
-              <div>
-                <span>안전거래 수수료</span>
-                <strong>{won(fee)}</strong>
-              </div>
             </div>
             {tooMuch && <Notice tone="error">착수비와 성공보수는 각각 1억 원까지 정할 수 있어요.</Notice>}
             <div className="total-row">
-              <span>이용자 결제 금액</span>
-              <strong>{current.safe ? won(current.upfront + current.success + fee) : '직접 정산'}</strong>
+              <span>정산 방식</span>
+              <strong>당사자끼리 직접 정산</strong>
             </div>
             <Field label="실패·환불 처리" required error={errors.refundRule}>
               <textarea name="refundRule" rows={3} required maxLength={10000} value={draft.refundRule} onChange={(e) => setDraft((old) => ({ ...old, refundRule: e.target.value }))} />
@@ -231,7 +206,7 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
             </Field>
             <div className="tx-form-footer">
               <span role="status">
-                {reproposing ? `확정된 ${prev?.version}차 조건을 대신할 새 조건이에요. ${other}가 다시 확정해야 해요.` : prev ? `${prev.version + 1}차 제안으로 보내요.` : current.safe ? `${other}가 확인하고 확정하면 결제 단계로 넘어가요.` : `${other}가 확인하고 확정하면 매칭이 완료돼요. 이후 착수·결과 등록은 필요 없어요.`}
+                {reproposing ? `확정된 ${prev?.version}차 조건을 대신할 새 조건이에요. ${other}가 다시 확정해야 해요.` : prev ? `${prev.version + 1}차 제안으로 보내요.` : `${other}가 확인하고 확정하면 매칭이 완료돼요. 이후 착수·결과 등록은 필요 없어요.`}
               </span>
               {blockNote && (
                 <p className="field-error" role="alert">

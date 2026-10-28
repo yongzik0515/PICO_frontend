@@ -441,7 +441,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
                 <strong>최종 조건에서 확정</strong>
               </div>
             </div>
-            <Notice>{identity.status === 'done' && !identity.data.verified && <>요청을 보내려면 먼저 마이페이지에서 본인인증을 완료해 주세요. </>}요청을 보내는 시점에는 결제하지 않아요. 도우미가 보낸 최종 조건이 안전거래면 확정한 뒤 결제하고, 직접 거래면 플랫폼 결제 없이 진행돼요.</Notice>
+            <Notice>{identity.status === 'done' && !identity.data.verified && <>요청을 보내려면 먼저 마이페이지에서 본인인증을 완료해 주세요. </>}PICO에서는 결제하지 않아요. 도우미가 보낸 최종 조건을 확정하면 매칭이 완료되고, 비용은 도우미와 직접 정산해요.</Notice>
             <div className="quote-agreements">
               <label className="check-row quote-agree-all">
                 <input type="checkbox" checked={allAgreed} onChange={(e) => setAgreed({ terms: e.target.checked, privacy: e.target.checked, contact: e.target.checked })} />
@@ -539,7 +539,7 @@ export function RequestSentPage() {
           내 활동으로
         </button>
       </div>
-      <small>아직 결제하지 않았어요. 최종 조건이 안전거래면 확정한 뒤 결제해요.</small>
+      <small>PICO에서는 결제하지 않아요. 최종 조건을 확정하면 매칭이 완료돼요.</small>
     </section>
   );
 }

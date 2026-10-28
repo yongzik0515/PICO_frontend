@@ -76,7 +76,8 @@ export function MyPage() {
     [agent ? '도우미 프로필' : '이용자 프로필', '닉네임 · 연락처 · 계정 인증 · 아이디·비밀번호', '/user-profile'],
     // 승인된 도우미는 공개 프로필 화면(/helper-profile: 바로 수정·공개 설정)으로, 아직이면 신청 현황(/application)으로 간다.
     ...(agent ? ([['공개 프로필', '도우미 소개와 활동 정보 · 공개 설정', approved ? '/helper-profile' : '/application']] as [string, string, string][]) : []),
-    ['거래 내역', agent ? '매칭권 충전 · 사용 · 정산' : '안전거래 결제', '/history'],
+    // 안전거래를 제공하지 않는 동안 이용자 결제 내역 메뉴는 숨긴다(도우미는 매칭권 충전·사용 내역).
+    ...(agent ? ([['거래 내역', '매칭권 충전 · 사용', '/history']] as [string, string, string][]) : []),
     ['좋아요한 도우미', '저장한 도우미 보기', '/favorites'],
     ['신고 내역', '접수한 신고와 처리 결과', '/reports'],
     ['이용 방법', '서비스 이용 안내', '/guide'],
@@ -664,7 +665,6 @@ function AgentHistory() {
   const tabs: [typeof tab, string][] = [
     ['purchases', '매칭권 충전'],
     ['usages', '매칭권 사용'],
-    ['payouts', '정산'],
   ];
 
   return (

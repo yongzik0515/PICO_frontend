@@ -67,7 +67,7 @@ export function ReviewPage() {
       <>
         <PageTitle title="후기를 작성할 수 없어요" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
         <div className="empty">
-          <p>{used ? '이미 후기를 남긴 거래예요. 거래당 후기는 한 번만 쓸 수 있어요(삭제한 뒤에도 다시 쓸 수 없어요).' : '안전거래 완료 또는 직접 거래 매칭 완료 후 이용자가 한 번 작성할 수 있어요.'}</p>
+          <p>{used ? '이미 후기를 남긴 거래예요. 거래당 후기는 한 번만 쓸 수 있어요(삭제한 뒤에도 다시 쓸 수 없어요).' : '매칭 완료 후 이용자가 한 번 작성할 수 있어요.'}</p>
           <button type="button" className="btn secondary" onClick={() => navigate(`/requests/${requestId}`)}>
             요청 상세로
           </button>
