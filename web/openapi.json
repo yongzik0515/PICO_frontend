@@ -15625,6 +15625,153 @@
           }
         }
       }
+    },
+    "/api/matching-passes/groble-checkouts": {
+      "post": {
+        "tags": [
+          "매칭권"
+        ],
+        "summary": "그로블 결제창 매칭권 주문 생성",
+        "description": "그로블 상품 설정(10장 5,000원)으로 pass_purchases와 PENDING 결제 주문(checkout_provider=GROBLE)을 만들고, 주문번호를 ref로 붙인 그로블 결제 링크(checkoutUrl)를 반환합니다. 구매자가 그 링크에서 결제하면 서명된 결제 완료 웹훅(POST /api/webhooks/groble)으로 PAID 확정·지급됩니다. 이 주문은 POST /purchases/{purchaseId}/payment(PG 승인)과 PG 환불 대상이 아니며, 환불은 그로블 결제 취소로만 처리됩니다. 구매 조건은 일반 구매와 같습니다(본인인증 필요, 이용 정지·탈퇴·도우미 정지 계정은 403). 그로블 웹훅 시크릿·결제 링크가 설정되지 않으면 주문 없이 503입니다. 결제하지 않고 30분이 지나면 주문은 만료되지만, 이후 결제 완료 웹훅이 오면 같은 판정으로 되살려 지급합니다.",
+        "operationId": "createGrobleCheckout",
+        "responses": {
+          "403": {
+            "description": "구매할 수 없는 계정 상태",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "그로블 연동 미설정",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "그로블 결제 링크와 PENDING 결제 주문",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseGrobleCheckoutResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "잘못된 요청 값 또는 형식",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks/groble": {
+      "post": {
+        "tags": [
+          "Groble Webhook"
+        ],
+        "summary": "그로블 결제 이벤트 수신",
+        "description": "일반 사용자 인증을 요구하지 않습니다. 원본 바이트와 X-Groble-Timestamp로 HEX(HMAC-SHA256(secret, \"{timestamp}.{body}\"))를 계산해 X-Groble-Signature 또는 X-Groble-Signature-Previous와 대조하고(±5분), 검증 전에는 파싱·기록·상태 변경을 하지 않습니다. payment.completed는 sellerReference(그로블 주문 생성 API가 만든 주문번호)로 주문을 찾아 상품 ID·일반결제·KRW·금액이 주문과 모두 같을 때만 PAID로 확정하고 매칭권을 최초 한 번 지급합니다. payment.refunded는 환불액 ÷ 회당 가격만큼 남은 매칭권을 회수하고 결제를 PARTIALLY_REFUNDED/REFUNDED로 반영합니다. payment.cancel_requested는 기록만 합니다. 같은 X-Groble-Idempotency-Key 재전송은 다시 처리하지 않습니다. 우리 주문이 아닌 이벤트(ref 없음·테스트 발송)는 기록 없이 200(IGNORED), 판정할 수 없는 건은 지급·회수 없이 FAILED로 기록하고 200입니다. 구매자 개인정보는 저장하지 않습니다.",
+        "operationId": "receiveWebhook_1",
+        "requestBody": {
+          "description": "그로블 원본 JSON {id, type, version, occurredAt, data{object}}. 수신 바이트 그대로 서명 검증 후 파싱합니다.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "서명은 유효하지만 본문이 JSON·UTF-8이 아님",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "서명 검증 실패: 헤더 누락, 서명 불일치 또는 허용 시각(±5분) 초과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "웹훅 시크릿 미설정. 상태 변경·기록 없음(그로블이 재전송)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "검증 완료. 처리 결과(PROCESSED·FAILED) 또는 기록 없이 무시(IGNORED)",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePaymentWebhookResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
     }
   },
   "components": {
@@ -20250,6 +20397,68 @@
           "decisionNote",
           "reason"
         ]
+      },
+      "GrobleCheckoutResponse": {
+        "type": "object",
+        "description": "그로블 결제창 매칭권 주문. checkoutUrl로 이동해 결제하면 서명된 결제 완료 웹훅으로 지급된다",
+        "properties": {
+          "purchaseId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "pass_purchases.id",
+            "example": 101
+          },
+          "purchasedUnits": {
+            "type": "integer",
+            "format": "int32",
+            "description": "pass_purchases.purchased_units. 그로블 상품 수량",
+            "example": 10
+          },
+          "priceKrw": {
+            "type": "integer",
+            "format": "int64",
+            "description": "pass_purchases.price_krw. 그로블 상품 금액(원)",
+            "example": 5000
+          },
+          "validDays": {
+            "type": "integer",
+            "format": "int32",
+            "description": "pass_purchases.valid_days. 지급일부터 사용 가능한 일수",
+            "example": 330
+          },
+          "checkoutUrl": {
+            "type": "string",
+            "description": "그로블 결제 링크. ref에 이 주문의 주문번호가 붙어 있으며 바꾸면 지급되지 않는다",
+            "example": "https://www.groble.im/payment/k6pnFx?ref=pass-0f1e2d3c4b5a69788796a5b4c3d2e1f0"
+          },
+          "payment": {
+            "$ref": "#/components/schemas/PaymentResponse",
+            "description": "생성된 PENDING 결제 주문"
+          }
+        },
+        "required": [
+          "checkoutUrl",
+          "payment",
+          "priceKrw",
+          "purchaseId",
+          "purchasedUnits",
+          "validDays"
+        ]
+      },
+      "ApiResponseGrobleCheckoutResponse": {
+        "type": "object",
+        "description": "공통 응답. 성공은 success=true, 오류는 success=false와 data=null",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/GrobleCheckoutResponse"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
       }
     },
     "securitySchemes": {
