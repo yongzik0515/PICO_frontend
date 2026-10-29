@@ -53,6 +53,16 @@ function Pending({ title, crumbs, notFound = false }: { title: string; crumbs?: 
   );
 }
 
+// '이용 방법'(/guide)은 별도 앱인 온보딩 페이지로 보낸다. 히스토리를 바꿔치기해서 뒤로 가기는 이전 화면으로 돌아온다.
+const GUIDE_URL = 'https://onboarding.pico-kr.app';
+
+function GuideRedirect() {
+  useEffect(() => {
+    window.location.replace(GUIDE_URL);
+  }, []);
+  return null;
+}
+
 // 프로토타입 discovery.js의 favorites(). 목록은 GET /api/me/favorites
 function FavoritesPage() {
   const { items: list, loaded, reload } = useFavorites();
@@ -166,7 +176,7 @@ export default function App() {
                 <Route path="recovery" element={<RecoveryPage />} />
                 <Route path="reset-password" element={<ResetPasswordPage />} />
                 <Route path="help" element={<Navigate to="/inquiries" replace />} />
-                <Route path="guide" element={<Pending title="이용 방법" />} />
+                <Route path="guide" element={<GuideRedirect />} />
                 <Route path="terms" element={<TermsOfServicePage />} />
                 <Route path="privacy" element={<PrivacyPage />} />
                 <Route path="signup-privacy" element={<SignupPrivacyPage />} />
