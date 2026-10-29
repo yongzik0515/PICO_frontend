@@ -1,0 +1,43 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f5f7fa;
+}
+
+.stage {
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+}
+
+.phone {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* PC·태블릿: 휴대폰 틀을 가운데에 띄운다. */
+@media (min-width: 600px) {
+  body {
+    background: #e9ecf3;
+  }
+
+  .stage {
+    align-items: center;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+
+  .phone {
+    width: 390px;
+    height: min(844px, calc(100dvh - 48px));
+    border-radius: 28px;
+    box-shadow: 0 0 0 10px #16181d, 0 24px 60px rgba(22, 24, 29, 0.25);
+  }
+}
