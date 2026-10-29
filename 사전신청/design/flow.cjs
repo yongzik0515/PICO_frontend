@@ -94,7 +94,8 @@ const ustep = [];
 const u1 = new (load('U1-main.dc.html'))({}); ustep.push(u1.renderVals().progN);
 const u2 = new (load('U2-profile.dc.html'))({}); fakeScroll(u2);
 ok(u2.renderVals().read, 'U2 read'); ustep.push(u2.renderVals().progN);
-u2.box.scrollTop = 1200; u2.renderVals().onScroll(); ok(u2.renderVals().askStep, 'U2 ask after scroll'); ustep.push(u2.renderVals().progN);
+u2.box.scrollTop = 1200; u2.renderVals().onScroll(); ok(u2.renderVals().tabStep && u2.renderVals().about, 'U2 review tab step after scroll'); ustep.push(u2.renderVals().progN);
+u2.renderVals().showReviews(); ok(u2.renderVals().askStep && u2.renderVals().reviews && !u2.renderVals().about, 'U2 reviews shown, ask step'); ustep.push(u2.renderVals().progN);
 const u3 = new (load('U3-quote.dc.html'))({}); fakeScroll(u3);
 ok(u3.renderVals().read && u3.renderVals().notAgreed, 'U3 read'); ustep.push(u3.renderVals().progN);
 u3.renderVals().send(); ok(!u3.renderVals().sent, 'U3 send blocked before agreeing');
@@ -108,7 +109,7 @@ u4.box.scrollTop = 1200; u4.renderVals().onScroll(); ok(u4.renderVals().confirmS
 u4.renderVals().openSheet(); ok(u4.renderVals().sheet, 'U4 sheet'); ustep.push(u4.renderVals().progN);
 u4.renderVals().closeSheet(); ok(u4.renderVals().confirmStep, 'U4 sheet cancel');
 u4.renderVals().openSheet(); u4.renderVals().confirm(); ok(u4.renderVals().matched && !u4.renderVals().reviewing, 'U4 matched'); ustep.push(u4.renderVals().progN);
-ok(ustep.join(',') === '1,2,3,4,5,6,7,8,9,10,11,12', 'user steps ' + ustep.join(','));
+ok(ustep.join(',') === '1,2,3,4,5,6,7,8,9,10,11,12,13', 'user steps ' + ustep.join(','));
 console.log(process.exitCode ? 'user checks failed' : 'user checks passed', '| user steps', ustep.join(','));
 
 // ── 이용자 혼자 해 보기 ──

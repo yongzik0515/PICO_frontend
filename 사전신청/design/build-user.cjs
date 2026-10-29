@@ -2,7 +2,7 @@
 const L = require('./build-lib.cjs');
 const { doc, write, svg, header, AVATAR_USER, nav, halo, bubble, cardOpen, card, rows, notice, statusBadge, nextStep, detailHeader, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, DIRECT_CARD, MASCOT } = L;
 
-const TOTAL = 12; // 이용자 함께 해 보기 단계 수
+const TOTAL = 13; // 이용자 함께 해 보기 단계 수
 const SIGNUP_URL = 'https://pico-kr.app/login';
 const USER_NAV = ['find', 'activity', 'my'];
 const userHeader = (progress = true) => header({ avatar: AVATAR_USER, progress, total: TOTAL });
@@ -131,8 +131,43 @@ class Component extends DCLogic {
   write('U1-main.dc.html', doc('메인 · 도우미 고르기 · 이용자', body, script));
 }
 
-// ── U2 도우미 프로필: 확인하고 요청하기 ─────────────────────────────
+// ── U2 도우미 프로필: 확인 → 거래 후기 보기 → 요청하기 ──────────────
 {
+  const tabBtn = (on, text, extra = '') => `<button type="button" role="tab" aria-selected="{{${on}}}"${extra} style="{{${on}Style}}">${text}</button>`;
+  const bar = (score, count) => `<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">${score}점</span><span role="meter" aria-label="${score}점 후기" aria-valuemin="0" aria-valuemax="27" aria-valuenow="${count}" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: ${Math.round((count / 27) * 100)}%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">${count}개</small></div>`;
+  const review = (stars, date, result, text) => `<article style="padding: 14px 0; border-top: 1px solid #F0F2F6">
+          <div style="display: flex; align-items: center; gap: 6px"><strong style="font-size: 13px">이용자</strong><span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: #0B7A67; background: #E6F7F3; padding: 2px 7px; border-radius: 999px">${svg('check', 12, '#0B7A67', 2.4)}매칭 내역 확인</span></div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px"><span aria-label="${stars}점" style="color: #F5A524">${'★'.repeat(stars)}<span style="color: #D5D9E2">${'☆'.repeat(5 - stars)}</span></span><time style="color: #6B7180">${date}</time></div>
+          <p style="margin: 6px 0 0; font-size: 12px; color: #6B7180">이용자 후기 결과: ${result}</p>
+          <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.6; color: #16181D">${text}</p>
+        </article>`;
+  const FEEDBACK = `<section style="margin-top: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 8px 16px 18px">
+      <div role="tablist" aria-label="프로필 정보" style="display: flex; gap: 20px; border-bottom: 1px solid #E6E9EF">
+        ${tabBtn('about', '도우미 소개')}
+        <div ref="{{targetRef}}" style="position: relative; border-radius: 8px">
+          ${tabBtn('reviews', '거래 후기 27', ' onClick="{{showReviews}}"')}
+          <sc-if value="{{tabStep}}" hint-placeholder-val="{{ false }}">${halo(10)}</sc-if>
+        </div>
+      </div>
+      <sc-if value="{{tabStep}}" hint-placeholder-val="{{ false }}">${bubble({ title: '후기도 확인해요', sub: '실제 이용자가 남긴 후기예요', justify: 'flex-start', at: { left: 150 } })}</sc-if>
+      <sc-if value="{{about}}" hint-placeholder-val="{{ true }}">
+        <h3 style="margin: 16px 0 0; font-size: 15px">공연을 기다리는 마음, 함께할게요.</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: #4B5160">희망하는 공연과 좌석 조건을 꼼꼼히 확인하고, 충분히 이야기한 뒤 예매를 준비해요.</p>
+        <p style="margin: 8px 0 0; font-size: 12px; color: #6B7180">도우미가 직접 작성한 소개예요.</p>
+      </sc-if>
+      <sc-if value="{{reviews}}" hint-placeholder-val="{{ false }}">
+        <div class="pk-pop" style="display: flex; align-items: center; gap: 16px; margin-top: 16px; padding: 14px; border-radius: 12px; background: #F5F7FA">
+          <div style="flex: 0 0 auto; text-align: center"><strong style="display: block; font-size: 28px; font-weight: 800">4.8</strong><span style="color: #F5A524; font-size: 13px">★★★★★</span><small style="display: block; margin-top: 2px; font-size: 11px; color: #6B7180">거래 후기 27개</small></div>
+          <div aria-label="별점 분포" style="flex: 1; display: flex; flex-direction: column; gap: 4px">${bar(5, 22)}${bar(4, 4)}${bar(3, 1)}${bar(2, 0)}${bar(1, 0)}</div>
+        </div>
+        <div style="margin-top: 8px">
+        ${review(5, '2026.10.02', '성공', '오픈 전에 진행 방식을 꼼꼼히 설명해 주셔서 믿고 맡겼어요. 원하던 1층 좌석으로 예매됐어요.')}
+        ${review(5, '2026.09.21', '성공', '연락이 빠르고 친절했어요. 다음 공연도 부탁드리려고요.')}
+        ${review(4, '2026.09.08', '부분 성공', '2매 중 1매만 잡혔지만 미리 정한 대로 깔끔하게 정리해 주셨어요.')}
+        </div>
+        <p role="status" style="margin: 8px 0 0; text-align: center; font-size: 12px; color: #6B7180">아래로 스크롤하면 후기가 이어져요.</p>
+      </sc-if>
+    </section>`;
   const tile = (k, v) => `<div style="flex: 1; padding: 12px 10px; border-radius: 12px; background: #F5F7FA; text-align: center"><span style="display: block; font-size: 12px; color: #6B7180">${k}</span><strong style="display: block; margin-top: 4px; font-size: 16px">${v}</strong></div>`;
   const body = `${userHeader()}
 ${L.scroller(`    ${crumbTitle('목록', '상세 프로필', '도우미 프로필')}
@@ -146,7 +181,7 @@ ${L.scroller(`    ${crumbTitle('목록', '상세 프로필', '도우미 프로�
           <div style="min-width: 0">
             <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px"><h2 style="margin: 0; font-size: 20px; font-weight: 800">${AGENT}</h2>${BADGES}</div>
             <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.5; color: #4B5160">공연을 기다리는 마음, 함께할게요.</p>
-            <span style="display: block; margin-top: 6px; font-size: 13px"><b style="color: #F5A524">★</b> <strong>4.8</strong> · <span style="color: #2D48D6">후기 27개</span></span>
+            <span style="display: block; margin-top: 6px; font-size: 13px"><b style="color: #F5A524">★</b> <strong>4.8</strong> · <button type="button" onClick="{{showReviews}}" style="padding: 0; border: 0; background: none; font-family: inherit; font-size: 13px; color: #2D48D6; cursor: pointer">후기 27개</button></span>
           </div>
         </div>
         <div style="display: flex; gap: 8px; margin-top: 16px">${tile('성공률', '92%')}${tile('거래 횟수', '32회')}${tile('평균 응답', '10분 이내')}</div>
@@ -156,9 +191,7 @@ ${L.scroller(`    ${crumbTitle('목록', '상세 프로필', '도우미 프로�
     </div>
     ${card('함께하기 전에 확인하세요', `${rows([['가능 예매처', 'NOL 티켓 · YES24 티켓 · 멜론티켓'], ['주로 맡는 분야', '콘서트'], ['활동 가능 시간', '평일 저녁 · 주말'], ['최소 착수비', '5,000원'], ['수고비', '20,000 ~ 40,000원 · 최종 조건에서 확정'], ['활동 경력', '3년 · 본인 작성']])}
   ${notice('연락처는 요청을 수락한 상대방에게만 공개돼요.')}`)}
-    ${card('도우미 소개', `<h3 style="margin: 12px 0 0; font-size: 15px">공연을 기다리는 마음, 함께할게요.</h3>
-  <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: #4B5160">희망하는 공연과 좌석 조건을 꼼꼼히 확인하고, 충분히 이야기한 뒤 예매를 준비해요.</p>
-  <p ref="{{targetRef}}" style="margin: 8px 0 0; font-size: 12px; color: #6B7180">도우미가 직접 작성한 소개예요.</p>`)}`, '142px')}
+    ${FEEDBACK}`, '142px')}
 
   <div style="position: absolute; left: 0; right: 0; bottom: 66px; z-index: 11; display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #FFFFFF; border-top: 1px solid #E6E9EF; box-sizing: border-box">
     <span style="flex: 0 0 auto"><span style="display: block; font-size: 12px; color: #6B7180">최소 착수비</span><strong style="font-size: 16px">5,000원부터</strong></span>
@@ -176,11 +209,13 @@ ${nav(USER_NAV, 'find')}`;
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { step: 'read' };${scrollLogic('read', 'ask')}
+    this.state = { step: 'read', tab: 'about' };${scrollLogic('read', 'tab')}
   }
   renderVals() {
     const s = this.state.step;
-    const n = s === 'read' ? 2 : 3;
+    const reviews = this.state.tab === 'reviews';
+    const tab = (on) => 'min-height: 44px; padding: 0 2px; border: 0; border-bottom: 2px solid ' + (on ? '#3A5BFF' : 'transparent') + '; margin-bottom: -1px; background: none; font-family: inherit; font-size: 15px; cursor: pointer; ' + (on ? 'font-weight: 700; color: #16181D' : 'font-weight: 600; color: #4B5160');
+    const n = { read: 2, tab: 3, ask: 4 }[s];
     return {
       progN: n,
       progW: n / ${TOTAL} * 100 + '%',
@@ -188,7 +223,13 @@ class Component extends DCLogic {
       targetRef: this.targetRef,
       onScroll: this.onScroll,
       read: s === 'read',
+      tabStep: s === 'tab',
       askStep: s === 'ask',
+      about: !reviews,
+      reviews: reviews,
+      aboutStyle: tab(!reviews),
+      reviewsStyle: tab(reviews),
+      showReviews: () => this.setState({ tab: 'reviews', step: s === 'read' || s === 'tab' ? 'ask' : s }),
     };
   }
 }`;
@@ -274,7 +315,7 @@ class Component extends DCLogic {
     const s = this.state.step;
     const set = (p) => this.setState(p);
     const agreed = s === 'send' || s === 'sent';
-    const n = { read: 4, agree: 5, send: 6, sent: 7 }[s];
+    const n = { read: 5, agree: 6, send: 7, sent: 8 }[s];
     return {
       progN: n,
       progW: n / ${TOTAL} * 100 + '%',
@@ -368,7 +409,7 @@ class Component extends DCLogic {
     const s = this.state.step;
     const set = (p) => this.setState(p);
     const top = () => { if (this.box) this.box.scrollTop = 0; };
-    const n = { waiting: 8, read: 9, confirm: 10, sheet: 11, matched: 12 }[s];
+    const n = { waiting: 9, read: 10, confirm: 11, sheet: 12, matched: 13 }[s];
     return {
       progN: n,
       progW: n / ${TOTAL} * 100 + '%',
