@@ -1756,13 +1756,14 @@ function SetupTab() {
 function PassRestorationTab() {
   type Reason = components['schemas']['PassRestorationRequest']['reason'];
   const [requestId, setRequestId] = useState('');
-  const [reason, setReason] = useState<Reason>('ILLNESS_OR_ACCIDENT');
+  const [reason, setReason] = useState<Reason>('EVENT_CANCELLED');
   const [note, setNote] = useState('');
   const [verified, setVerified] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<Raw | null>(null);
   const { pending, run } = useAction();
-  const reasons: [Reason, string][] = [['ILLNESS_OR_ACCIDENT', '질병·사고'], ['EVENT_CANCELLED', '공식 공연·예매 취소'], ['BOOKING_SITE_FAILURE', '예매처 장애'], ['PLATFORM_FAILURE', '플랫폼 장애']];
+  // 질병·사고 등 개인 사유는 복원 사유가 아니다(서버도 거부). 객관적으로 확인되는 사유만 고른다.
+  const reasons: [Reason, string][] = [['EVENT_CANCELLED', '공식 공연·예매 취소'], ['BOOKING_SITE_FAILURE', '예매처 장애'], ['PLATFORM_FAILURE', '플랫폼 장애']];
   async function approve() {
     const ok = await run(async () => {
       const response = await unwrap<Raw>(api.POST('/api/admin/requests/{requestId}/matching-pass-restoration', {
@@ -1775,12 +1776,12 @@ function PassRestorationTab() {
   }
   return <section className="content-card">
     <h2>도우미 매칭권 예외 복원</h2>
-    <p className="prose">도우미가 취소한 거래 중 불가피한 사유를 확인한 경우에만 사용해 주세요. 단순 변심은 대상이 아니며, 이 작업은 현금 환불을 처리하지 않아요.</p>
+    <p className="prose">매칭권은 수락할 때 사용이 확정돼 취소해도 자동으로 돌아가지 않아요. 공식 공연·예매 취소나 예매처·플랫폼 장애로 거래를 진행할 수 없었던 경우에만 사용해 주세요. 이용자·도우미 누가 취소한 거래든, 직접 거래 매칭이 완료된 거래든 복원할 수 있어요. 질병·사고, 단순 변심 같은 개인 사유는 대상이 아니며, 이 작업은 현금 환불을 처리하지 않아요.</p>
     <form onSubmit={(e) => { e.preventDefault(); setResult(null); setConfirming(true); }}>
       <Field label="요청 번호" required><input type="number" min="1" step="1" required value={requestId} onChange={(e) => setRequestId(e.target.value)} /></Field>
       <Field label="확인한 사유" required><select value={reason} onChange={(e) => setReason(e.target.value as Reason)}>{reasons.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
-      <Field label="확인 근거" required helper="문의 번호·공식 공지 등 판단 근거를 적어 주세요. 진단명·인증정보 등 민감한 원문은 입력하지 마세요."><textarea required maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-      <label className="check-row"><input type="checkbox" required checked={verified} onChange={(e) => setVerified(e.target.checked)} />사유와 실제 업무 수행에 미친 영향을 확인했습니다.</label>
+      <Field label="확인 근거" required helper="문의 번호·공식 공지·장애 공지 등 판단 근거를 적어 주세요. 인증정보 등 민감한 원문은 입력하지 마세요."><textarea required maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+      <label className="check-row"><input type="checkbox" required checked={verified} onChange={(e) => setVerified(e.target.checked)} />공식 공지 등으로 사유와 거래에 미친 영향을 확인했습니다.</label>
       <button className="btn primary" type="submit" disabled={pending || !verified || !note.trim()}>복원 검토 완료</button>
     </form>
     {result && <Notice>요청 #{requestId}의 매칭권 1회 복원 내역입니다. 복원 시각: {utcToLocal(s(result, 'restoredAt'))}. 복원 유효기간: {s(result, 'expiresAt') ? utcToLocal(s(result, 'expiresAt')) : '기한 없음'}.</Notice>}

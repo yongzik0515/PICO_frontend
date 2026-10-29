@@ -355,7 +355,7 @@ export function RequestDetailPage() {
         {text}
       </button>
     );
-    // 가이드 6-1: MATCHED에서는 진행 중인 결제가 없을 때만 당사자가 취소할 수 있다. 이용자가 취소하면 도우미의 매칭권이 복구되고, 도우미가 취소하면 복구되지 않는다.
+    // 가이드 6-1: MATCHED에서는 진행 중인 결제가 없을 때만 당사자가 취소할 수 있다. 매칭권은 수락 시 사용이 확정돼 누가 취소해도 복구되지 않는다.
     const cancelMatched =
       r.status === 'MATCHED' && !hasActivePayment ? (
         <button type="button" className="btn ghost full tx-danger" disabled={pending} onClick={() => setDialog('cancel')}>
@@ -794,8 +794,8 @@ export function RequestDetailPage() {
         <aside className="tx-side">
           <section className="content-card tx-progress">
             <h2>진행 상황</h2>
-            {/* 도우미가 보낸(또는 확정된) 조건이 직접 거래면 결제 단계가 없다. */}
-            <Progress stage={stage} direct={!!latest && !latest.safePayment} proposedBy={latest?.proposedByRole} />
+            {/* 새 거래는 직접 거래뿐이라 결제·착수 단계를 보여 주지 않는다. 예전 안전거래 조건이 있는 거래만 전체 단계를 보여 준다. */}
+            <Progress stage={stage} direct={!latest?.safePayment} proposedBy={latest?.proposedByRole} />
             {actions()}
             {finalized && (
               <p className="tx-confirmed">
@@ -814,6 +814,8 @@ export function RequestDetailPage() {
             <strong>{r.targetName}</strong>
             <br />
             수락하면 연락처가 공개되고 최종 조건을 작성할 수 있어요.
+            <br />
+            수락에 쓴 매칭권은 이후 거래가 취소돼도 돌려받지 않아요. 공식 공연 취소나 예매처·플랫폼 장애는 운영팀 확인 후 복원돼요.
           </p>
           <div className="tx-accept-balance">
             <div>
@@ -855,7 +857,7 @@ export function RequestDetailPage() {
         >
           <p className="prose">
             취소하면 되돌릴 수 없어요.
-            {r.status === 'MATCHED' && (agent ? ' 도우미가 취소하면 수락할 때 사용한 매칭권은 돌려받지 않아요.' : ' 도우미가 수락할 때 사용한 매칭권은 도우미에게 복구돼요.')}
+            {r.status === 'MATCHED' && (agent ? ' 수락할 때 사용한 매칭권은 돌려받지 않아요.' : ' 도우미가 수락할 때 사용한 매칭권은 돌아가지 않아요.')}
           </p>
         </ReasonModal>
       )}
@@ -872,8 +874,7 @@ export function RequestDetailPage() {
           }
         >
           <p className="prose">
-            안전거래는 결제가 시작되기 전까지만 조건을 다시 제안할 수 있어요.
-            <br />
+            {latest.safePayment && <>안전거래는 결제가 시작되기 전까지만 조건을 다시 제안할 수 있어요.<br /></>}
             {latest.safePayment ? `확정 후 이용자가 ${money(latest.upfrontFeeKrw + latest.successFeeKrw + latest.safetyFeeKrw)}원을 안전거래로 결제해요.` : '확정하면 직접 거래 매칭이 완료돼요. 착수·결과 등록 없이 당사자끼리 진행하고, 이용자는 후기를 남길 수 있어요.'}
           </p>
         </ConfirmModal>
