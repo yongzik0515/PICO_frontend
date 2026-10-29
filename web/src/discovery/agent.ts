@@ -152,14 +152,16 @@ const sortParam: Record<Sort, string> = {
   success: 'SUCCESS_RATE',
 };
 
-/** 검색어·필터를 GET /api/agents 쿼리로 바꾼다. 목록에 없는 예매처(기타 직접 입력)는 q로 검색한다(q가 예매처명도 검색함). */
-function searchQuery(query: string, sort: Sort, f: Filters, platforms: Platform[]) {
+/** 검색어·필터를 GET /api/agents 쿼리로 바꾼다. 목록에 없는 예매처(기타 직접 입력)는 q로 검색한다(q가 예매처명도 검색함).
+ *  alias는 AI가 고친 검색어로, q와 둘 중 하나라도 맞는 도우미를 함께 찾는다(q가 있을 때만 쓰인다). */
+function searchQuery(query: string, sort: Sort, f: Filters, platforms: Platform[], alias?: string) {
   const byName = new Map(platforms.map((p) => [p.name.trim().toLowerCase(), p.id]));
   const platformIds = f.sites.map((s) => byName.get(s.trim().toLowerCase())).filter((id): id is number => !!id);
   const unknownSites = f.sites.filter((s) => !byName.has(s.trim().toLowerCase()));
   const q = [query.trim(), ...unknownSites].filter(Boolean).join(' ');
   return {
     q: q || undefined,
+    alias: q && alias?.trim() ? alias.trim() : undefined,
     upfrontMin: f.min || undefined,
     upfrontMax: f.max || undefined,
     ratingMin: f.rating || undefined,
@@ -174,8 +176,8 @@ function searchQuery(query: string, sort: Sort, f: Filters, platforms: Platform[
 
 type SearchPage = { items?: Raw[]; totalCount?: number };
 
-export async function searchAgents(query: string, sort: Sort, f: Filters, platforms: Platform[]) {
-  const page = await unwrap<SearchPage>(api.GET('/api/agents', { params: { query: searchQuery(query, sort, f, platforms) } }));
+export async function searchAgents(query: string, sort: Sort, f: Filters, platforms: Platform[], alias?: string) {
+  const page = await unwrap<SearchPage>(api.GET('/api/agents', { params: { query: searchQuery(query, sort, f, platforms, alias) } }));
   const items = (page.items ?? []).map(toAgent);
   return { items: sort === 'high' ? items.reverse() : items, total: page.totalCount ?? items.length };
 }
@@ -183,14 +185,14 @@ export async function searchAgents(query: string, sort: Sort, f: Filters, platfo
 export type SearchState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'done'; items: Agent[]; total: number };
 
 /** 검색 조건이 바뀌면 250ms 뒤에 다시 조회한다. 늦게 도착한 이전 응답은 버린다. */
-export function useAgentSearch(query: string, sort: Sort, f: Filters, reload = 0): SearchState {
+export function useAgentSearch(query: string, sort: Sort, f: Filters, reload = 0, alias?: string): SearchState {
   const platforms = usePlatforms();
   const [state, setState] = useState<SearchState>({ status: 'loading' });
-  const key = JSON.stringify([query, sort, f, platforms, reload]);
+  const key = JSON.stringify([query, sort, f, platforms, reload, alias]);
   useEffect(() => {
     let alive = true;
     const timer = setTimeout(() => {
-      searchAgents(query, sort, f, platforms).then(
+      searchAgents(query, sort, f, platforms, alias).then(
         (r) => alive && setState({ status: 'done', ...r }),
         (e) => alive && setState({ status: 'error', message: e instanceof Error ? e.message : '도우미를 불러오지 못했어요.' }),
       );
