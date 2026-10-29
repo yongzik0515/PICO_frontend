@@ -77,7 +77,7 @@ export function SocialCallbackPage() {
       </form>}
       {result?.status === 'REAUTHENTICATED' && <>
         <p>연결한 소셜 계정을 확인했어요. 아래 버튼을 눌러야 탈퇴가 완료돼요.</p>
-        <AccountNote>연락처·본인인증·정산계좌 정보는 삭제하며 거래·결제 기록은 법에 따라 보관해요. 진행 중인 거래나 미정산 금액이 있으면 탈퇴할 수 없어요. 탈퇴 후 30일간 같은 명의의 본인인증이 제한돼요(도우미 활동 정지 시 3년).</AccountNote>
+        <AccountNote>연락처·본인인증·계좌 확인 정보는 삭제하며 거래·결제 기록은 법에 따라 보관해요. 응답 대기·조건 협의 중인 요청이나 진행 중인 거래, 처리 중인 매칭권 환불이 있으면 탈퇴할 수 없어요. 탈퇴 후 30일간 같은 명의의 본인인증이 제한돼요(도우미 활동 정지 시 3년).</AccountNote>
         <button className="btn danger" disabled={pending} onClick={() => void withdraw()}>탈퇴 확정</button>{' '}
         <Link to="/user-profile" onClick={clearSocialFlow}>취소</Link>
       </>}

@@ -245,7 +245,7 @@ export function HomePage() {
             <h2>
               찾는 순간부터
               <br />
-              결과를 확인할 때까지.
+              매칭이 완료될 때까지.
             </h2>
             <GuideSteps />
             <button className="guide-link" onClick={() => navigate('/guide')}>

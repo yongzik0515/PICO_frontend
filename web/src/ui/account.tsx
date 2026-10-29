@@ -37,11 +37,11 @@ export function AuthAside() {
         </p>
         <p>
           <Icon name="check" size={18} />
-          최종 조건을 확인한 뒤 결제
+          최종 조건을 확인하고 매칭 완료
         </p>
         <p>
           <Icon name="shield" size={18} />
-          착수부터 결과까지 한곳에서
+          비용은 당사자끼리 직접 거래
         </p>
       </div>
     </aside>
