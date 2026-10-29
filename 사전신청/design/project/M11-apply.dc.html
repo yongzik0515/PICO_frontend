@@ -17,10 +17,12 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
 .pk-halo{animation:pk-halo 1.6s ease-out infinite}
 .pk-ring{animation:pk-ring 1.6s ease-out infinite}
 .pk-pop{animation:pk-pop .35s cubic-bezier(.2,.8,.2,1) both}
+.pk-bob{animation:pk-bob 1.4s ease-in-out infinite}
 @keyframes pk-halo{0%{transform:scale(1);opacity:.9}70%{transform:scale(1.05);opacity:0}100%{transform:scale(1.05);opacity:0}}
 @keyframes pk-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.8);opacity:0}}
 @keyframes pk-pop{0%{transform:translateY(12px);opacity:0}100%{transform:none;opacity:1}}
-@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop{animation:none}}
+@keyframes pk-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop,.pk-bob{animation:none}}
 </style>
 </helmet>
 <div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F5F7FA; color: #16181D; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; word-break: keep-all">
@@ -57,7 +59,7 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
         </li>
       </ul>
       <sc-if value="{{ready}}" hint-placeholder-val="{{ true }}">
-        <button type="button" onClick="{{apply}}" style="display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; cursor: pointer; box-sizing: border-box; margin-top: 16px; background: #FFFFFF; color: #2D48D6">사전 신청하고 회원가입하기</button>
+        <button type="button" onClick="{{apply}}" style="display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; cursor: pointer; box-sizing: border-box; margin-top: 16px; background: #FFFFFF; color: #2D48D6">회원가입하기</button>
       </sc-if>
       <sc-if value="{{applied}}" hint-placeholder-val="{{ false }}">
         <p role="status" class="pk-pop" style="margin: 16px 0 0; padding: 14px 16px; border-radius: 12px; background: rgba(255,255,255,0.16); font-size: 14px; line-height: 1.5; color: #FFFFFF"><strong style="display: block">회원가입 화면으로 넘어가요</strong><span style="display: block; margin-top: 2px; font-size: 12px; color: #E3E8FF">실제 사이트에서는 여기서 회원가입(/signup)으로 이동해요.</span></p>
@@ -76,7 +78,7 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
   <ol style="list-style: none; margin: 16px 0 0; padding: 0">
         <li style="position: relative; display: flex; gap: 12px; padding-bottom: 16px"><span aria-hidden="true" style="position: absolute; left: 13px; top: 30px; bottom: 0; border-left: 1px solid #E6E9EF"></span>
           <b style="flex: 0 0 27px; height: 27px; border-radius: 50%; background: #3A5BFF; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">1</b>
-          <span><strong style="display: block; font-size: 14px">회원가입</strong><span style="display: block; margin-top: 2px; font-size: 12px; line-height: 1.5; color: #6B7180">사전 신청을 누르면 바로 시작해요.</span></span>
+          <span><strong style="display: block; font-size: 14px">회원가입</strong><span style="display: block; margin-top: 2px; font-size: 12px; line-height: 1.5; color: #6B7180">‘회원가입하기’를 누르면 바로 시작해요.</span></span>
         </li>
         <li style="position: relative; display: flex; gap: 12px; padding-bottom: 16px"><span aria-hidden="true" style="position: absolute; left: 13px; top: 30px; bottom: 0; border-left: 1px solid #E6E9EF"></span>
           <b style="flex: 0 0 27px; height: 27px; border-radius: 50%; background: #F0F2F6; color: #4B5160; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">2</b>
@@ -93,7 +95,7 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
       </ol>
       <div style="display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 14px 16px; background: #EEF2FF; border: 1px solid #E0E6FF; border-radius: 12px; font-size: 13px; line-height: 1.65; color: #4B5160"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3A5BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: 0 0 18px; margin-top: 2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg><span>요청 수락 시 매칭권 1장을 사용해요. 예매처의 이용 기준을 준수하고, 계정정보 수집·매크로·재판매·티켓 양도를 요구하거나 제공할 수 없어요.</span></div>
       <sc-if value="{{ready}}" hint-placeholder-val="{{ true }}">
-        <button type="button" onClick="{{apply}}" style="display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; cursor: pointer; box-sizing: border-box; margin-top: 16px">사전 신청하고 회원가입하기</button>
+        <button type="button" onClick="{{apply}}" style="display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; cursor: pointer; box-sizing: border-box; margin-top: 16px">회원가입하기</button>
       </sc-if>
       <sc-if value="{{applied}}" hint-placeholder-val="{{ false }}">
         <p role="status" class="pk-pop" style="margin: 16px 0 0; padding: 14px 16px; border-radius: 12px; background: #EEF2FF; font-size: 14px; line-height: 1.5; color: #2D48D6"><strong style="display: block">회원가입 화면으로 넘어가요</strong><span style="display: block; margin-top: 2px; font-size: 12px; color: #4B5160">실제 사이트에서는 여기서 회원가입(/signup)으로 이동해요.</span></p>

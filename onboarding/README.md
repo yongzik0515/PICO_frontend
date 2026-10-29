@@ -24,12 +24,12 @@ npm run sync
 | 주소 | 보드 |
 |---|---|
 | `/` | 처음 화면(이용자·도우미 고르기) |
-| `/user` `/user/profile` `/user/quote` `/user/request` `/user/done` | 이용자 가이드 |
+| `/user` `/user/profile` `/user/quote` `/user/request` `/user/done` | 이용자 함께 해 보기 |
+| `/user/practice` | 이용자 혼자 해 보기 |
 | `/helper` | 1 메인(도우미) |
 | `/my` `/leads` `/detail` `/terms` `/matched` | 2-1 ~ 2-5 함께 해 보기 |
 | `/cases` | 2-6 이런 경우도 있어요 |
 | `/practice` | 3 혼자 해 보기 |
-| `/apply` | 4 사전 신청 |
 
 보드와 주소 목록은 `src/routes.js`에 있어요. 보드 안 링크(`M3-my.dc.html` 등)는 이 주소로 바뀌어요.
 
@@ -40,7 +40,7 @@ npm run sync
 
 ## 시안과 다른 점
 
-- '사전 신청하고 회원가입하기'를 누르면 https://pico-kr.app/login 으로 가요(`src/App.tsx`의 `SIGNUP_URL`).
+- 각 마침 화면의 '회원가입하기'는 https://pico-kr.app/login 으로 가요. 사전 신청 화면(시안 4번 `M11-apply`)은 웹앱에서 뺐어요.
 - 휴대폰에서는 화면을 꽉 채우고, 폭 600px 이상(PC·태블릿)에서는 휴대폰 틀을 가운데에 띄워요.
 
 ## Vercel 연결

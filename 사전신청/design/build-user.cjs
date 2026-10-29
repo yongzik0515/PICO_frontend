@@ -1,8 +1,8 @@
 // 처음 화면(이용자·도우미 고르기 U0)과 이용자 함께 해 보기 보드(U1~U5)를 실제 화면 구조대로 만든다. node build-user.cjs
 const L = require('./build-lib.cjs');
-const { doc, write, svg, header, AVATAR_USER, nav, halo, bubble, cardOpen, card, rows, notice, statusBadge, nextStep, detailHeader, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, DIRECT_CARD, MASCOT } = L;
+const { scrollCue, profileFeedback, doc, write, svg, header, AVATAR_USER, nav, halo, bubble, cardOpen, card, rows, notice, statusBadge, nextStep, detailHeader, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, DIRECT_CARD, MASCOT } = L;
 
-const TOTAL = 12; // 이용자 함께 해 보기 단계 수
+const TOTAL = 13; // 이용자 함께 해 보기 단계 수
 const SIGNUP_URL = 'https://pico-kr.app/login';
 const USER_NAV = ['find', 'activity', 'my'];
 const userHeader = (progress = true) => header({ avatar: AVATAR_USER, progress, total: TOTAL });
@@ -75,9 +75,12 @@ class Component extends DCLogic {
 }
 
 // ── U1 메인: 도우미 고르기 ─────────────────────────────────────────
+// 메인 구성 라벨(도우미 메인 소개와 같은 모양): 테두리와 왼쪽 위 이름표
+const LABEL = (radius, text) => `<span aria-hidden="true" style="position: absolute; inset: -4px; border: 2px solid #3A5BFF; border-radius: ${radius}px; pointer-events: none"></span><span class="pk-pop" style="position: absolute; top: -11px; left: 12px; font-size: 12px; font-weight: 700; line-height: 16px; color: #FFFFFF; background: #3A5BFF; padding: 3px 9px; border-radius: 999px">${text}</span>`;
 {
   const body = `${userHeader()}
   <div style="position: absolute; top: 56px; left: 0; right: 0; bottom: 66px; overflow-y: auto; padding: 16px 20px 24px; box-sizing: border-box">
+    <div style="position: relative; margin-top: 8px; border-radius: 20px">
     <div aria-label="공연 배너" style="height: 220px; border-radius: 20px; background: #2B2F6E; color: #FFFFFF; display: flex; flex-direction: column; overflow: hidden">
       <div style="flex: 1; padding: 18px 20px; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px">
         <span style="align-self: flex-start; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.18); padding: 4px 10px; border-radius: 999px">콘서트</span>
@@ -88,12 +91,17 @@ class Component extends DCLogic {
         <span style="font-size: 13px; color: #D9DCF5">2026.10.13 (화) 20:00</span>
       </div>
     </div>
-    <div style="margin-top: 14px; height: 52px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E6E9EF; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; box-sizing: border-box">
+    ${LABEL(23, '곧 열리는 공연')}
+    </div>
+    <div style="position: relative; margin-top: 18px; border-radius: 12px">
+    <div style="height: 52px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E6E9EF; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; box-sizing: border-box">
       <span style="font-size: 14px; color: #6B7180">공연명, 도우미 이름, 예매처를 검색해 보세요</span>
       ${svg('search', 20, '#3A5BFF', 2)}
     </div>
+    ${LABEL(15, '공연·도우미 검색')}
+    </div>
     <h2 style="margin: 22px 0 0; font-size: 17px; font-weight: 800">이번 주, 주목할 도우미</h2>
-    <div style="position: relative; margin-top: 12px; border-radius: 16px">
+    <div style="position: relative; margin-top: 18px; border-radius: 16px">
       <a href="U2-profile.dc.html" style="display: flex; gap: 12px; padding: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; color: #16181D; text-decoration: none">
         ${AGENT_AVATAR(52, 14, 18)}
         <span style="min-width: 0">
@@ -102,6 +110,7 @@ class Component extends DCLogic {
         </span>
       </a>
       ${halo(20)}
+      <span class="pk-pop" style="position: absolute; top: -11px; left: 12px; font-size: 12px; font-weight: 700; line-height: 16px; color: #FFFFFF; background: #3A5BFF; padding: 3px 9px; border-radius: 999px">도우미 목록</span>
     </div>
     ${bubble({ title: '도우미를 골라 봐요', sub: '프로필에서 조건과 후기를 봐요' })}
     <div style="margin-top: 12px; display: flex; gap: 12px; padding: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; opacity: 0.6">
@@ -122,13 +131,14 @@ class Component extends DCLogic {
   write('U1-main.dc.html', doc('메인 · 도우미 고르기 · 이용자', body, script));
 }
 
-// ── U2 도우미 프로필: 확인하고 요청하기 ─────────────────────────────
+// ── U2 도우미 프로필: 확인 → 거래 후기 보기 → 요청하기 ──────────────
 {
+  const FEEDBACK = profileFeedback(true);
   const tile = (k, v) => `<div style="flex: 1; padding: 12px 10px; border-radius: 12px; background: #F5F7FA; text-align: center"><span style="display: block; font-size: 12px; color: #6B7180">${k}</span><strong style="display: block; margin-top: 4px; font-size: 16px">${v}</strong></div>`;
   const body = `${userHeader()}
 ${L.scroller(`    ${crumbTitle('목록', '상세 프로필', '도우미 프로필')}
     <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">
-      <div>${bubble({ title: '프로필을 확인해요', sub: '조건과 후기를 보고 골라요', justify: 'flex-start', arrow: 'down', at: { left: 30 }, gap: 12 })}</div>
+      <div>${bubble({ title: '아래로 내리며 확인해요', sub: '조건과 후기를 보고 골라요', justify: 'flex-start', arrow: 'down', at: { left: 30 }, gap: 12 })}</div>
     </sc-if>
     <div style="position: relative; border-radius: 16px">
       <section style="background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 20px 16px">
@@ -137,19 +147,16 @@ ${L.scroller(`    ${crumbTitle('목록', '상세 프로필', '도우미 프로�
           <div style="min-width: 0">
             <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px"><h2 style="margin: 0; font-size: 20px; font-weight: 800">${AGENT}</h2>${BADGES}</div>
             <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.5; color: #4B5160">공연을 기다리는 마음, 함께할게요.</p>
-            <span style="display: block; margin-top: 6px; font-size: 13px"><b style="color: #F5A524">★</b> <strong>4.8</strong> · <span style="color: #2D48D6">후기 27개</span></span>
+            <span style="display: block; margin-top: 6px; font-size: 13px"><b style="color: #F5A524">★</b> <strong>4.8</strong> · <button type="button" onClick="{{showReviews}}" style="padding: 0; border: 0; background: none; font-family: inherit; font-size: 13px; color: #2D48D6; cursor: pointer">후기 27개</button></span>
           </div>
         </div>
         <div style="display: flex; gap: 8px; margin-top: 16px">${tile('성공률', '92%')}${tile('거래 횟수', '32회')}${tile('평균 응답', '10분 이내')}</div>
         <p style="display: flex; align-items: center; gap: 4px; margin: 12px 0 0; font-size: 12px; color: #6B7180">${svg('info', 13, '#6B7180', 2)} 플랫폼 거래 기록 기준 · 소개와 경력은 도우미가 직접 작성해요.</p>
       </section>
-      <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">${halo(20)}</sc-if>
     </div>
     ${card('함께하기 전에 확인하세요', `${rows([['가능 예매처', 'NOL 티켓 · YES24 티켓 · 멜론티켓'], ['주로 맡는 분야', '콘서트'], ['활동 가능 시간', '평일 저녁 · 주말'], ['최소 착수비', '5,000원'], ['수고비', '20,000 ~ 40,000원 · 최종 조건에서 확정'], ['활동 경력', '3년 · 본인 작성']])}
   ${notice('연락처는 요청을 수락한 상대방에게만 공개돼요.')}`)}
-    ${card('도우미 소개', `<h3 style="margin: 12px 0 0; font-size: 15px">공연을 기다리는 마음, 함께할게요.</h3>
-  <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: #4B5160">희망하는 공연과 좌석 조건을 꼼꼼히 확인하고, 충분히 이야기한 뒤 예매를 준비해요.</p>
-  <p ref="{{targetRef}}" style="margin: 8px 0 0; font-size: 12px; color: #6B7180">도우미가 직접 작성한 소개예요.</p>`)}`, '142px')}
+    ${FEEDBACK}`, '142px')}
 
   <div style="position: absolute; left: 0; right: 0; bottom: 66px; z-index: 11; display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #FFFFFF; border-top: 1px solid #E6E9EF; box-sizing: border-box">
     <span style="flex: 0 0 auto"><span style="display: block; font-size: 12px; color: #6B7180">최소 착수비</span><strong style="font-size: 16px">5,000원부터</strong></span>
@@ -158,6 +165,7 @@ ${L.scroller(`    ${crumbTitle('목록', '상세 프로필', '도우미 프로�
       <sc-if value="{{askStep}}" hint-placeholder-val="{{ false }}">${halo(14)}</sc-if>
     </div>
   </div>
+  ${scrollCue('read', 154)}
   <sc-if value="{{askStep}}" hint-placeholder-val="{{ false }}">
     <div style="position: absolute; right: 12px; bottom: 150px; z-index: 12">${bubble({ title: '요청을 보내 봐요', sub: '요청은 무료예요', justify: 'flex-end', arrow: 'down', at: { right: 60 }, gap: 0 })}</div>
   </sc-if>
@@ -167,11 +175,13 @@ ${nav(USER_NAV, 'find')}`;
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { step: 'read' };${scrollLogic('read', 'ask')}
+    this.state = { step: 'read', tab: 'about' };${scrollLogic('read', 'tab')}
   }
   renderVals() {
     const s = this.state.step;
-    const n = s === 'read' ? 2 : 3;
+    const reviews = this.state.tab === 'reviews';
+    const tab = (on) => 'min-height: 44px; padding: 0 2px; border: 0; border-bottom: 2px solid ' + (on ? '#3A5BFF' : 'transparent') + '; margin-bottom: -1px; background: none; font-family: inherit; font-size: 15px; cursor: pointer; ' + (on ? 'font-weight: 700; color: #16181D' : 'font-weight: 600; color: #4B5160');
+    const n = { read: 2, tab: 3, ask: 4 }[s];
     return {
       progN: n,
       progW: n / ${TOTAL} * 100 + '%',
@@ -179,7 +189,14 @@ class Component extends DCLogic {
       targetRef: this.targetRef,
       onScroll: this.onScroll,
       read: s === 'read',
+      tabStep: s === 'tab',
       askStep: s === 'ask',
+      about: !reviews,
+      reviews: reviews,
+      aboutStyle: tab(!reviews),
+      reviewsStyle: tab(reviews),
+      showReviews: () => this.setState({ tab: 'reviews', step: s === 'read' || s === 'tab' ? 'ask' : s }),
+      showAbout: () => this.setState({ tab: 'about' }),
     };
   }
 }`;
@@ -196,7 +213,7 @@ class Component extends DCLogic {
   const body = `${userHeader()}
 ${L.scroller(`    ${crumbTitle('도우미 프로필', '요청 보내기', '요청 보내기')}
     <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">
-      <div>${bubble({ title: '요청서를 확인해요', sub: '이번엔 미리 채워 뒀어요', justify: 'flex-start', arrow: 'down', at: { left: 30 }, gap: 12 })}</div>
+      <div>${bubble({ title: '요청서를 확인해요', sub: '미리 채워 뒀어요. 아래로 내려요', justify: 'flex-start', arrow: 'down', at: { left: 30 }, gap: 12 })}</div>
     </sc-if>
     <div style="position: relative; border-radius: 16px">
       ${cardOpen('요청서')}
@@ -213,7 +230,6 @@ ${L.scroller(`    ${crumbTitle('도우미 프로필', '요청 보내기', '요�
         ${label('기타 사항')}${box('오픈 직후 연락 가능해요', true)}
         ${label('도우미 응답 기한', true, '티켓 오픈 전이어야 해요. 이 시간까지 도우미가 수락하지 않으면 요청이 만료돼요.')}${box('2026-10-12 14:10')}
       </section>
-      <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">${halo(20)}</sc-if>
     </div>
     ${card('연락처', `${notice('요청을 보내려면 상대방에게 공개할 연락처가 필요해요. 수락한 도우미에게만 공개돼요.')}
   ${pair(label('종류', true) + box('휴대폰'), label('연락처', true) + box('010-1234-5678'))}`)}
@@ -237,6 +253,7 @@ ${L.scroller(`    ${crumbTitle('도우미 프로필', '요청 보내기', '요�
     </section>`)}
 
 ${nav(USER_NAV, 'find')}
+  ${scrollCue('read')}
 
   <sc-if value="{{sent}}" hint-placeholder-val="{{ false }}">
     <div class="pk-pop" style="position: absolute; top: 56px; left: 0; right: 0; bottom: 0; z-index: 70; background: #F5F7FA; display: flex; flex-direction: column; padding: 0 24px 24px; box-sizing: border-box">
@@ -265,7 +282,7 @@ class Component extends DCLogic {
     const s = this.state.step;
     const set = (p) => this.setState(p);
     const agreed = s === 'send' || s === 'sent';
-    const n = { read: 4, agree: 5, send: 6, sent: 7 }[s];
+    const n = { read: 5, agree: 6, send: 7, sent: 8 }[s];
     return {
       progN: n,
       progW: n / ${TOTAL} * 100 + '%',
@@ -307,12 +324,11 @@ ${L.scroller(`    ${L.pageTitle('내 활동', '요청 상세')}
     <sc-if value="{{reviewing}}" hint-placeholder-val="{{ false }}">
       ${detailHeader({ date: DATE, badge: statusBadge('최종 조건 확인 대기'), title: TITLE, sub: SUB, next: nextStep('이용자가 최종 조건을 확인할 차례예요', '변경된 내용을 확인하고 확정하거나 수정을 요청해 주세요.') })}
       <sc-if value="{{read}}" hint-placeholder-val="{{ false }}">
-        <div style="margin-top: 16px">${bubble({ title: '도착한 조건을 확인해요', sub: '비용과 실패·환불 처리를 꼭 봐요', justify: 'flex-start', arrow: 'down', at: { left: 30 } })}</div>
+        <div style="margin-top: 16px">${bubble({ title: '도착한 조건을 확인해요', sub: '아래로 내리며 비용·환불 처리를 봐요', justify: 'flex-start', arrow: 'down', at: { left: 30 } })}</div>
       </sc-if>
       <div style="position: relative; margin-top: 16px; border-radius: 16px">
         ${card('도우미가 보낸 최종 조건', `${notice('1차 제안 · 2026. 10. 10. 오후 3:20 · 이용자 확인을 기다리고 있어요.')}
   ${rows(AGREEMENT)}`, 0)}
-        <sc-if value="{{read}}" hint-placeholder-val="{{ false }}">${halo(20)}</sc-if>
       </div>
       ${contact(true)}
       ${cardOpen('진행 상황', 16)}
@@ -343,6 +359,7 @@ ${L.scroller(`    ${L.pageTitle('내 활동', '요청 상세')}
     ${DISCLAIMER}`)}
 
 ${nav(USER_NAV, 'activity')}
+  ${scrollCue('read')}
 
   <sc-if value="{{sheet}}" hint-placeholder-val="{{ false }}">
     ${sheet({ label: '최종 조건 확정 확인', title: '최종 조건을 확정할까요?', body: '<p style="margin: 8px 0 0; font-size: 15px; line-height: 1.6; color: #4B5160">확정하면 직접 거래 매칭이 완료돼요. 착수·결과 등록 없이 당사자끼리 진행하고, 이용자는 후기를 남길 수 있어요.</p>', cancel: '{{closeSheet}}', confirmBtn: `<div style="position: relative; flex: 1; border-radius: 10px"><button type="button" onClick="{{confirm}}" style="${BTN}">확정하기</button>${halo(14)}</div>` })}
@@ -359,7 +376,7 @@ class Component extends DCLogic {
     const s = this.state.step;
     const set = (p) => this.setState(p);
     const top = () => { if (this.box) this.box.scrollTop = 0; };
-    const n = { waiting: 8, read: 9, confirm: 10, sheet: 11, matched: 12 }[s];
+    const n = { waiting: 9, read: 10, confirm: 11, sheet: 12, matched: 13 }[s];
     return {
       progN: n,
       progW: n / ${TOTAL} * 100 + '%',
@@ -382,17 +399,18 @@ class Component extends DCLogic {
   write('U4-request.dc.html', doc('요청 상세 · 조건 확정 · 이용자', body, script));
 }
 
-// ── U5 마침: 회원가입 또는 도우미 체험 ───────────────────────────────
+// ── U5 함께 해 보기 마침: 혼자 해 보기로 ─────────────────────────────
 {
   const body = `${userHeader(false)}
   <div class="pk-pop" style="position: absolute; top: 56px; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; padding: 0 24px 24px; background: #FFFFFF; box-sizing: border-box">
     <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center">
       ${MASCOT(80)}
-      <h1 style="margin: 18px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.6px">이용자 체험을 마쳤어요</h1>
-      <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: #4B5160">도우미를 고르고 요청을 보내<br>매칭까지 해 봤어요.</p>
+      <h1 style="margin: 18px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.6px">함께 해 보기를 마쳤어요</h1>
+      <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: #4B5160">도우미를 고르고 요청을 보내<br>매칭까지 해 봤어요.<br>이번엔 표시 없이 혼자 해 봐요.</p>
     </div>
-    <a href="${SIGNUP_URL}" style="${BTN}">회원가입하고 시작하기</a>
-    <a href="U0-role.dc.html" style="${BTN_GHOST}; color: #16181D; text-decoration: none">도우미 체험도 해 보기</a>
+    <a href="U6-practice.dc.html" style="${BTN}">혼자 해 보기</a>
+    <a href="${SIGNUP_URL}" style="${BTN_GHOST}; color: #16181D; text-decoration: none">회원가입하기</a>
+    <a href="U0-role.dc.html" style="${BTN_GHOST}; color: #16181D; text-decoration: none">첫 화면으로</a>
   </div>`;
   const script = `
 class Component extends DCLogic {
@@ -400,6 +418,7 @@ class Component extends DCLogic {
     return {};
   }
 }`;
-  write('U5-end.dc.html', doc('마침 · 이용자', body, script));
+  write('U5-end.dc.html', doc('함께 해 보기 마침 · 이용자', body, script));
 }
-console.log('built U0 U1 U2 U3 U4 U5');
+require('./build-user-practice.cjs');
+console.log('built U0 U1 U2 U3 U4 U5 U6');
