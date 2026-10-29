@@ -382,17 +382,17 @@ class Component extends DCLogic {
   write('U4-request.dc.html', doc('요청 상세 · 조건 확정 · 이용자', body, script));
 }
 
-// ── U5 마침: 회원가입 또는 도우미 체험 ───────────────────────────────
+// ── U5 함께 해 보기 마침: 혼자 해 보기로 ─────────────────────────────
 {
   const body = `${userHeader(false)}
   <div class="pk-pop" style="position: absolute; top: 56px; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; padding: 0 24px 24px; background: #FFFFFF; box-sizing: border-box">
     <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center">
       ${MASCOT(80)}
-      <h1 style="margin: 18px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.6px">이용자 체험을 마쳤어요</h1>
-      <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: #4B5160">도우미를 고르고 요청을 보내<br>매칭까지 해 봤어요.</p>
+      <h1 style="margin: 18px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.6px">함께 해 보기를 마쳤어요</h1>
+      <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: #4B5160">도우미를 고르고 요청을 보내<br>매칭까지 해 봤어요.<br>이번엔 표시 없이 혼자 해 봐요.</p>
     </div>
-    <a href="${SIGNUP_URL}" style="${BTN}">회원가입하고 시작하기</a>
-    <a href="U0-role.dc.html" style="${BTN_GHOST}; color: #16181D; text-decoration: none">도우미 체험도 해 보기</a>
+    <a href="U6-practice.dc.html" style="${BTN}">혼자 해 보기</a>
+    <a href="${SIGNUP_URL}" style="${BTN_GHOST}; color: #16181D; text-decoration: none">바로 회원가입하기</a>
   </div>`;
   const script = `
 class Component extends DCLogic {
@@ -400,6 +400,7 @@ class Component extends DCLogic {
     return {};
   }
 }`;
-  write('U5-end.dc.html', doc('마침 · 이용자', body, script));
+  write('U5-end.dc.html', doc('함께 해 보기 마침 · 이용자', body, script));
 }
-console.log('built U0 U1 U2 U3 U4 U5');
+require('./build-user-practice.cjs');
+console.log('built U0 U1 U2 U3 U4 U5 U6');

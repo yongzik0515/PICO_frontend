@@ -207,7 +207,16 @@
       "y": 0,
       "w": 390,
       "h": 844,
-      "title": "U5 마침 · 회원가입",
+      "title": "U5 함께 해 보기 마침 · 혼자 해 보기로",
+      "page": "user",
+      "is_interactive": true
+    },
+    "U6-practice.dc.html": {
+      "x": 0,
+      "y": 1244,
+      "w": 390,
+      "h": 844,
+      "title": "U6 혼자 해 보기 · 빈칸 · 강조 없음",
       "page": "user",
       "is_interactive": true
     }
@@ -298,6 +307,7 @@
     "U3-quote.dc.html",
     "U4-request.dc.html",
     "U5-end.dc.html",
+    "U6-practice.dc.html",
     "M2-welcome-character.dc.html",
     "M3-my.dc.html",
     "M4-leads.dc.html",

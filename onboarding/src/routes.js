@@ -6,7 +6,8 @@ export const BOARDS = [
   { file: 'U2-profile.dc.html', slug: 'userProfile', path: '/user/profile', title: '이용자 · 도우미 프로필' },
   { file: 'U3-quote.dc.html', slug: 'userQuote', path: '/user/quote', title: '이용자 · 요청 보내기' },
   { file: 'U4-request.dc.html', slug: 'userRequest', path: '/user/request', title: '이용자 · 요청 상세' },
-  { file: 'U5-end.dc.html', slug: 'userEnd', path: '/user/done', title: '이용자 · 마침' },
+  { file: 'U5-end.dc.html', slug: 'userEnd', path: '/user/done', title: '이용자 · 함께 해 보기 마침' },
+  { file: 'U6-practice.dc.html', slug: 'userPractice', path: '/user/practice', title: '이용자 · 혼자 해 보기' },
   // 도우미 함께 해 보기 → 혼자 해 보기 → 사전 신청
   { file: 'M2-welcome-character.dc.html', slug: 'main', path: '/helper', title: '메인' },
   { file: 'M3-my.dc.html', slug: 'my', path: '/my', title: '마이' },

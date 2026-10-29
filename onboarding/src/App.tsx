@@ -7,6 +7,7 @@ import * as userProfile from './boards/userProfile.js'
 import * as userQuote from './boards/userQuote.js'
 import * as userRequest from './boards/userRequest.js'
 import * as userEnd from './boards/userEnd.js'
+import * as userPractice from './boards/userPractice.js'
 import * as main from './boards/main.js'
 import * as my from './boards/my.js'
 import * as leads from './boards/leads.js'
@@ -30,7 +31,7 @@ const applyMod: BoardModule = {
   },
 }
 
-const MODULES = { role, userMain, userProfile, userQuote, userRequest, userEnd, main, my, leads, detail, terms, matched, cases, practice, apply: applyMod } as unknown as Record<string, BoardModule>
+const MODULES = { role, userMain, userProfile, userQuote, userRequest, userEnd, userPractice, main, my, leads, detail, terms, matched, cases, practice, apply: applyMod } as unknown as Record<string, BoardModule>
 
 const byPath = (p: string) => BOARDS.find((b) => b.path === p) ?? BOARDS[0]
 const hrefOf = (file: string) => BOARDS.find((b) => b.file === file)?.path

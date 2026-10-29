@@ -110,3 +110,22 @@ u4.renderVals().closeSheet(); ok(u4.renderVals().confirmStep, 'U4 sheet cancel')
 u4.renderVals().openSheet(); u4.renderVals().confirm(); ok(u4.renderVals().matched && !u4.renderVals().reviewing, 'U4 matched'); ustep.push(u4.renderVals().progN);
 ok(ustep.join(',') === '1,2,3,4,5,6,7,8,9,10,11,12', 'user steps ' + ustep.join(','));
 console.log(process.exitCode ? 'user checks failed' : 'user checks passed', '| user steps', ustep.join(','));
+
+// ── 이용자 혼자 해 보기 ──
+const up = new (load('U6-practice.dc.html'))({});
+up.boxRef({ scrollTop: 300 });
+const q = () => up.renderVals();
+ok(q().onMain && q().stageN === 1 && q().mission === '도우미를 골라 보세요', 'U6 main');
+q().pickAgent(); ok(q().onProfile && up.box.scrollTop === 0, 'U6 profile');
+q().toQuote(); ok(q().onQuote && q().stageN === 2, 'U6 quote');
+q().sendQuote(); ok(q().quoteErr && q().quoteErrText === '빈칸을 모두 채워 주세요.' && q().titleStyle.includes('#D92D20'), 'U6 empty blocked');
+['setTitle', 'setOpen', 'setSite', 'setSeat', 'setCond', 'setPhone'].forEach((k) => q()[k](ev('아무 내용')));
+q().sendQuote(); ok(q().quoteErr && q().quoteErrText === '약관에 동의해 주세요.', 'U6 needs agreement');
+q().toggleAgree(); q().sendQuote(); ok(q().onSent && !q().showNav, 'U6 sent');
+q().toDetail(); v = q(); ok(v.onDetail && v.waiting && v.stageN === 3 && v.badgeText === '도우미 응답 대기' && v.titleV === '아무 내용', 'U6 waiting');
+q().skipTime(); v = q(); ok(v.showProposed && v.badgeText === '최종 조건 확인 대기' && !v.waiting, 'U6 terms');
+q().tryRevise(); ok(q().reviseNote, 'U6 revise nudge');
+q().openConfirm(); ok(q().onConfirmSheet, 'U6 sheet'); q().closeSheet(); ok(!q().onConfirmSheet && q().showProposed, 'U6 sheet cancel');
+q().openConfirm(); q().confirmTerms(); v = q(); ok(v.matched && v.stageN === 4 && v.badgeText === '직접 거래 매칭 완료', 'U6 matched');
+q().finish(); ok(q().onDone && !q().showNav, 'U6 done');
+console.log(process.exitCode ? 'U6 checks failed' : 'U6 checks passed');

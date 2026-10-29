@@ -24,7 +24,8 @@ npm run sync
 | 주소 | 보드 |
 |---|---|
 | `/` | 처음 화면(이용자·도우미 고르기) |
-| `/user` `/user/profile` `/user/quote` `/user/request` `/user/done` | 이용자 가이드 |
+| `/user` `/user/profile` `/user/quote` `/user/request` `/user/done` | 이용자 함께 해 보기 |
+| `/user/practice` | 이용자 혼자 해 보기 |
 | `/helper` | 1 메인(도우미) |
 | `/my` `/leads` `/detail` `/terms` `/matched` | 2-1 ~ 2-5 함께 해 보기 |
 | `/cases` | 2-6 이런 경우도 있어요 |
