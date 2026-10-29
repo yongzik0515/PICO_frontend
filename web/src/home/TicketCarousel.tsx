@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { getBanners, getPerformance, safeExternalUrl, type Banner, type PerformanceDetail } from './banners';
 import { Modal } from '../ui/Modal';
-import { Icon } from '../ui/Icon';
 import './ticket-carousel.css';
 
 // 홈 히어로의 티켓 스텁 캐러셀.
@@ -334,14 +333,14 @@ function Carousel({ banners, onOpen }: { banners: Banner[]; onOpen: (banner: Ban
           aria-label="이전 공연"
           disabled={jumping || index < first || index >= first + count}
           onClick={() => go(-1)}
-        ><Icon name="chevron" size={22} /></button>
+        />
         <button
           type="button"
           className="tsb-nav tsb-nav-next"
           aria-label="다음 공연"
           disabled={jumping || index < first || index >= first + count}
           onClick={() => go(1)}
-        ><Icon name="chevron" size={22} /></button>
+        />
       </>}
       <p className="tsb-visually-hidden" aria-live="polite">{`${real + 1}번째 배너, ${banners[real].title}`}</p>
     </div>
