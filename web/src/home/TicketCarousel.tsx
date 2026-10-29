@@ -56,6 +56,12 @@ function edgeColor(img: HTMLImageElement): string {
 
 type Size = { view: number; left: number; card: number; gap: number };
 
+// KOPIS Open API 이용 조건: 집계 데이터를 보여 주는 화면에 서버가 준 표기 문구(attribution)를 순서대로 그대로 표시한다.
+// 문구가 비어 오면 출처 한 줄만이라도 남긴다.
+function kopisLines(lines?: string[]) {
+  return lines?.length ? lines : ['출처 : 공연예술통합전산망(KOPIS)'];
+}
+
 export function TicketCarousel() {
   const [page, setPage] = useState<Awaited<ReturnType<typeof getBanners>> | null>(null);
   const [error, setError] = useState('');
@@ -75,7 +81,11 @@ export function TicketCarousel() {
       <p>{error || 'KOPIS 공연 정보를 불러오는 중이에요.'}</p>
       {error && <button type="button" className="btn secondary" onClick={() => { setError(''); setPage(null); setReload((n) => n + 1); }}>다시 불러오기</button>}
     </div> : <>
-      {page.banners.length ? <Carousel banners={page.banners} onOpen={setSelected} /> : <p role="status">현재 집계된 공연이 없습니다.</p>}
+      {page.banners.length ? <>
+        <Carousel banners={page.banners} onOpen={setSelected} />
+        {/* 히어로 문단 공용 규칙(.home .pc-hero p)을 피하려고 <p> 대신 블록 <small>로 쓴다. */}
+        <div className="kopis-attribution tsb-attribution">{kopisLines(page.attribution).map((line) => <small key={line}>{line}</small>)}</div>
+      </> : <p role="status">현재 집계된 공연이 없습니다.</p>}
     </>}
     {selected && <PerformanceDialog key={selected.id} banner={selected} onClose={() => setSelected(null)} />}
   </>;
@@ -98,7 +108,7 @@ function PerformanceDialog({ banner, onClose }: { banner: Banner; onClose: () =>
       {detail.scheduleText && <p>공연 시간: {detail.scheduleText}</p>}
       {detail.ticketPriceText && <p>가격 안내: {detail.ticketPriceText}</p>}
       <p>예매 오픈 시각과 대리예매 허용 여부는 각 예매처에서 별도로 확인해 주세요.</p>
-      <div className="kopis-attribution"><p>출처: 공연예술통합전산망(KOPIS)</p></div>
+      <div className="kopis-attribution">{kopisLines(detail.attribution).map((line) => <p key={line}>{line}</p>)}</div>
     </div>}
   </Modal>;
 }
