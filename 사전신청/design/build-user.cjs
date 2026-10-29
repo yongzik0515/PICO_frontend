@@ -392,7 +392,8 @@ class Component extends DCLogic {
       <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: #4B5160">도우미를 고르고 요청을 보내<br>매칭까지 해 봤어요.<br>이번엔 표시 없이 혼자 해 봐요.</p>
     </div>
     <a href="U6-practice.dc.html" style="${BTN}">혼자 해 보기</a>
-    <a href="${SIGNUP_URL}" style="${BTN_GHOST}; color: #16181D; text-decoration: none">바로 회원가입하기</a>
+    <a href="${SIGNUP_URL}" style="${BTN_GHOST}; color: #16181D; text-decoration: none">회원가입하기</a>
+    <a href="U0-role.dc.html" style="${BTN_GHOST}; color: #16181D; text-decoration: none">첫 화면으로</a>
   </div>`;
   const script = `
 class Component extends DCLogic {

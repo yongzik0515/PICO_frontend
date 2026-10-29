@@ -148,8 +148,8 @@ const DONE = `<sc-if value="{{onDone}}" hint-placeholder-val="{{ false }}">
         <h1 style="margin: 18px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.6px">혼자서도 해냈어요</h1>
         <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: #4B5160">도우미 고르기부터 매칭 완료까지 마쳤어요.</p>
       </div>
-      <a href="${SIGNUP_URL}" style="${BTN}">회원가입하고 시작하기</a>
-      <a href="U0-role.dc.html" style="${BTN_GHOST}; color: #16181D; text-decoration: none">도우미 체험도 해 보기</a>
+      <a href="${SIGNUP_URL}" style="${BTN}">회원가입하기</a>
+      <a href="U0-role.dc.html" style="${BTN_GHOST}; color: #16181D; text-decoration: none">첫 화면으로</a>
     </div>
   </sc-if>`;
 

@@ -41,7 +41,7 @@ npm run sync
 
 ## 시안과 다른 점
 
-- '사전 신청하고 회원가입하기'를 누르면 https://pico-kr.app/login 으로 가요(`src/App.tsx`의 `SIGNUP_URL`).
+- '회원가입하기'를 누르면 https://pico-kr.app/login 으로 가요(`src/App.tsx`의 `SIGNUP_URL`).
 - 휴대폰에서는 화면을 꽉 채우고, 폭 600px 이상(PC·태블릿)에서는 휴대폰 틀을 가운데에 띄워요.
 
 ## Vercel 연결

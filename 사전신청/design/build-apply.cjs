@@ -11,7 +11,7 @@ const step = (n, title, desc, last) => `<li style="position: relative; display: 
           <span><strong style="display: block; font-size: 14px">${title}</strong><span style="display: block; margin-top: 2px; font-size: 12px; line-height: 1.5; color: #6B7180">${desc}</span></span>
         </li>`;
 const cta = (light) => `<sc-if value="{{ready}}" hint-placeholder-val="{{ true }}">
-        <button type="button" onClick="{{apply}}" style="${BTN}; margin-top: 16px${light ? '; background: #FFFFFF; color: #2D48D6' : ''}">사전 신청하고 회원가입하기</button>
+        <button type="button" onClick="{{apply}}" style="${BTN}; margin-top: 16px${light ? '; background: #FFFFFF; color: #2D48D6' : ''}">회원가입하기</button>
       </sc-if>
       <sc-if value="{{applied}}" hint-placeholder-val="{{ false }}">
         <p role="status" class="pk-pop" style="margin: 16px 0 0; padding: 14px 16px; border-radius: 12px; background: ${light ? 'rgba(255,255,255,0.16)' : '#EEF2FF'}; font-size: 14px; line-height: 1.5; color: ${light ? '#FFFFFF' : '#2D48D6'}"><strong style="display: block">회원가입 화면으로 넘어가요</strong><span style="display: block; margin-top: 2px; font-size: 12px; ${light ? 'color: #E3E8FF' : 'color: #4B5160'}">실제 사이트에서는 여기서 회원가입(/signup)으로 이동해요.</span></p>
@@ -44,7 +44,7 @@ const body = `${header({ avatar: AVATAR_USER, progress: false })}
     </section>
 
     ${card('가입 후 이렇게 진행돼요', `<ol style="list-style: none; margin: 16px 0 0; padding: 0">
-        ${step(1, '회원가입', '사전 신청을 누르면 바로 시작해요.')}
+        ${step(1, '회원가입', '‘회원가입하기’를 누르면 바로 시작해요.')}
         ${step(2, '공개 프로필', '이용자가 보게 될 소개를 만들어요.')}
         ${step(3, '인증과 경력', '본인인증·연락 방법·본인 계좌와 경력 자료를 확인해요.')}
         ${step(4, '미리보기·제출', '공개 프로필을 확인하고 심사를 신청해요.', true)}

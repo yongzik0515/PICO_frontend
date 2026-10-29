@@ -18,7 +18,7 @@ import * as cases from './boards/cases.js'
 import * as practice from './boards/practice.js'
 import * as apply from './boards/apply.js'
 
-// '사전 신청하고 회원가입하기'를 누르면 갈 곳
+// '회원가입하기'를 누르면 갈 곳
 const SIGNUP_URL = 'https://pico-kr.app/login'
 
 // 시안에서는 안내 문구만 띄우던 사전 신청 버튼을 실제 회원가입으로 잇는다.
