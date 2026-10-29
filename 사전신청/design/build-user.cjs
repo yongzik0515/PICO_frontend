@@ -153,7 +153,6 @@ ${L.scroller(`    ${crumbTitle('목록', '상세 프로필', '도우미 프로�
         <div style="display: flex; gap: 8px; margin-top: 16px">${tile('성공률', '92%')}${tile('거래 횟수', '32회')}${tile('평균 응답', '10분 이내')}</div>
         <p style="display: flex; align-items: center; gap: 4px; margin: 12px 0 0; font-size: 12px; color: #6B7180">${svg('info', 13, '#6B7180', 2)} 플랫폼 거래 기록 기준 · 소개와 경력은 도우미가 직접 작성해요.</p>
       </section>
-      <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">${halo(20)}</sc-if>
     </div>
     ${card('함께하기 전에 확인하세요', `${rows([['가능 예매처', 'NOL 티켓 · YES24 티켓 · 멜론티켓'], ['주로 맡는 분야', '콘서트'], ['활동 가능 시간', '평일 저녁 · 주말'], ['최소 착수비', '5,000원'], ['수고비', '20,000 ~ 40,000원 · 최종 조건에서 확정'], ['활동 경력', '3년 · 본인 작성']])}
   ${notice('연락처는 요청을 수락한 상대방에게만 공개돼요.')}`)}
@@ -231,7 +230,6 @@ ${L.scroller(`    ${crumbTitle('도우미 프로필', '요청 보내기', '요�
         ${label('기타 사항')}${box('오픈 직후 연락 가능해요', true)}
         ${label('도우미 응답 기한', true, '티켓 오픈 전이어야 해요. 이 시간까지 도우미가 수락하지 않으면 요청이 만료돼요.')}${box('2026-10-12 14:10')}
       </section>
-      <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">${halo(20)}</sc-if>
     </div>
     ${card('연락처', `${notice('요청을 보내려면 상대방에게 공개할 연락처가 필요해요. 수락한 도우미에게만 공개돼요.')}
   ${pair(label('종류', true) + box('휴대폰'), label('연락처', true) + box('010-1234-5678'))}`)}
@@ -331,7 +329,6 @@ ${L.scroller(`    ${L.pageTitle('내 활동', '요청 상세')}
       <div style="position: relative; margin-top: 16px; border-radius: 16px">
         ${card('도우미가 보낸 최종 조건', `${notice('1차 제안 · 2026. 10. 10. 오후 3:20 · 이용자 확인을 기다리고 있어요.')}
   ${rows(AGREEMENT)}`, 0)}
-        <sc-if value="{{read}}" hint-placeholder-val="{{ false }}">${halo(20)}</sc-if>
       </div>
       ${contact(true)}
       ${cardOpen('진행 상황', 16)}

@@ -49,7 +49,6 @@ ${L.scroller(`    <sc-if value="{{pending}}" hint-placeholder-val="{{ true }}">
     </sc-if>
     <div style="position: relative; margin-top: 16px; border-radius: 16px">
       ${card('이용자가 보낸 요청', rows(REQUEST), 0)}
-      <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">${halo(20)}</sc-if>
     </div>
     <sc-if value="{{pending}}" hint-placeholder-val="{{ true }}">${contactCard(false)}</sc-if>
     <sc-if value="{{accepted}}" hint-placeholder-val="{{ false }}">${contactCard(true)}</sc-if>
@@ -191,7 +190,6 @@ ${L.scroller(`    ${pageTitle('매칭 관리', '요청 상세')}
     <div style="position: relative; margin-top: 16px; border-radius: 16px">
       ${card('확정된 최종 조건', `${notice('양측이 1차 제안에 동의해 확정됐어요. (2026. 10. 10. 오후 3:20)', 'success')}
   ${rows(AGREEMENT)}`, 0)}
-      <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">${halo(20)}</sc-if>
     </div>
     ${card('이용자가 보낸 요청', rows(REQUEST))}
     ${contactCard(true)}
