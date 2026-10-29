@@ -47,11 +47,11 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3A5BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
       </div>
       <h2 style="margin: 22px 0 0; font-size: 17px; font-weight: 800">이번 주, 주목할 도우미</h2>
-      <button type="button" onClick="{{pickAgent}}" style="display: flex; gap: 12px; width: 100%; margin-top: 12px; padding: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; font-family: inherit; text-align: left; color: #16181D; cursor: pointer; box-sizing: border-box">
+      <button type="button" onClick="{{pickSky}}" style="display: flex; gap: 12px; width: 100%; margin-top: 12px; padding: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; font-family: inherit; text-align: left; color: #16181D; cursor: pointer; box-sizing: border-box">
         <span style="flex: 0 0 52px; height: 52px; border-radius: 14px; background: #E6F7F3; color: #0B7A67; font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: center">하</span>
         <span style="min-width: 0"><strong style="display: block; font-size: 16px">하늘도우미</strong><span style="display: block; margin-top: 6px; font-size: 13px; color: #4B5160">★ 4.8 · 거래 32회 · 착수비 5,000원부터</span></span>
       </button>
-      <button type="button" onClick="{{pickAgent}}" style="display: flex; gap: 12px; width: 100%; margin-top: 12px; padding: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; font-family: inherit; text-align: left; color: #16181D; cursor: pointer; box-sizing: border-box">
+      <button type="button" onClick="{{pickStar}}" style="display: flex; gap: 12px; width: 100%; margin-top: 12px; padding: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; font-family: inherit; text-align: left; color: #16181D; cursor: pointer; box-sizing: border-box">
         <span style="flex: 0 0 52px; height: 52px; border-radius: 14px; background: #EEF2FF; color: #2D48D6; font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: center">별</span>
         <span style="min-width: 0"><strong style="display: block; font-size: 16px">별빛티켓</strong><span style="display: block; margin-top: 6px; font-size: 13px; color: #4B5160">★ 4.6 · 거래 18회 · 착수비 7,000원부터</span></span>
       </button>
@@ -75,6 +75,90 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
   </dl>
   <div style="display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 14px 16px; background: #EEF2FF; border: 1px solid #E0E6FF; border-radius: 12px; font-size: 13px; line-height: 1.65; color: #4B5160"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3A5BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: 0 0 18px; margin-top: 2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg><span>연락처는 요청을 수락한 상대방에게만 공개돼요.</span></div>
 </section>
+      <sc-if value="{{isSky}}" hint-placeholder-val="{{ false }}"><section style="margin-top: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 8px 16px 18px">
+      <div role="tablist" aria-label="프로필 정보" style="display: flex; gap: 20px; border-bottom: 1px solid #E6E9EF">
+        <button type="button" role="tab" aria-selected="{{about}}" onClick="{{showAbout}}" style="{{aboutStyle}}">도우미 소개</button>
+        <div style="position: relative; border-radius: 8px">
+          <button type="button" role="tab" aria-selected="{{reviews}}" onClick="{{showReviews}}" style="{{reviewsStyle}}">거래 후기 27</button>
+          
+        </div>
+      </div>
+      
+      <sc-if value="{{about}}" hint-placeholder-val="{{ true }}">
+        <h3 style="margin: 16px 0 0; font-size: 15px">공연을 기다리는 마음, 함께할게요.</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: #4B5160">희망하는 공연과 좌석 조건을 꼼꼼히 확인하고, 충분히 이야기한 뒤 예매를 준비해요.</p>
+        <p style="margin: 8px 0 0; font-size: 12px; color: #6B7180">도우미가 직접 작성한 소개예요.</p>
+      </sc-if>
+      <sc-if value="{{reviews}}" hint-placeholder-val="{{ false }}">
+        <div class="pk-pop" style="display: flex; align-items: center; gap: 16px; margin-top: 16px; padding: 14px; border-radius: 12px; background: #F5F7FA">
+          <div style="flex: 0 0 auto; text-align: center"><strong style="display: block; font-size: 28px; font-weight: 800">4.8</strong><span style="color: #F5A524; font-size: 13px">★★★★★</span><small style="display: block; margin-top: 2px; font-size: 11px; color: #6B7180">거래 후기 27개</small></div>
+          <div aria-label="별점 분포" style="flex: 1; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">5점</span><span role="meter" aria-label="5점 후기" aria-valuemin="0" aria-valuemax="27" aria-valuenow="22" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: 81%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">22개</small></div><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">4점</span><span role="meter" aria-label="4점 후기" aria-valuemin="0" aria-valuemax="27" aria-valuenow="4" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: 15%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">4개</small></div><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">3점</span><span role="meter" aria-label="3점 후기" aria-valuemin="0" aria-valuemax="27" aria-valuenow="1" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: 4%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">1개</small></div><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">2점</span><span role="meter" aria-label="2점 후기" aria-valuemin="0" aria-valuemax="27" aria-valuenow="0" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: 0%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">0개</small></div><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">1점</span><span role="meter" aria-label="1점 후기" aria-valuemin="0" aria-valuemax="27" aria-valuenow="0" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: 0%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">0개</small></div></div>
+        </div>
+        <div style="margin-top: 8px">
+        <article style="padding: 14px 0; border-top: 1px solid #F0F2F6">
+          <div style="display: flex; align-items: center; gap: 6px"><strong style="font-size: 13px">이용자</strong><span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: #0B7A67; background: #E6F7F3; padding: 2px 7px; border-radius: 999px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B7A67" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>매칭 내역 확인</span></div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px"><span aria-label="5점" style="color: #F5A524">★★★★★<span style="color: #D5D9E2"></span></span><time style="color: #6B7180">2026.10.02</time></div>
+          <p style="margin: 6px 0 0; font-size: 12px; color: #6B7180">이용자 후기 결과: 성공</p>
+          <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.6; color: #16181D">오픈 전에 진행 방식을 꼼꼼히 설명해 주셔서 믿고 맡겼어요. 원하던 1층 좌석으로 예매됐어요.</p>
+        </article>
+        <article style="padding: 14px 0; border-top: 1px solid #F0F2F6">
+          <div style="display: flex; align-items: center; gap: 6px"><strong style="font-size: 13px">이용자</strong><span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: #0B7A67; background: #E6F7F3; padding: 2px 7px; border-radius: 999px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B7A67" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>매칭 내역 확인</span></div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px"><span aria-label="5점" style="color: #F5A524">★★★★★<span style="color: #D5D9E2"></span></span><time style="color: #6B7180">2026.09.21</time></div>
+          <p style="margin: 6px 0 0; font-size: 12px; color: #6B7180">이용자 후기 결과: 성공</p>
+          <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.6; color: #16181D">연락이 빠르고 친절했어요. 다음 공연도 부탁드리려고요.</p>
+        </article>
+        <article style="padding: 14px 0; border-top: 1px solid #F0F2F6">
+          <div style="display: flex; align-items: center; gap: 6px"><strong style="font-size: 13px">이용자</strong><span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: #0B7A67; background: #E6F7F3; padding: 2px 7px; border-radius: 999px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B7A67" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>매칭 내역 확인</span></div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px"><span aria-label="4점" style="color: #F5A524">★★★★<span style="color: #D5D9E2">☆</span></span><time style="color: #6B7180">2026.09.08</time></div>
+          <p style="margin: 6px 0 0; font-size: 12px; color: #6B7180">이용자 후기 결과: 부분 성공</p>
+          <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.6; color: #16181D">2매 중 1매만 잡혔지만 미리 정한 대로 깔끔하게 정리해 주셨어요.</p>
+        </article>
+        </div>
+        <p role="status" style="margin: 8px 0 0; text-align: center; font-size: 12px; color: #6B7180">아래로 스크롤하면 후기가 이어져요.</p>
+      </sc-if>
+    </section></sc-if>
+      <sc-if value="{{isStar}}" hint-placeholder-val="{{ true }}"><section style="margin-top: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 8px 16px 18px">
+      <div role="tablist" aria-label="프로필 정보" style="display: flex; gap: 20px; border-bottom: 1px solid #E6E9EF">
+        <button type="button" role="tab" aria-selected="{{about}}" onClick="{{showAbout}}" style="{{aboutStyle}}">도우미 소개</button>
+        <div style="position: relative; border-radius: 8px">
+          <button type="button" role="tab" aria-selected="{{reviews}}" onClick="{{showReviews}}" style="{{reviewsStyle}}">거래 후기 18</button>
+          
+        </div>
+      </div>
+      
+      <sc-if value="{{about}}" hint-placeholder-val="{{ true }}">
+        <h3 style="margin: 16px 0 0; font-size: 15px">공연을 기다리는 마음, 함께할게요.</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: #4B5160">희망하는 공연과 좌석 조건을 꼼꼼히 확인하고, 충분히 이야기한 뒤 예매를 준비해요.</p>
+        <p style="margin: 8px 0 0; font-size: 12px; color: #6B7180">도우미가 직접 작성한 소개예요.</p>
+      </sc-if>
+      <sc-if value="{{reviews}}" hint-placeholder-val="{{ false }}">
+        <div class="pk-pop" style="display: flex; align-items: center; gap: 16px; margin-top: 16px; padding: 14px; border-radius: 12px; background: #F5F7FA">
+          <div style="flex: 0 0 auto; text-align: center"><strong style="display: block; font-size: 28px; font-weight: 800">4.6</strong><span style="color: #F5A524; font-size: 13px">★★★★★</span><small style="display: block; margin-top: 2px; font-size: 11px; color: #6B7180">거래 후기 18개</small></div>
+          <div aria-label="별점 분포" style="flex: 1; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">5점</span><span role="meter" aria-label="5점 후기" aria-valuemin="0" aria-valuemax="18" aria-valuenow="13" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: 72%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">13개</small></div><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">4점</span><span role="meter" aria-label="4점 후기" aria-valuemin="0" aria-valuemax="18" aria-valuenow="3" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: 17%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">3개</small></div><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">3점</span><span role="meter" aria-label="3점 후기" aria-valuemin="0" aria-valuemax="18" aria-valuenow="1" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: 6%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">1개</small></div><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">2점</span><span role="meter" aria-label="2점 후기" aria-valuemin="0" aria-valuemax="18" aria-valuenow="1" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: 6%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">1개</small></div><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">1점</span><span role="meter" aria-label="1점 후기" aria-valuemin="0" aria-valuemax="18" aria-valuenow="0" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: 0%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">0개</small></div></div>
+        </div>
+        <div style="margin-top: 8px">
+        <article style="padding: 14px 0; border-top: 1px solid #F0F2F6">
+          <div style="display: flex; align-items: center; gap: 6px"><strong style="font-size: 13px">이용자</strong><span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: #0B7A67; background: #E6F7F3; padding: 2px 7px; border-radius: 999px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B7A67" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>매칭 내역 확인</span></div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px"><span aria-label="5점" style="color: #F5A524">★★★★★<span style="color: #D5D9E2"></span></span><time style="color: #6B7180">2026.10.02</time></div>
+          <p style="margin: 6px 0 0; font-size: 12px; color: #6B7180">이용자 후기 결과: 성공</p>
+          <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.6; color: #16181D">오픈 전에 진행 방식을 꼼꼼히 설명해 주셔서 믿고 맡겼어요. 원하던 1층 좌석으로 예매됐어요.</p>
+        </article>
+        <article style="padding: 14px 0; border-top: 1px solid #F0F2F6">
+          <div style="display: flex; align-items: center; gap: 6px"><strong style="font-size: 13px">이용자</strong><span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: #0B7A67; background: #E6F7F3; padding: 2px 7px; border-radius: 999px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B7A67" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>매칭 내역 확인</span></div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px"><span aria-label="5점" style="color: #F5A524">★★★★★<span style="color: #D5D9E2"></span></span><time style="color: #6B7180">2026.09.21</time></div>
+          <p style="margin: 6px 0 0; font-size: 12px; color: #6B7180">이용자 후기 결과: 성공</p>
+          <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.6; color: #16181D">연락이 빠르고 친절했어요. 다음 공연도 부탁드리려고요.</p>
+        </article>
+        <article style="padding: 14px 0; border-top: 1px solid #F0F2F6">
+          <div style="display: flex; align-items: center; gap: 6px"><strong style="font-size: 13px">이용자</strong><span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: #0B7A67; background: #E6F7F3; padding: 2px 7px; border-radius: 999px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B7A67" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>매칭 내역 확인</span></div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px"><span aria-label="4점" style="color: #F5A524">★★★★<span style="color: #D5D9E2">☆</span></span><time style="color: #6B7180">2026.09.08</time></div>
+          <p style="margin: 6px 0 0; font-size: 12px; color: #6B7180">이용자 후기 결과: 부분 성공</p>
+          <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.6; color: #16181D">2매 중 1매만 잡혔지만 미리 정한 대로 깔끔하게 정리해 주셨어요.</p>
+        </article>
+        </div>
+        <p role="status" style="margin: 8px 0 0; text-align: center; font-size: 12px; color: #6B7180">아래로 스크롤하면 후기가 이어져요.</p>
+      </sc-if>
+    </section></sc-if>
       <div style="display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px">
         <span style="flex: 0 0 auto"><span style="display: block; font-size: 12px; color: #6B7180">최소 착수비</span><strong style="font-size: 16px">{{agentFee}}부터</strong></span>
         <button type="button" onClick="{{toQuote}}" style="display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; cursor: pointer; box-sizing: border-box; flex: 1; width: auto">이 도우미에게 요청하기</button>
@@ -285,7 +369,7 @@ class Component extends DCLogic {
   constructor(props) {
     super(props);
     this.state = {
-      screen: 'main', hint: false, reviseNote: false, agent: '', fee: '',
+      screen: 'main', hint: false, reviseNote: false, agent: '', fee: '', tab: 'about',
       title: '', open: '', site: '', seat: '', cond: '', budget: '', note: '', phone: '', agreed: false, tried: false,
     };
     this.boxRef = (el) => { this.box = el; };
@@ -330,6 +414,7 @@ class Component extends DCLogic {
     }[phase] || ['', ''];
     const navItem = (active) => 'flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; font-family: inherit; font-size: 11px; cursor: pointer; ' + (active ? 'font-weight: 700; color: #3A5BFF' : 'font-weight: 600; color: #5F6575');
     const inActivity = phase !== '';
+    const tabStyle = (on) => 'min-height: 44px; padding: 0 2px; border: 0; border-bottom: 2px solid ' + (on ? '#3A5BFF' : 'transparent') + '; margin-bottom: -1px; background: none; font-family: inherit; font-size: 15px; cursor: pointer; ' + (on ? 'font-weight: 700; color: #16181D' : 'font-weight: 600; color: #4B5160');
 
     return {
       boxRef: this.boxRef,
@@ -347,11 +432,20 @@ class Component extends DCLogic {
       onConfirmSheet: sc === 'confirmSheet',
       onDone: sc === 'done',
 
-      pickAgent: () => go('profile', { agent: '별빛티켓', fee: '7,000원' }),
+      pickSky: () => go('profile', { agent: '하늘도우미', fee: '5,000원', tab: 'about' }),
+      pickStar: () => go('profile', { agent: '별빛티켓', fee: '7,000원', tab: 'about' }),
+      isSky: st.agent === '하늘도우미',
+      isStar: st.agent !== '하늘도우미',
       agentName: st.agent || '별빛티켓',
       agentLetter: (st.agent || '별빛티켓').slice(0, 1),
       agentFee: st.fee || '7,000원',
       toQuote: () => go('quote'),
+      about: st.tab !== 'reviews',
+      reviews: st.tab === 'reviews',
+      aboutStyle: tabStyle(st.tab !== 'reviews'),
+      reviewsStyle: tabStyle(st.tab === 'reviews'),
+      showReviews: () => set({ tab: 'reviews' }),
+      showAbout: () => set({ tab: 'about' }),
 
       setTitle: (e) => set({ title: e.target.value }),
       setOpen: (e) => set({ open: e.target.value }),

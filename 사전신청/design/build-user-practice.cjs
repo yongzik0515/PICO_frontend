@@ -1,7 +1,7 @@
 // 이용자 혼자 해 보기(U6) 보드: 강조 없이 미션과 힌트만 보고 도우미 고르기부터 매칭 완료까지 해 본다.
 // build-user.cjs가 불러서 함께 만든다. 화면 구조·문구는 실제 앱(도우미 프로필·요청 보내기·요청 상세)을 따른다.
 const L = require('./build-lib.cjs');
-const { doc, write, svg, header, AVATAR_USER, cardOpen, card, rows, notice, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, DIRECT_CARD, MASCOT } = L;
+const { profileFeedback, doc, write, svg, header, AVATAR_USER, cardOpen, card, rows, notice, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, DIRECT_CARD, MASCOT } = L;
 
 const SIGNUP_URL = 'https://pico-kr.app/login';
 const AGENT = '별빛티켓';
@@ -38,8 +38,8 @@ const MAIN = `<sc-if value="{{onMain}}" hint-placeholder-val="{{ true }}">
         ${svg('search', 20, '#3A5BFF', 2)}
       </div>
       <h2 style="margin: 22px 0 0; font-size: 17px; font-weight: 800">이번 주, 주목할 도우미</h2>
-      ${agentCard('하늘도우미', '하', '#E6F7F3', '#0B7A67', '★ 4.8 · 거래 32회 · 착수비 5,000원부터', '{{pickAgent}}')}
-      ${agentCard(AGENT, '별', '#EEF2FF', '#2D48D6', '★ 4.6 · 거래 18회 · 착수비 7,000원부터', '{{pickAgent}}')}
+      ${agentCard('하늘도우미', '하', '#E6F7F3', '#0B7A67', '★ 4.8 · 거래 32회 · 착수비 5,000원부터', '{{pickSky}}')}
+      ${agentCard(AGENT, '별', '#EEF2FF', '#2D48D6', '★ 4.6 · 거래 18회 · 착수비 7,000원부터', '{{pickStar}}')}
     </sc-if>`;
 
 const PROFILE = `<sc-if value="{{onProfile}}" hint-placeholder-val="{{ false }}">
@@ -52,6 +52,8 @@ const PROFILE = `<sc-if value="{{onProfile}}" hint-placeholder-val="{{ false }}"
       </section>
       ${card('함께하기 전에 확인하세요', `${rows([['가능 예매처', 'NOL 티켓 · YES24 티켓'], ['주로 맡는 분야', '콘서트 · 뮤지컬'], ['최소 착수비', '{{agentFee}}'], ['수고비', '최종 조건에서 확정']])}
   ${notice('연락처는 요청을 수락한 상대방에게만 공개돼요.')}`)}
+      <sc-if value="{{isSky}}" hint-placeholder-val="{{ false }}">${profileFeedback(false)}</sc-if>
+      <sc-if value="{{isStar}}" hint-placeholder-val="{{ true }}">${profileFeedback(false, { avg: '4.6', count: 18, bars: [13, 3, 1, 1, 0] })}</sc-if>
       <div style="display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px">
         <span style="flex: 0 0 auto"><span style="display: block; font-size: 12px; color: #6B7180">최소 착수비</span><strong style="font-size: 16px">{{agentFee}}부터</strong></span>
         <button type="button" onClick="{{toQuote}}" style="${BTN}; flex: 1; width: auto">이 도우미에게 요청하기</button>
@@ -192,7 +194,7 @@ class Component extends DCLogic {
   constructor(props) {
     super(props);
     this.state = {
-      screen: 'main', hint: false, reviseNote: false, agent: '', fee: '',
+      screen: 'main', hint: false, reviseNote: false, agent: '', fee: '', tab: 'about',
       title: '', open: '', site: '', seat: '', cond: '', budget: '', note: '', phone: '', agreed: false, tried: false,
     };
     this.boxRef = (el) => { this.box = el; };
@@ -237,6 +239,7 @@ class Component extends DCLogic {
     }[phase] || ['', ''];
     const navItem = (active) => 'flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; font-family: inherit; font-size: 11px; cursor: pointer; ' + (active ? 'font-weight: 700; color: #3A5BFF' : 'font-weight: 600; color: #5F6575');
     const inActivity = phase !== '';
+    const tabStyle = (on) => 'min-height: 44px; padding: 0 2px; border: 0; border-bottom: 2px solid ' + (on ? '#3A5BFF' : 'transparent') + '; margin-bottom: -1px; background: none; font-family: inherit; font-size: 15px; cursor: pointer; ' + (on ? 'font-weight: 700; color: #16181D' : 'font-weight: 600; color: #4B5160');
 
     return {
       boxRef: this.boxRef,
@@ -254,11 +257,20 @@ class Component extends DCLogic {
       onConfirmSheet: sc === 'confirmSheet',
       onDone: sc === 'done',
 
-      pickAgent: () => go('profile', { agent: '${AGENT}', fee: '7,000원' }),
+      pickSky: () => go('profile', { agent: '하늘도우미', fee: '5,000원', tab: 'about' }),
+      pickStar: () => go('profile', { agent: '${AGENT}', fee: '7,000원', tab: 'about' }),
+      isSky: st.agent === '하늘도우미',
+      isStar: st.agent !== '하늘도우미',
       agentName: st.agent || '${AGENT}',
       agentLetter: (st.agent || '${AGENT}').slice(0, 1),
       agentFee: st.fee || '7,000원',
       toQuote: () => go('quote'),
+      about: st.tab !== 'reviews',
+      reviews: st.tab === 'reviews',
+      aboutStyle: tabStyle(st.tab !== 'reviews'),
+      reviewsStyle: tabStyle(st.tab === 'reviews'),
+      showReviews: () => set({ tab: 'reviews' }),
+      showAbout: () => set({ tab: 'about' }),
 
       setTitle: (e) => set({ title: e.target.value }),
       setOpen: (e) => set({ open: e.target.value }),

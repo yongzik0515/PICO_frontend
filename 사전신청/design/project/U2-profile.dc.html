@@ -74,7 +74,7 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
 </section>
     <section style="margin-top: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 8px 16px 18px">
       <div role="tablist" aria-label="프로필 정보" style="display: flex; gap: 20px; border-bottom: 1px solid #E6E9EF">
-        <button type="button" role="tab" aria-selected="{{about}}" style="{{aboutStyle}}">도우미 소개</button>
+        <button type="button" role="tab" aria-selected="{{about}}" onClick="{{showAbout}}" style="{{aboutStyle}}">도우미 소개</button>
         <div ref="{{targetRef}}" style="position: relative; border-radius: 8px">
           <button type="button" role="tab" aria-selected="{{reviews}}" onClick="{{showReviews}}" style="{{reviewsStyle}}">거래 후기 27</button>
           <sc-if value="{{tabStep}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" class="pk-halo" style="position: absolute; inset: -6px; border: 2px solid #3A5BFF; border-radius: 10px; pointer-events: none"></span>
@@ -190,6 +190,7 @@ class Component extends DCLogic {
       aboutStyle: tab(!reviews),
       reviewsStyle: tab(reviews),
       showReviews: () => this.setState({ tab: 'reviews', step: s === 'read' || s === 'tab' ? 'ask' : s }),
+      showAbout: () => this.setState({ tab: 'about' }),
     };
   }
 }
