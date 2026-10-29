@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
-import { getBanners, getPerformance, safeExternalUrl, type Banner, type PerformanceDetail } from './banners';
+import { getBanners, getPerformance, type Banner, type PerformanceDetail } from './banners';
 import { Modal } from '../ui/Modal';
-import { useToast } from '../ui/Toast';
 import './ticket-carousel.css';
 
 // 홈 히어로의 티켓 스텁 캐러셀.
@@ -62,20 +61,6 @@ export function TicketCarousel() {
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
   const [selected, setSelected] = useState<Banner | null>(null);
-  const opening = useRef(false);
-  const toast = useToast();
-  async function openPerformance(banner: Banner) {
-    if (opening.current) return;
-    opening.current = true;
-    try {
-      const detail = await getPerformance(banner.id);
-      const url = (detail.bookingLinks ?? []).map((link) => safeExternalUrl(link.url)).find(Boolean);
-      if (url) window.location.assign(url);
-      else setSelected(banner); // 예매 링크가 없을 때만 공연 상세를 안내한다.
-    } catch {
-      toast('예매처 링크를 불러오지 못했어요. 잠시 후 다시 눌러 주세요.');
-    } finally { opening.current = false; }
-  }
   useEffect(() => {
     const controller = new AbortController();
     getBanners(controller.signal).then((result) => {
@@ -90,7 +75,7 @@ export function TicketCarousel() {
       <p>{error || 'KOPIS 공연 정보를 불러오는 중이에요.'}</p>
       {error && <button type="button" className="btn secondary" onClick={() => { setError(''); setPage(null); setReload((n) => n + 1); }}>다시 불러오기</button>}
     </div> : <>
-      {page.banners.length ? <Carousel banners={page.banners} onOpen={openPerformance} /> : <p role="status">현재 집계된 공연이 없습니다.</p>}
+      {page.banners.length ? <Carousel banners={page.banners} onOpen={setSelected} /> : <p role="status">현재 집계된 공연이 없습니다.</p>}
     </>}
     {selected && <PerformanceDialog key={selected.id} banner={selected} onClose={() => setSelected(null)} />}
   </>;
@@ -106,10 +91,6 @@ function PerformanceDialog({ banner, onClose }: { banner: Banner; onClose: () =>
     }, () => { if (!controller.signal.aborted) setError('공연 상세 정보를 불러오지 못했어요. 창을 닫고 다시 선택해 주세요.'); });
     return () => controller.abort();
   }, [banner.id]);
-  const links = (detail?.bookingLinks ?? []).flatMap((link) => {
-    const url = safeExternalUrl(link.url);
-    return url ? [{ ...link, url }] : [];
-  });
   return <Modal title={banner.title} onClose={onClose}>
     {!detail ? <p role="status">{error || '공연 상세 정보를 불러오는 중이에요.'}</p> : <div className="kopis-detail">
       <p>공연장: {detail.venueName || '정보 없음'}</p>
@@ -117,8 +98,7 @@ function PerformanceDialog({ banner, onClose }: { banner: Banner; onClose: () =>
       {detail.scheduleText && <p>공연 시간: {detail.scheduleText}</p>}
       {detail.ticketPriceText && <p>가격 안내: {detail.ticketPriceText}</p>}
       <p>예매 오픈 시각과 대리예매 허용 여부는 각 예매처에서 별도로 확인해 주세요.</p>
-      {links.length ? links.map((link) => <p key={link.url}><a href={link.url} target="_blank" rel="noopener noreferrer">{link.name || '예매처'}에서 공연 보기 ↗</a></p>) : <p>KOPIS에서 제공한 예매 링크가 없습니다.</p>}
-      <div className="kopis-attribution">{detail.attribution?.map((line) => <p key={line}>{line}</p>)}</div>
+      <div className="kopis-attribution"><p>출처: 공연예술통합전산망(KOPIS)</p></div>
     </div>}
   </Modal>;
 }

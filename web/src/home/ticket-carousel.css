@@ -468,28 +468,23 @@
 .kopis-detail { color: #182234; line-height: 1.7; overflow-wrap: anywhere; }
 .kopis-detail a { color: #334dcc; text-decoration: underline; }
 
-/* 티켓 양끝의 투명 클릭 영역. 평소에는 표시하지 않고 키보드 포커스만 보인다. */
+/* 양옆의 미리보기 카드 전체와 중앙 카드 가장자리를 클릭 영역으로 잡는다.
+   가운데 사진/텍스트는 예매 링크로 이동하며, 키보드 포커스 외에는 표시하지 않는다. */
 .tsb-nav {
   position: absolute;
-  top: 50%;
+  top: 0;
   z-index: 3;
-  width: 56px;
-  height: 80px;
+  width: max(44px, calc((var(--tsb-view) - var(--tsb-card-w)) / 2 + 16px));
+  height: 100%;
   padding: 0;
-  transform: translateY(-50%);
   border: 0;
   border-radius: 12px;
   background: transparent;
   box-shadow: none;
   cursor: pointer;
 }
-.tsb-nav-prev { left: calc((100% - var(--tsb-card-w)) / 2 - 28px); }
-.tsb-nav-next { right: calc((100% - var(--tsb-card-w)) / 2 - 28px); }
+.tsb-nav-prev { left: calc(-1 * var(--tsb-left)); }
+.tsb-nav-next { right: calc(100% + var(--tsb-left) - var(--tsb-view)); }
 .tsb-nav:hover, .tsb-nav:active { background: transparent; box-shadow: none; }
 .tsb-nav:focus-visible { outline: 3px solid #485bff; outline-offset: 3px; }
 .tsb-nav:disabled { cursor: default; }
-@media (max-width: 768px) {
-  .tsb-nav { width: 44px; height: 72px; }
-  .tsb-nav-prev { left: calc((100% - var(--tsb-card-w)) / 2 - 22px); }
-  .tsb-nav-next { right: calc((100% - var(--tsb-card-w)) / 2 - 22px); }
-}
