@@ -47,30 +47,12 @@
       "page": "v2",
       "is_interactive": true
     },
-    "M8-start.dc.html": {
-      "x": 1880,
-      "y": 1244,
-      "w": 390,
-      "h": 844,
-      "title": "2-5 요청 상세 · 예매 착수",
-      "page": "v2",
-      "is_interactive": true
-    },
-    "M9-result.dc.html": {
+    "M10-cases.dc.html": {
       "x": 2350,
       "y": 1244,
       "w": 390,
       "h": 844,
-      "title": "2-6 결과 등록·증빙 제출",
-      "page": "v2",
-      "is_interactive": true
-    },
-    "M10-cases.dc.html": {
-      "x": 2820,
-      "y": 1244,
-      "w": 390,
-      "h": 844,
-      "title": "2-7 이런 경우도 있어요 · 소개만",
+      "title": "2-6 이런 경우도 있어요 · 소개만",
       "page": "v2",
       "is_interactive": true
     },
@@ -165,6 +147,69 @@
       "title": "4 도우미 신청 · 사전 신청",
       "page": "v2",
       "is_interactive": true
+    },
+    "M8-matched.dc.html": {
+      "x": 1880,
+      "y": 1244,
+      "w": 390,
+      "h": 844,
+      "title": "2-5 요청 상세 · 직접 거래 매칭 완료",
+      "page": "v2",
+      "is_interactive": true
+    },
+    "U0-role.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "0 처음 화면 · 이용자·도우미 고르기",
+      "page": "user",
+      "is_interactive": true
+    },
+    "U1-main.dc.html": {
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "U1 메인 · 도우미 고르기",
+      "page": "user",
+      "is_interactive": true
+    },
+    "U2-profile.dc.html": {
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "U2 도우미 프로필",
+      "page": "user",
+      "is_interactive": true
+    },
+    "U3-quote.dc.html": {
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "U3 요청 보내기 · 전송 완료",
+      "page": "user",
+      "is_interactive": true
+    },
+    "U4-request.dc.html": {
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "U4 요청 상세 · 조건 확정 · 매칭 완료",
+      "page": "user",
+      "is_interactive": true
+    },
+    "U5-end.dc.html": {
+      "x": 2350,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "U5 마침 · 회원가입",
+      "page": "user",
+      "is_interactive": true
     }
   },
   "createdOnFiles": {
@@ -187,8 +232,8 @@
     },
     "v2row2": {
       "kind": "title1",
-      "maxW": 3210,
-      "text": "2. 함께 해 보기 (B안 강조) — 요청 수락부터 결과 등록까지, 실패·부분 성공·이의 제기는 소개만",
+      "maxW": 2740,
+      "text": "2. 함께 해 보기 (B안 강조) — 요청 수락부터 직접 거래 매칭 완료까지, 조건 수정·거래 취소·분쟁은 소개만",
       "x": 0,
       "y": 964,
       "page": "v2"
@@ -236,16 +281,29 @@
       "x": 0,
       "y": 4064,
       "page": "v1"
+    },
+    "userRow": {
+      "kind": "title1",
+      "maxW": 2740,
+      "text": "처음 화면에서 이용자·도우미를 고른 뒤, 이용자는 도우미 고르기 → 요청 보내기 → 조건 확정 → 매칭 완료까지 함께 해 봐요",
+      "x": 0,
+      "y": -300,
+      "page": "user"
     }
   },
   "order": [
+    "U0-role.dc.html",
+    "U1-main.dc.html",
+    "U2-profile.dc.html",
+    "U3-quote.dc.html",
+    "U4-request.dc.html",
+    "U5-end.dc.html",
     "M2-welcome-character.dc.html",
     "M3-my.dc.html",
     "M4-leads.dc.html",
     "M5-detail.dc.html",
     "M7-terms.dc.html",
-    "M8-start.dc.html",
-    "M9-result.dc.html",
+    "M8-matched.dc.html",
     "M10-cases.dc.html",
     "M6-practice.dc.html",
     "M11-apply.dc.html",
@@ -259,6 +317,10 @@
     "Dispute.dc.html"
   ],
   "pages": [
+    {
+      "id": "user",
+      "name": "이용자 가이드 · 휴대폰"
+    },
     {
       "id": "v2",
       "name": "2차 시안 · 휴대폰"

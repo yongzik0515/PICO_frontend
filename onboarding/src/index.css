@@ -41,3 +41,30 @@ body {
     box-shadow: 0 0 0 10px #16181d, 0 24px 60px rgba(22, 24, 29, 0.25);
   }
 }
+
+/* 뒤로 가기: 보드 헤더 왼쪽에 띄우고, 로고를 그만큼 오른쪽으로 민다. */
+.back-btn {
+  position: absolute;
+  top: 6px;
+  left: 4px;
+  z-index: 80;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #16181d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.back-btn:focus-visible {
+  outline: 2px solid #3a5bff;
+  outline-offset: -2px;
+}
+
+.phone.has-back header > span:first-child {
+  margin-left: 26px;
+}

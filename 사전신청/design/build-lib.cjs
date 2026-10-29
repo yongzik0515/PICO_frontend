@@ -61,16 +61,19 @@ const ICON = {
 };
 const svg = (name, size, color, width = 1.8, extra = '') => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra}>${ICON[name]}</svg>`;
 
-// 헤더: progress=true면 함께 해 보기 진행 막대(progN/progW 값 필요). avatar는 고정 스타일 또는 {{hole}}.
+// 함께 해 보기 단계 수(헤더 아래 진행 막대)
+const TOTAL = 11;
+
+// 헤더: total은 진행 막대의 전체 단계 수(이용자 가이드는 따로 정한다). progress=true면 함께 해 보기 진행 막대(progN/progW 값 필요). avatar는 고정 스타일 또는 {{hole}}.
 const AVATAR_USER = 'width: 34px; height: 34px; border-radius: 50%; background: #EEF2FF; color: #2D48D6; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center';
 const AVATAR_HELPER = 'width: 34px; height: 34px; border-radius: 50%; background: #E6F7F3; color: #0B7A67; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center';
-const header = ({ avatar = AVATAR_HELPER, progress = true } = {}) => `  <header style="position: relative; height: 56px; background: #FFFFFF; border-bottom: 1px solid #E6E9EF; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 20px; box-sizing: border-box">
+const header = ({ avatar = AVATAR_HELPER, progress = true, total = TOTAL } = {}) => `  <header style="position: relative; height: 56px; background: #FFFFFF; border-bottom: 1px solid #E6E9EF; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 20px; box-sizing: border-box">
     <span style="font-size: 19px; font-weight: 800; letter-spacing: -0.4px">PICO</span>
     <div style="display: flex; align-items: center; gap: 4px">
       <button type="button" aria-label="알림" style="width: 44px; height: 44px; border: 0; border-radius: 50%; background: none; display: flex; align-items: center; justify-content: center">${svg('bell', 22, '#4B5160', 1.7)}</button>
       <span style="${avatar}">체</span>
     </div>${progress ? `
-    <span role="progressbar" aria-label="체험 진행" aria-valuemin="0" aria-valuemax="15" aria-valuenow="{{progN}}" style="position: absolute; left: 0; bottom: -1px; width: {{progW}}; height: 3px; background: #3A5BFF; transition: width 0.3s"></span>` : ''}
+    <span role="progressbar" aria-label="체험 진행" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="{{progN}}" style="position: absolute; left: 0; bottom: -1px; width: {{progW}}; height: 3px; background: #3A5BFF; transition: width 0.3s"></span>` : ''}
   </header>`;
 
 const NAV = { find: ['도우미 찾기', 'search'], activity: ['내 활동', 'ticket'], leads: ['받은 요청', 'inbox'], matches: ['매칭 관리', 'ticket'], my: ['마이', 'user'] };
@@ -122,10 +125,12 @@ const notice = (text, tone = '') => {
   return `<div style="display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 14px 16px; background: ${t[0]}; border: 1px solid ${t[1]}; border-radius: 12px; font-size: 13px; line-height: 1.65; color: #4B5160">${svg(t[3], 18, t[2], 2, ' style="flex: 0 0 18px; margin-top: 2px"')}<span>${text}</span></div>`;
 };
 
-const statusBadge = (text, amber) => `<span style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; ${amber ? 'background: #FFF5DF; color: #8A5300' : 'background: #EEF2FF; color: #2D48D6'}">${svg('clock', 13, 'currentColor', 2)}${text}</span>`;
+// tone: 'amber'(응답 대기) | 'blue'(진행 중) | 'muted'(매칭 완료 등 끝난 단계, 체크 아이콘)
+const statusBadge = (text, tone = 'blue') => `<span style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; ${{ amber: 'background: #FFF5DF; color: #8A5300', blue: 'background: #EEF2FF; color: #2D48D6', muted: 'background: #F0F2F6; color: #4B5160' }[tone]}">${svg(tone === 'muted' ? 'check' : 'clock', 13, 'currentColor', 2)}${text}</span>`;
 
-const nextStep = (title, text, idle) => `<div style="display: flex; align-items: flex-start; gap: 13px; margin-top: 18px; padding: 16px; border-radius: 12px; background: linear-gradient(120deg, #F0F3FF, #F7F9FF)">
-    <span style="flex: 0 0 42px; height: 42px; border-radius: 12px; background: #FFFFFF; display: flex; align-items: center; justify-content: center">${svg('clock', 22, '#3A5BFF')}</span>
+// done=true면 매칭 완료처럼 끝난 단계(.tx-next.success): 초록 배경과 체크 아이콘
+const nextStep = (title, text, idle, done) => `<div style="display: flex; align-items: flex-start; gap: 13px; margin-top: 18px; padding: 16px; border-radius: 12px; background: ${done ? '#E6F7F3' : 'linear-gradient(120deg, #F0F3FF, #F7F9FF)'}">
+    <span style="flex: 0 0 42px; height: 42px; border-radius: 12px; background: #FFFFFF; display: flex; align-items: center; justify-content: center">${svg(done ? 'check' : 'clock', 22, '#3A5BFF')}</span>
     <div><strong style="font-size: 15px">${title}</strong><p style="margin: 6px 0 0; font-size: 12px; line-height: 1.7; color: #4B5160">${text}</p>${idle ? `<p style="margin: 6px 0 0; font-size: 12px; line-height: 1.7; color: #4B5160">${idle}</p>` : ''}</div>
   </div>`;
 
@@ -140,16 +145,17 @@ const detailHeader = ({ date, badge, title, sub, next }) => `<section style="bac
   ${next}
 </section>`;
 
-const STEP_NAMES = ['요청 보내기', '요청 수락 · 조건 작성', '이용자 조건 확인', '안전거래 결제', '착수 · 예매 · 결과 등록', '이용자 결과 확인'];
+// 직접 거래 진행 단계(transactions/ui.tsx Progress의 direct). cur가 단계 수 이상이면 매칭 완료라 모두 끝난 것으로 보여 준다.
+const STEP_NAMES = ['요청 보내기', '요청 수락 · 조건 작성', '이용자 조건 확인', '매칭 완료 · 후기'];
 const progressList = (cur) => `<ol aria-label="거래 진행 상황" style="list-style: none; margin: 16px 0 20px; padding: 0">${STEP_NAMES.map((label, i) => {
   const done = i < cur;
   const current = i === cur;
   return `
-    <li${current ? ' aria-current="step"' : ''} style="position: relative; display: flex; align-items: center; gap: 11px; min-height: 48px; font-size: 13px; ${current ? 'color: #3A5BFF; font-weight: 650' : done ? 'color: #4B5160' : 'color: #6B7180'}">${i < 5 ? '<span aria-hidden="true" style="position: absolute; left: 13px; top: 37px; bottom: -10px; border-left: 1px solid #E6E9EF"></span>' : ''}<b style="flex: 0 0 27px; height: 27px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; ${current ? 'background: #3A5BFF; color: #FFFFFF' : done ? 'background: #EEF2FF; color: #3A5BFF' : 'background: #F0F2F6; color: #6B7180'}">${done ? svg('check', 14, '#3A5BFF', 2.4) : i + 1}</b><span>${label}${current ? '<small style="display: block; margin-top: 2px; font-size: 11px; font-weight: 500; color: #6B7180">현재 진행 단계예요</small>' : ''}</span></li>`;
+    <li${current ? ' aria-current="step"' : ''} style="position: relative; display: flex; align-items: center; gap: 11px; min-height: 48px; font-size: 13px; ${current ? 'color: #3A5BFF; font-weight: 650' : done ? 'color: #4B5160' : 'color: #6B7180'}">${i < STEP_NAMES.length - 1 ? '<span aria-hidden="true" style="position: absolute; left: 13px; top: 37px; bottom: -10px; border-left: 1px solid #E6E9EF"></span>' : ''}<b style="flex: 0 0 27px; height: 27px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; ${current ? 'background: #3A5BFF; color: #FFFFFF' : done ? 'background: #EEF2FF; color: #3A5BFF' : 'background: #F0F2F6; color: #6B7180'}">${done ? svg('check', 14, '#3A5BFF', 2.4) : i + 1}</b><span>${label}${current ? '<small style="display: block; margin-top: 2px; font-size: 11px; font-weight: 500; color: #6B7180">현재 진행 단계예요</small>' : ''}</span></li>`;
 }).join('')}
   </ol>`;
 
-const DISCLAIMER = '<p style="margin: 12px 4px 0; font-size: 12px; line-height: 1.6; color: #6B7180">이용자와 도우미 모두 조건을 제안할 수 있어요. 도우미가 보낸 조건은 이용자가, 이용자가 보낸 조건은 도우미가 확정하거나 수정을 요청해요.</p>';
+const DISCLAIMER = '<p style="margin: 12px 4px 0; font-size: 12px; line-height: 1.6; color: #6B7180">첫 조건은 도우미가 제안하고, 받은 쪽이 확정하거나 사유와 함께 수정 제안·수정 요청을 할 수 있어요.</p>';
 const CONFIRMED = `<p style="display: flex; align-items: center; justify-content: center; gap: 5px; margin: 16px 0 0; font-size: 12px; color: #0B7A67">${svg('check', 15, '#0B7A67', 2.2)} 이용자 최종 확인 완료</p>`;
 
 const BTN = 'display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: #3A5BFF; font-family: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; text-decoration: none; cursor: pointer; box-sizing: border-box';
@@ -169,45 +175,25 @@ const sheet = ({ label, title, body, cancel, confirmBtn }) => `<div style="posit
         ${confirmBtn}
       </div>`;
 
-const ACCEPT_BODY = (title) => `<p style="margin: 8px 0 0; font-size: 15px; line-height: 1.6; color: #4B5160"><strong style="color: #16181D">${title}</strong><br>수락하면 연락처가 공개되고 최종 조건을 작성할 수 있어요.</p>
+const ACCEPT_BODY = (title) => `<p style="margin: 8px 0 0; font-size: 15px; line-height: 1.6; color: #4B5160"><strong style="color: #16181D">${title}</strong><br>수락하면 연락처가 공개되고 최종 조건을 작성할 수 있어요.<br>수락에 쓴 매칭권은 누가 거래를 취소해도 돌려받지 않아요. 공식 공연·예매 취소나 예매처·플랫폼 장애만 운영팀이 확인한 뒤 복원해요(매칭 완료 후 포함). 질병 등 개인 사정은 해당하지 않아요.</p>
       <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px; background: #F5F7FA; border-radius: 12px; padding: 12px 14px; font-size: 14px">
         <div style="display: flex; justify-content: space-between"><span style="color: #4B5160">현재 매칭권</span><strong>10장</strong></div>
         <div style="display: flex; justify-content: space-between"><span style="color: #4B5160">수락에 필요한 매칭권</span><strong>1장</strong></div>
       </div>
-      <p style="margin: 12px 0 0; font-size: 12px; line-height: 1.5; color: #5F6575">수락하면 연락처 공유 동의 약관에 동의한 것으로 처리돼요.</p>`;
-const START_BODY = '<p style="margin: 8px 0 0; font-size: 15px; line-height: 1.6; color: #4B5160">착수하면 거래가 진행 중으로 바뀌어요. 예매를 시도한 화면(대기열·좌석 선택·매진 화면 등)은 꼭 캡처하거나 녹화해 두세요. 실패로 결과를 등록하려면 시도 증빙이 반드시 필요해요. 안전거래라서 착수 후 시도 증빙을 올려 이용자가 승인하면, 결과 전이라도 착수비 지급을 요청해요(정산 계좌 등록 필요).</p>';
+      <p style="margin: 12px 0 0; font-size: 12px; line-height: 1.5; color: #5F6575">수락하면 이 거래의 이용자에게 대표 연락처를 제공하는 데 동의해요. <span style="color: #2D48D6; text-decoration: underline">연락처 제공 동의문 보기</span></p>`;
 
-const PAYMENT_CARD = (total) => card('안전거래 결제', `<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px"><strong style="display: flex; align-items: center; gap: 5px; font-size: 15px; color: #0B7A67">${svg('check', 18, '#0B7A67', 2.2)} 이용자 결제 완료</strong><strong style="font-size: 15px">${total}</strong></div>
-  ${notice('결제 금액을 보관하는 단계예요. 착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면 도우미에게 지급을 요청해요(운영팀이 예매 시도 미확인·결과 미제출로 종결하면 지급하지 않고 환불). 성공보수는 성공이면 전액, 부분 성공이면 정산한 금액만 지급돼요. 이용료는 환불되지 않아요.')}`);
+// 조건이 확정된 직접 거래의 안내 카드(요청 상세 '직접 거래')
+const DIRECT_CARD = card('직접 거래', notice('플랫폼 결제 없이 당사자끼리 정산하는 거래예요. 플랫폼은 조건 확정으로 매칭을 완료해요. 착수·성공 결과를 등록할 필요 없이 당사자끼리 진행하고, 이용자는 후기를 남길 수 있어요. 지급과 환불은 당사자끼리 처리해요.'));
+
+// 최종 조건 작성: 실패·환불 처리 안내와 예시(TermsPage)
+const REFUND_HELPER = '실패하거나 취소될 때 착수비·수고비를 어떻게 할지 두 분이 정해 적어 주세요. PICO는 금액을 정하지 않아요. 분쟁은 신고하기나 고객센터로 알려 주시면 운영팀이 이 내용을 참고해 구속력 없는 조정안을 드릴 수 있어요.';
+const REFUND_PH = '예시)\n- 약속한 시도를 했지만 예매에 실패: 착수비는 도우미 몫, 수고비는 받지 않음(미리 받았다면 돌려줌)\n- 도우미가 시도하지 않았거나 도우미 사정으로 취소: 받은 금액 전액 돌려줌\n- 이용자 사정으로 취소: 시도 시작 전이면 전액, 시작 후면 착수비를 뺀 나머지 돌려줌\n- 공연·예매 공식 취소: 받은 금액 전액 돌려줌';
+const TERMS_NOTICE = '착수·결과 증빙은 플랫폼에 등록하지 않아요. 조건이 확정되면 매칭이 완료되고, 결제·정산은 당사자끼리 직접 해요.';
 
 const contactCard = (show, phone = '010-1234-5678', kakao = 'redheart_fan') => card('연락방법', show
   ? `${rows([['전화번호', phone], ['카카오톡', kakao]])}
   <p style="margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: #6B7180">매칭한 이용자에게만 공개되는 정보예요. 예매처 계정정보는 공유하지 마세요.</p>`
   : notice('요청을 수락하면 매칭한 이용자의 연락처가 공개돼요.'));
-
-// 결과 등록 화면의 결과 선택지·결과별 문구(EvidencePage)
-const RESULT_CHOICES = [
-  ['SUCCESS', '성공', '성공 요건을 모두 충족했어요. 예매 내역 화면을 첨부하면 이용자가 바로 확인해요(선택).', '#E6F7F3', '#0B7A67', 'check'],
-  ['PARTIAL', '부분 성공', '일부만 충족했어요. 증빙은 선택이에요. 안전거래는 완료 후 부분성공 정산으로 금액을 정해요.', '#FFF4E0', '#8A5300', 'half'],
-  ['FAILURE', '실패', '예매하지 못했어요. 예매를 시도한 화면(시도 증빙)이 반드시 필요해요.', '#FDECEA', '#B42318', 'close'],
-];
-const resultIcon = (kind, color) => kind === 'half'
-  ? `<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="${color}" stroke-width="2.2"></circle><path d="M12 4a8 8 0 0 1 0 16Z" fill="${color}"></path></svg>`
-  : svg(kind, 18, color, 2.4);
-const resultOption = ([, label, desc, bg, color, icon], handler) => `<button type="button" onClick="${handler}" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px 14px; border: 1px solid #E6E9EF; border-radius: 12px; background: #FFFFFF; font-family: inherit; text-align: left; color: #16181D; cursor: pointer; box-sizing: border-box">
-        <span aria-hidden="true" style="flex: 0 0 36px; height: 36px; border-radius: 50%; background: ${bg}; display: flex; align-items: center; justify-content: center">${resultIcon(icon, color)}</span>
-        <span style="flex: 1; min-width: 0"><strong style="display: block; font-size: 15px">${label}</strong><small style="display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; color: #6B7180">${desc}</small></span>
-        ${svg('chevron', 18, '#8A90A0', 2)}
-      </button>`;
-const RESULT_NOTICE = notice('계정정보 등 민감한 내용은 가려 주세요. 결과는 한 번만 제출할 수 있어요. 이용자가 동의하면 거래가 완료되고, 이의를 제기하면 운영팀이 증빙을 보고 정해요. 이용자가 3일 동안 답하지 않으면 운영팀이 확정할 수 있어요.');
-const UPLOAD_BOX = (handler) => `<button type="button" onClick="${handler}" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 10px 14px; border: 1.5px dashed #B4BAC6; border-radius: 12px; background: #FAFBFC; font-family: inherit; text-align: left; color: #16181D; cursor: pointer; box-sizing: border-box">
-          ${svg('upload', 22, '#3A5BFF')}
-          <span><span style="display: block; font-size: 14px; font-weight: 700">파일 선택 또는 추가 첨부</span><span style="display: block; font-size: 12px; color: #5F6575">파일당 최대 20MB</span></span>
-        </button>`;
-const FILE_CHIP = `<div style="display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 14px; border: 1px solid #D5D9E2; border-radius: 12px; box-sizing: border-box">
-          <span aria-hidden="true" style="flex: 0 0 40px; height: 40px; border-radius: 8px; background: #DDE3F5; display: flex; align-items: center; justify-content: center">${svg('image', 20, '#2D48D6')}</span>
-          <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 14px; font-weight: 700">{{fileName}}</span><span style="display: block; font-size: 12px; color: #0B7A67">첨부했어요</span></span>
-        </div>`;
 
 // 스크롤 영역: ref로 스크롤 위치를 보고 다음 단계로 넘긴다.
 const scroller = (inner, bottom = '66px') => `  <div ref="{{boxRef}}" onScroll="{{onScroll}}" style="position: absolute; top: 56px; left: 0; right: 0; bottom: ${bottom}; overflow-y: auto; padding: 16px 20px 24px; box-sizing: border-box">
@@ -215,7 +201,7 @@ ${inner}
   </div>`;
 
 module.exports = {
-  doc, write, MASCOT, svg, header, AVATAR_USER, AVATAR_HELPER, nav, navButton, navItemStyle, halo, bubble, pageTitle, cardOpen, card, rows, notice,
-  statusBadge, nextStep, detailHeader, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, ACCEPT_BODY, START_BODY, PAYMENT_CARD,
-  contactCard, RESULT_CHOICES, resultOption, RESULT_NOTICE, UPLOAD_BOX, FILE_CHIP, scroller,
+  TOTAL, doc, write, MASCOT, svg, header, AVATAR_USER, AVATAR_HELPER, nav, navButton, navItemStyle, halo, bubble, pageTitle, cardOpen, card, rows, notice,
+  statusBadge, nextStep, detailHeader, progressList, STEP_NAMES, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, ACCEPT_BODY, DIRECT_CARD,
+  REFUND_HELPER, REFUND_PH, TERMS_NOTICE, contactCard, scroller,
 };
