@@ -1,6 +1,6 @@
 const fs = require('fs');
 const dir = __dirname + '/project/';
-for (const f of fs.readdirSync(dir).filter((n) => /^M\d+-.*\.dc\.html$/.test(n))) {
+for (const f of fs.readdirSync(dir).filter((n) => /^[MU]\d+-.*\.dc\.html$/.test(n))) {
   const s = fs.readFileSync(dir + f, 'utf8');
   const [tpl, script] = s.split('<script type="text/x-dc"');
   const holes = new Set([...tpl.matchAll(/\{\{\s*([^}\s]+)\s*\}\}/g)].map((m) => m[1].split('.')[0]).filter((h) => !['true', 'false', 'o'].includes(h)));
