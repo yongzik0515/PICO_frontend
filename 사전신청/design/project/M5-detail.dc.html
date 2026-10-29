@@ -17,10 +17,12 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
 .pk-halo{animation:pk-halo 1.6s ease-out infinite}
 .pk-ring{animation:pk-ring 1.6s ease-out infinite}
 .pk-pop{animation:pk-pop .35s cubic-bezier(.2,.8,.2,1) both}
+.pk-bob{animation:pk-bob 1.4s ease-in-out infinite}
 @keyframes pk-halo{0%{transform:scale(1);opacity:.9}70%{transform:scale(1.05);opacity:0}100%{transform:scale(1.05);opacity:0}}
 @keyframes pk-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.8);opacity:0}}
 @keyframes pk-pop{0%{transform:translateY(12px);opacity:0}100%{transform:none;opacity:1}}
-@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop{animation:none}}
+@keyframes pk-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop,.pk-bob{animation:none}}
 </style>
 </helmet>
 <div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F5F7FA; color: #16181D; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; word-break: keep-all">
@@ -169,6 +171,11 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
       마이
     </button>
   </nav>
+  <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">
+    <div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 80px; z-index: 30; display: flex; justify-content: center; pointer-events: none">
+      <span class="pk-bob" style="display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px 7px 10px; border-radius: 999px; background: rgba(22,24,29,0.82); font-size: 13px; font-weight: 700; color: #FFFFFF; box-shadow: 0 6px 16px rgba(0,0,0,0.16)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>아래로 내려 보세요</span>
+    </div>
+  </sc-if>
 
   <sc-if value="{{sheet}}" hint-placeholder-val="{{ false }}">
     <div style="position: absolute; inset: 0; z-index: 50; background: rgba(12,14,22,0.45)"></div>

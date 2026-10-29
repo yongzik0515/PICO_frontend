@@ -1,6 +1,6 @@
 // 처음 화면(이용자·도우미 고르기 U0)과 이용자 함께 해 보기 보드(U1~U5)를 실제 화면 구조대로 만든다. node build-user.cjs
 const L = require('./build-lib.cjs');
-const { profileFeedback, doc, write, svg, header, AVATAR_USER, nav, halo, bubble, cardOpen, card, rows, notice, statusBadge, nextStep, detailHeader, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, DIRECT_CARD, MASCOT } = L;
+const { scrollCue, profileFeedback, doc, write, svg, header, AVATAR_USER, nav, halo, bubble, cardOpen, card, rows, notice, statusBadge, nextStep, detailHeader, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, DIRECT_CARD, MASCOT } = L;
 
 const TOTAL = 13; // 이용자 함께 해 보기 단계 수
 const SIGNUP_URL = 'https://pico-kr.app/login';
@@ -138,7 +138,7 @@ class Component extends DCLogic {
   const body = `${userHeader()}
 ${L.scroller(`    ${crumbTitle('목록', '상세 프로필', '도우미 프로필')}
     <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">
-      <div>${bubble({ title: '프로필을 확인해요', sub: '조건과 후기를 보고 골라요', justify: 'flex-start', arrow: 'down', at: { left: 30 }, gap: 12 })}</div>
+      <div>${bubble({ title: '아래로 내리며 확인해요', sub: '조건과 후기를 보고 골라요', justify: 'flex-start', arrow: 'down', at: { left: 30 }, gap: 12 })}</div>
     </sc-if>
     <div style="position: relative; border-radius: 16px">
       <section style="background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 20px 16px">
@@ -166,6 +166,7 @@ ${L.scroller(`    ${crumbTitle('목록', '상세 프로필', '도우미 프로�
       <sc-if value="{{askStep}}" hint-placeholder-val="{{ false }}">${halo(14)}</sc-if>
     </div>
   </div>
+  ${scrollCue('read', 154)}
   <sc-if value="{{askStep}}" hint-placeholder-val="{{ false }}">
     <div style="position: absolute; right: 12px; bottom: 150px; z-index: 12">${bubble({ title: '요청을 보내 봐요', sub: '요청은 무료예요', justify: 'flex-end', arrow: 'down', at: { right: 60 }, gap: 0 })}</div>
   </sc-if>
@@ -213,7 +214,7 @@ class Component extends DCLogic {
   const body = `${userHeader()}
 ${L.scroller(`    ${crumbTitle('도우미 프로필', '요청 보내기', '요청 보내기')}
     <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">
-      <div>${bubble({ title: '요청서를 확인해요', sub: '이번엔 미리 채워 뒀어요', justify: 'flex-start', arrow: 'down', at: { left: 30 }, gap: 12 })}</div>
+      <div>${bubble({ title: '요청서를 확인해요', sub: '미리 채워 뒀어요. 아래로 내려요', justify: 'flex-start', arrow: 'down', at: { left: 30 }, gap: 12 })}</div>
     </sc-if>
     <div style="position: relative; border-radius: 16px">
       ${cardOpen('요청서')}
@@ -254,6 +255,7 @@ ${L.scroller(`    ${crumbTitle('도우미 프로필', '요청 보내기', '요�
     </section>`)}
 
 ${nav(USER_NAV, 'find')}
+  ${scrollCue('read')}
 
   <sc-if value="{{sent}}" hint-placeholder-val="{{ false }}">
     <div class="pk-pop" style="position: absolute; top: 56px; left: 0; right: 0; bottom: 0; z-index: 70; background: #F5F7FA; display: flex; flex-direction: column; padding: 0 24px 24px; box-sizing: border-box">
@@ -324,7 +326,7 @@ ${L.scroller(`    ${L.pageTitle('내 활동', '요청 상세')}
     <sc-if value="{{reviewing}}" hint-placeholder-val="{{ false }}">
       ${detailHeader({ date: DATE, badge: statusBadge('최종 조건 확인 대기'), title: TITLE, sub: SUB, next: nextStep('이용자가 최종 조건을 확인할 차례예요', '변경된 내용을 확인하고 확정하거나 수정을 요청해 주세요.') })}
       <sc-if value="{{read}}" hint-placeholder-val="{{ false }}">
-        <div style="margin-top: 16px">${bubble({ title: '도착한 조건을 확인해요', sub: '비용과 실패·환불 처리를 꼭 봐요', justify: 'flex-start', arrow: 'down', at: { left: 30 } })}</div>
+        <div style="margin-top: 16px">${bubble({ title: '도착한 조건을 확인해요', sub: '아래로 내리며 비용·환불 처리를 봐요', justify: 'flex-start', arrow: 'down', at: { left: 30 } })}</div>
       </sc-if>
       <div style="position: relative; margin-top: 16px; border-radius: 16px">
         ${card('도우미가 보낸 최종 조건', `${notice('1차 제안 · 2026. 10. 10. 오후 3:20 · 이용자 확인을 기다리고 있어요.')}
@@ -360,6 +362,7 @@ ${L.scroller(`    ${L.pageTitle('내 활동', '요청 상세')}
     ${DISCLAIMER}`)}
 
 ${nav(USER_NAV, 'activity')}
+  ${scrollCue('read')}
 
   <sc-if value="{{sheet}}" hint-placeholder-val="{{ false }}">
     ${sheet({ label: '최종 조건 확정 확인', title: '최종 조건을 확정할까요?', body: '<p style="margin: 8px 0 0; font-size: 15px; line-height: 1.6; color: #4B5160">확정하면 직접 거래 매칭이 완료돼요. 착수·결과 등록 없이 당사자끼리 진행하고, 이용자는 후기를 남길 수 있어요.</p>', cancel: '{{closeSheet}}', confirmBtn: `<div style="position: relative; flex: 1; border-radius: 10px"><button type="button" onClick="{{confirm}}" style="${BTN}">확정하기</button>${halo(14)}</div>` })}

@@ -11,10 +11,12 @@ const CSS = [
   '.pk-halo{animation:pk-halo 1.6s ease-out infinite}',
   '.pk-ring{animation:pk-ring 1.6s ease-out infinite}',
   '.pk-pop{animation:pk-pop .35s cubic-bezier(.2,.8,.2,1) both}',
+  '.pk-bob{animation:pk-bob 1.4s ease-in-out infinite}',
   '@keyframes pk-halo{0%{transform:scale(1);opacity:.9}70%{transform:scale(1.05);opacity:0}100%{transform:scale(1.05);opacity:0}}',
   '@keyframes pk-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.8);opacity:0}}',
   '@keyframes pk-pop{0%{transform:translateY(12px);opacity:0}100%{transform:none;opacity:1}}',
-  '@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop{animation:none}}',
+  '@keyframes pk-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}',
+  '@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop,.pk-bob{animation:none}}',
 ].join('\n');
 
 const doc = (title, body, script) => `<!doctype html>
@@ -55,6 +57,7 @@ const ICON = {
   info: '<circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path>',
   check: '<path d="m5 12 4 4L19 6"></path>',
   chevron: '<path d="m9 5 7 7-7 7"></path>',
+  down: '<path d="m6 9 6 6 6-6"></path>',
   close: '<path d="m6 6 12 12M6 18 18 6"></path>',
   upload: '<path d="M12 16V4m-5 5 5-5 5 5"></path><path d="M4 16v4h16v-4"></path>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="m3 16 5-5 4 4 3-3 6 6"></path>',
@@ -234,6 +237,13 @@ const profileFeedback = (guided, stats = SKY_REVIEWS) => `<section style="margin
       </sc-if>
     </section>`;
 
+// 끝까지 내려야 넘어가는 단계에서 화면 아래에 띄우는 안내. bottom은 하단 메뉴(와 고정 바) 위 위치.
+const scrollCue = (show, bottom = 80) => `<sc-if value="{{${show}}}" hint-placeholder-val="{{ true }}">
+    <div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: ${bottom}px; z-index: 30; display: flex; justify-content: center; pointer-events: none">
+      <span class="pk-bob" style="display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px 7px 10px; border-radius: 999px; background: rgba(22,24,29,0.82); font-size: 13px; font-weight: 700; color: #FFFFFF; box-shadow: 0 6px 16px rgba(0,0,0,0.16)">${svg('down', 16, '#FFFFFF', 2.4)}아래로 내려 보세요</span>
+    </div>
+  </sc-if>`;
+
 // 스크롤 영역: ref로 스크롤 위치를 보고 다음 단계로 넘긴다.
 const scroller = (inner, bottom = '66px') => `  <div ref="{{boxRef}}" onScroll="{{onScroll}}" style="position: absolute; top: 56px; left: 0; right: 0; bottom: ${bottom}; overflow-y: auto; padding: 16px 20px 24px; box-sizing: border-box">
 ${inner}
@@ -242,5 +252,5 @@ ${inner}
 module.exports = {
   TOTAL, doc, write, MASCOT, svg, header, AVATAR_USER, AVATAR_HELPER, nav, navButton, navItemStyle, halo, bubble, pageTitle, cardOpen, card, rows, notice,
   statusBadge, nextStep, detailHeader, progressList, STEP_NAMES, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, ACCEPT_BODY, DIRECT_CARD,
-  REFUND_HELPER, REFUND_PH, TERMS_NOTICE, contactCard, scroller, profileFeedback,
+  REFUND_HELPER, REFUND_PH, TERMS_NOTICE, contactCard, scroller, profileFeedback, scrollCue,
 };
