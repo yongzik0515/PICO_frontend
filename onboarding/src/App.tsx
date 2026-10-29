@@ -16,22 +16,8 @@ import * as terms from './boards/terms.js'
 import * as matched from './boards/matched.js'
 import * as cases from './boards/cases.js'
 import * as practice from './boards/practice.js'
-import * as apply from './boards/apply.js'
 
-// '회원가입하기'를 누르면 갈 곳
-const SIGNUP_URL = 'https://pico-kr.app/login'
-
-// 시안에서는 안내 문구만 띄우던 사전 신청 버튼을 실제 회원가입으로 잇는다.
-const applyMod: BoardModule = {
-  ...(apply as unknown as BoardModule),
-  default: class extends (apply as unknown as BoardModule).default {
-    renderVals() {
-      return { ...super.renderVals(), apply: () => window.location.assign(SIGNUP_URL) }
-    }
-  },
-}
-
-const MODULES = { role, userMain, userProfile, userQuote, userRequest, userEnd, userPractice, main, my, leads, detail, terms, matched, cases, practice, apply: applyMod } as unknown as Record<string, BoardModule>
+const MODULES = { role, userMain, userProfile, userQuote, userRequest, userEnd, userPractice, main, my, leads, detail, terms, matched, cases, practice } as unknown as Record<string, BoardModule>
 
 const byPath = (p: string) => BOARDS.find((b) => b.path === p) ?? BOARDS[0]
 const hrefOf = (file: string) => BOARDS.find((b) => b.file === file)?.path
