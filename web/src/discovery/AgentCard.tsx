@@ -6,6 +6,7 @@ import { money, responseTime, successRate } from '../ui/format';
 import type { Agent } from './agent';
 import { useFavorites } from './favorites';
 import { recentMatch } from './recentMatch';
+import './recent-match.css';
 
 function RecentMatch({ value }: { value: string }) {
   const [now, setNow] = useState(() => Date.now());
@@ -14,7 +15,7 @@ function RecentMatch({ value }: { value: string }) {
     return () => window.clearInterval(timer);
   }, []);
   const stamp = recentMatch(value, now);
-  return stamp ? <span className="response-time">
+  return stamp ? <span className="response-time recent-match">
     <Icon name="clock" size={13} />
     최근 매칭 · <time dateTime={stamp.dateTime}>{stamp.text}</time>
   </span> : null;
