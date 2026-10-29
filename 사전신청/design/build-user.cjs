@@ -75,9 +75,12 @@ class Component extends DCLogic {
 }
 
 // ── U1 메인: 도우미 고르기 ─────────────────────────────────────────
+// 메인 구성 라벨(도우미 메인 소개와 같은 모양): 테두리와 왼쪽 위 이름표
+const LABEL = (radius, text) => `<span aria-hidden="true" style="position: absolute; inset: -4px; border: 2px solid #3A5BFF; border-radius: ${radius}px; pointer-events: none"></span><span class="pk-pop" style="position: absolute; top: -11px; left: 12px; font-size: 12px; font-weight: 700; line-height: 16px; color: #FFFFFF; background: #3A5BFF; padding: 3px 9px; border-radius: 999px">${text}</span>`;
 {
   const body = `${userHeader()}
   <div style="position: absolute; top: 56px; left: 0; right: 0; bottom: 66px; overflow-y: auto; padding: 16px 20px 24px; box-sizing: border-box">
+    <div style="position: relative; margin-top: 8px; border-radius: 20px">
     <div aria-label="공연 배너" style="height: 220px; border-radius: 20px; background: #2B2F6E; color: #FFFFFF; display: flex; flex-direction: column; overflow: hidden">
       <div style="flex: 1; padding: 18px 20px; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px">
         <span style="align-self: flex-start; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.18); padding: 4px 10px; border-radius: 999px">콘서트</span>
@@ -88,12 +91,17 @@ class Component extends DCLogic {
         <span style="font-size: 13px; color: #D9DCF5">2026.10.13 (화) 20:00</span>
       </div>
     </div>
-    <div style="margin-top: 14px; height: 52px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E6E9EF; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; box-sizing: border-box">
+    ${LABEL(23, '곧 열리는 공연')}
+    </div>
+    <div style="position: relative; margin-top: 18px; border-radius: 12px">
+    <div style="height: 52px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E6E9EF; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; box-sizing: border-box">
       <span style="font-size: 14px; color: #6B7180">공연명, 도우미 이름, 예매처를 검색해 보세요</span>
       ${svg('search', 20, '#3A5BFF', 2)}
     </div>
+    ${LABEL(15, '공연·도우미 검색')}
+    </div>
     <h2 style="margin: 22px 0 0; font-size: 17px; font-weight: 800">이번 주, 주목할 도우미</h2>
-    <div style="position: relative; margin-top: 12px; border-radius: 16px">
+    <div style="position: relative; margin-top: 18px; border-radius: 16px">
       <a href="U2-profile.dc.html" style="display: flex; gap: 12px; padding: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; color: #16181D; text-decoration: none">
         ${AGENT_AVATAR(52, 14, 18)}
         <span style="min-width: 0">
@@ -102,6 +110,7 @@ class Component extends DCLogic {
         </span>
       </a>
       ${halo(20)}
+      <span class="pk-pop" style="position: absolute; top: -11px; left: 12px; font-size: 12px; font-weight: 700; line-height: 16px; color: #FFFFFF; background: #3A5BFF; padding: 3px 9px; border-radius: 999px">도우미 목록</span>
     </div>
     ${bubble({ title: '도우미를 골라 봐요', sub: '프로필에서 조건과 후기를 봐요' })}
     <div style="margin-top: 12px; display: flex; gap: 12px; padding: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; opacity: 0.6">

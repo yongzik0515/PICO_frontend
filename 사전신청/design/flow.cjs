@@ -22,7 +22,7 @@ const fakeScroll = (c) => {
 // ── 함께 해 보기 ──
 const steps = [];
 const m2 = new (load('M2-welcome-character.dc.html'))({});
-ok(m2.renderVals().welcome, 'M2 welcome'); m2.renderVals().start(); ok(m2.renderVals().tour, 'M2 tour'); steps.push(1);
+ok(m2.renderVals().tour, 'M2 starts on the tour'); steps.push(1);
 
 const m3 = new (load('M3-my.dc.html'))({});
 ok(m3.renderVals().s2 && m3.renderVals().boxBottom === '66px', 'M3 start'); steps.push(m3.renderVals().progN);
