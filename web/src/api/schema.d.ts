@@ -3040,6 +3040,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/search/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 사용자가 확정 실행한 검색 기록
+         * @description Enter·돋보기·추천어 클릭 때만 호출합니다. 입력 중 호출 금지. 브라우저 UUID는 일별 HMAC으로 변환해 저장하고 원본 UUID·계정·IP는 저장하지 않습니다. 같은 검색어/브라우저/날짜 중복은 recorded=false. 개인정보·욕설·URL·80자 초과는 집계 제외. 기능 OFF/해시 비밀 미설정도 recorded=false이며 기존 도우미 검색을 변경하지 않습니다.
+         */
+        post: operations["record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/search/popular": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 전날 AI 정규화 인기 검색어 상위 3개
+         * @description 공개 조회. 전날 KST 검색을 집계하며 동일 브라우저의 동일 대상은 하루 1회만 계산합니다. 3개 이상 브라우저에서 검색된 실제 공연·공개 도우미·예매처만 노출합니다. 데이터 부족·기능 OFF는 items=[]입니다. 최초 정상 집계 후 하루 한 번 갱신합니다.
+         */
+        get: operations["popular"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5244,6 +5284,39 @@ export interface components {
             success?: boolean;
             data?: components["schemas"]["GrobleCheckoutResponse"];
             message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponsePopularSearchReceipt: {
+            success?: boolean;
+            data?: components["schemas"]["PopularSearchReceipt"];
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponsePopularSearchSnapshot: {
+            success?: boolean;
+            data?: components["schemas"]["PopularSearchSnapshot"];
+            message?: string;
+        };
+        PopularSearchEvent: {
+            query: string;
+            /** Format: uuid */
+            browserId: string;
+        };
+        PopularSearchItem: {
+            /** Format: int32 */
+            rank?: number;
+            keyword?: string;
+            category?: string;
+        };
+        PopularSearchReceipt: {
+            recorded?: boolean;
+        };
+        PopularSearchSnapshot: {
+            /** Format: date */
+            date?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            items?: components["schemas"]["PopularSearchItem"][];
         };
     };
     responses: never;
@@ -17657,6 +17730,68 @@ export interface operations {
             };
             /** @description 웹훅 시크릿 미설정. 상태 변경·기록 없음(그로블이 재전송) */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    record: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PopularSearchEvent"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePopularSearchReceipt"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    popular: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePopularSearchSnapshot"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -15772,6 +15772,82 @@
         },
         "security": []
       }
+    },
+    "/api/search/events": {
+      "post": {
+        "tags": [
+          "popular-search-controller"
+        ],
+        "summary": "사용자가 확정 실행한 검색 기록",
+        "description": "Enter·돋보기·추천어 클릭 때만 호출합니다. 입력 중 호출 금지. 브라우저 UUID는 일별 HMAC으로 변환해 저장하고 원본 UUID·계정·IP는 저장하지 않습니다. 같은 검색어/브라우저/날짜 중복은 recorded=false. 개인정보·욕설·URL·80자 초과는 집계 제외. 기능 OFF/해시 비밀 미설정도 recorded=false이며 기존 도우미 검색을 변경하지 않습니다.",
+        "operationId": "record",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PopularSearchEvent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePopularSearchReceipt"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/search/popular": {
+      "get": {
+        "tags": [
+          "popular-search-controller"
+        ],
+        "summary": "전날 AI 정규화 인기 검색어 상위 3개",
+        "description": "공개 조회. 전날 KST 검색을 집계하며 동일 브라우저의 동일 대상은 하루 1회만 계산합니다. 3개 이상 브라우저에서 검색된 실제 공연·공개 도우미·예매처만 노출합니다. 데이터 부족·기능 OFF는 items=[]입니다. 최초 정상 집계 후 하루 한 번 갱신합니다.",
+        "operationId": "popular",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePopularSearchSnapshot"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
     }
   },
   "components": {
@@ -20457,6 +20533,96 @@
           },
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "ApiResponsePopularSearchReceipt": {
+        "type": "object",
+        "description": "공통 응답. 성공은 success=true, 오류는 success=false와 data=null",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PopularSearchReceipt"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponsePopularSearchSnapshot": {
+        "type": "object",
+        "description": "공통 응답. 성공은 success=true, 오류는 success=false와 data=null",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PopularSearchSnapshot"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "PopularSearchEvent": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 0
+          },
+          "browserId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "browserId",
+          "query"
+        ]
+      },
+      "PopularSearchItem": {
+        "type": "object",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "keyword": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          }
+        }
+      },
+      "PopularSearchReceipt": {
+        "type": "object",
+        "properties": {
+          "recorded": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PopularSearchSnapshot": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PopularSearchItem"
+            }
           }
         }
       }

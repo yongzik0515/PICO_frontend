@@ -97,8 +97,6 @@ function PerformanceDialog({ banner, onClose }: { banner: Banner; onClose: () =>
       <p>공연 기간: {detail.startsOn || '?'} ~ {detail.endsOn || '?'}</p>
       {detail.scheduleText && <p>공연 시간: {detail.scheduleText}</p>}
       {detail.ticketPriceText && <p>가격 안내: {detail.ticketPriceText}</p>}
-      <p>예매 오픈 시각과 대리예매 허용 여부는 각 예매처에서 별도로 확인해 주세요.</p>
-      <div className="kopis-attribution"><p>출처: 공연예술통합전산망(KOPIS)</p></div>
     </div>}
   </Modal>;
 }

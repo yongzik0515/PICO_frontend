@@ -6,13 +6,13 @@ import { AgentCard } from '../discovery/AgentCard';
 import { FilterModal, QuickFilter } from '../discovery/FilterControls';
 import { emptyFilters, filterLabels, removeFilter, sortOptions, type Filters, type Sort } from '../discovery/filters';
 import { TicketCarousel } from '../home/TicketCarousel';
+import { loadPopularSearch, recordSearch, type PopularKeyword } from '../home/popularSearch';
 import '../home/home-layout.css';
 import { Icon } from '../ui/Icon';
 import { Modal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 discovery.js의 home(). 검색·필터·정렬은 GET /api/agents가 처리한다.
-const popular = ['태연 콘서트', '뮤지컬 프리미어', '데이식스 콘서트'];
 const quickFilters = [
   ['price', '가격'],
   ['date', '예매 날짜'],
@@ -97,6 +97,18 @@ export function HomePage() {
   const [alertOpen, setAlertOpen] = useState(false);
   const [helperAlert, setHelperAlert] = useState(false);
   const [reload, setReload] = useState(0);
+  const [popular, setPopular] = useState<PopularKeyword[]>([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () => {
+      loadPopularSearch(controller.signal).then((result) => {
+        if (!controller.signal.aborted) setPopular(result.items.slice(0, 3));
+      }, () => { if (!controller.signal.aborted) setPopular([]); });
+    };
+    load();
+    const timer = window.setInterval(load, 60 * 60 * 1000);
+    return () => { controller.abort(); window.clearInterval(timer); };
+  }, []);
 
   const { query, sort, filters } = state;
   const result = useAgentSearch(query, sort, filters, reload);
@@ -106,6 +118,11 @@ export function HomePage() {
   const search = !!query || labels.length > 0;
   const setFilters = (f: Filters) => setState((s) => ({ ...s, filters: f }));
   const reset = () => setState((s) => ({ ...s, query: '', filters: emptyFilters() }));
+  function submitSearch(keyword = query) {
+    setState((s) => ({ ...s, query: keyword }));
+    setReload((n) => n + 1);
+    void recordSearch(keyword);
+  }
 
   function saveAlert(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -131,22 +148,21 @@ export function HomePage() {
             placeholder="공연명, 도우미 이름, 예매처를 검색해 보세요"
             aria-label="도우미 검색"
             onChange={(e) => setState((s) => ({ ...s, query: e.target.value }))}
-            onKeyDown={(e) => e.key === 'Enter' && setReload((n) => n + 1)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitSearch(); }}
           />
           {/* 돋보기를 입력란 오른쪽 끝의 누를 수 있는 칩으로 둔다. 목록은 입력하는 대로 갱신되고, 이 버튼은 다시 불러온다. */}
-          <button type="button" className="search-chip" aria-label="검색" onClick={() => setReload((n) => n + 1)}>
+          <button type="button" className="search-chip" aria-label="검색" onClick={() => submitSearch()}>
             <Icon name="search" size={20} />
           </button>
         </div>
-        <div className="popular-shows">
+        {popular.length > 0 && <div className="popular-shows">
           <span>인기 검색</span>
           {popular.map((p) => (
-            <button key={p} onClick={() => setState((s) => ({ ...s, query: p }))}>
-              {p}
+            <button key={`${p.category}:${p.keyword}`} onClick={() => submitSearch(p.keyword)}>
+              {p.keyword}
             </button>
           ))}
-          <small>예시</small>
-        </div>
+        </div>}
         {/* 검색창 오른쪽 빈 자리를 광고 자리로 쓴다(화면 1024px 이상에서만 보인다).
             아직 실제 광고가 없어 광고 문의 안내를 띄운다. 광고가 생기면 문구와 이동 주소만 바꾸면 된다. */}
         <Link className="home-ad" to="/inquiries">
