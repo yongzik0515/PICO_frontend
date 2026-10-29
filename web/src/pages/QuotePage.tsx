@@ -528,7 +528,7 @@ export function RequestSentPage() {
       <span className="tiny-label">요청 전송 완료</span>
       <h1>도우미에게 마음이 도착했어요</h1>
       <p>
-        <span>운영팀의 요청 검토가 끝나면 도우미가 요청을 확인해요.</span>
+        <span>요청 내용을 자동으로 확인한 뒤 도우미에게 전달해요. 추가 확인이 필요하면 운영팀이 검토해요.</span>
         <span>수락과 최종 조건 도착 소식은 알림으로 알려드릴게요.</span>
       </p>
       <div>

@@ -355,7 +355,7 @@ export function RequestDetailPage() {
         {text}
       </button>
     );
-    // 가이드 6-1: MATCHED에서는 진행 중인 결제가 없을 때만 당사자가 취소할 수 있다. 이용자가 취소하면 도우미의 매칭권이 복구되고, 도우미가 취소하면 복구되지 않는다.
+    // 가이드 6-1: MATCHED에서는 진행 중인 결제가 없을 때만 당사자가 취소할 수 있다. 매칭권은 수락 시 사용이 확정돼 누가 취소해도 복구되지 않는다.
     const cancelMatched =
       r.status === 'MATCHED' && !hasActivePayment ? (
         <button type="button" className="btn ghost full tx-danger" disabled={pending} onClick={() => setDialog('cancel')}>
@@ -364,6 +364,8 @@ export function RequestDetailPage() {
       ) : null;
     // 안전거래 확정 후 결제 전에는 양측이 조건을 다시 제안할 수 있다(새 버전이 확정되면 이전 확정본은 대체).
     const repropose = finalized && !hasActivePayment && (stage === 'ready' || stage === 'payment') ? go(`/requests/${r.id}/terms`, '조건 다시 제안하기', 'ghost') : null;
+    // 명세(change-requests): MATCHED·활성 결제 없음·최신 PROPOSED를 받은 쪽만, 미해결 수정 요청이 없을 때 사유만으로 수정을 요청할 수 있다.
+    const canRequestChange = r.status === 'MATCHED' && !hasActivePayment && latest?.status === 'PROPOSED' && !proposalMine && d.changeRequests.length === 0 && !r.agreementChangePending;
     switch (stage) {
       case 'policy_blocked':
         return agent ? (
@@ -407,11 +409,15 @@ export function RequestDetailPage() {
         );
       case 'terms_sent':
         return proposalMine ? (
-          <Notice>{other}의 최종 확인을 기다리고 있어요.</Notice>
+          <>
+            <Notice>{other}의 최종 확인을 기다리고 있어요.</Notice>
+            {cancelMatched}
+          </>
         ) : (
           <>
             {btn('확인하고 확정하기', () => setDialog('agree'))}
             {go(`/requests/${r.id}/terms`, '조건 수정해서 제안하기')}
+            {canRequestChange && btn('수정 요청하기', () => setDialog('revision'), 'ghost')}
             {cancelMatched}
           </>
         );
@@ -662,8 +668,10 @@ export function RequestDetailPage() {
           )}
 
           <TxCard title="연락방법">
-            {['PENDING', 'REJECTED', 'EXPIRED'].includes(r.status) ? (
+            {r.status === 'PENDING' ? (
               <Notice>요청을 수락하면 매칭한 {other}의 연락처가 공개돼요.</Notice>
+            ) : ['REJECTED', 'EXPIRED'].includes(r.status) ? (
+              <Notice>수락되지 않은 요청이라 연락처가 공유되지 않았어요.</Notice>
             ) : ['COMPLETED', 'CANCELLED'].includes(r.status) ? (
               <Notice>거래가 끝나 연락처 공개가 종료됐어요.</Notice>
             ) : contacts.length ? (
@@ -794,8 +802,8 @@ export function RequestDetailPage() {
         <aside className="tx-side">
           <section className="content-card tx-progress">
             <h2>진행 상황</h2>
-            {/* 도우미가 보낸(또는 확정된) 조건이 직접 거래면 결제 단계가 없다. */}
-            <Progress stage={stage} direct={!!latest && !latest.safePayment} proposedBy={latest?.proposedByRole} />
+            {/* 새 거래는 직접 거래뿐이라 결제·착수 단계를 보여 주지 않는다. 예전 안전거래 조건이 있는 거래만 전체 단계를 보여 준다. */}
+            <Progress stage={stage} direct={!latest?.safePayment} proposedBy={latest?.proposedByRole} />
             {actions()}
             {finalized && (
               <p className="tx-confirmed">
@@ -803,7 +811,7 @@ export function RequestDetailPage() {
               </p>
             )}
           </section>
-          <p className="aside-disclaimer">이용자와 도우미 모두 조건을 제안할 수 있어요. 도우미가 보낸 조건은 이용자가, 이용자가 보낸 조건은 도우미가 확정하거나 수정을 요청해요.</p>
+          <p className="aside-disclaimer">첫 조건은 도우미가 제안하고, 받은 쪽이 확정하거나 사유와 함께 수정 제안·수정 요청을 할 수 있어요.</p>
         </aside>
       </div>
 
@@ -814,6 +822,8 @@ export function RequestDetailPage() {
             <strong>{r.targetName}</strong>
             <br />
             수락하면 연락처가 공개되고 최종 조건을 작성할 수 있어요.
+            <br />
+            수락에 쓴 매칭권은 누가 거래를 취소해도 돌려받지 않아요. 공식 공연·예매 취소나 예매처·플랫폼 장애만 운영팀이 확인한 뒤 복원해요(매칭 완료 후 포함). 질병 등 개인 사정은 해당하지 않아요.
           </p>
           <div className="tx-accept-balance">
             <div>
@@ -855,7 +865,8 @@ export function RequestDetailPage() {
         >
           <p className="prose">
             취소하면 되돌릴 수 없어요.
-            {r.status === 'MATCHED' && (agent ? ' 도우미가 취소하면 수락할 때 사용한 매칭권은 돌려받지 않아요.' : ' 도우미가 수락할 때 사용한 매칭권은 도우미에게 복구돼요.')}
+            {r.status === 'MATCHED' && (agent ? ' 수락할 때 사용한 매칭권은 돌려받지 않아요.' : ' 도우미가 수락할 때 사용한 매칭권은 돌아가지 않아요.')}
+            {r.status === 'MATCHED' && ' 공식 공연·예매 취소나 예매처·플랫폼 장애는 고객센터로 알려 주시면 운영팀이 확인한 뒤 복원해요. 질병 등 개인 사정은 해당하지 않아요.'}
           </p>
         </ReasonModal>
       )}
@@ -872,8 +883,7 @@ export function RequestDetailPage() {
           }
         >
           <p className="prose">
-            안전거래는 결제가 시작되기 전까지만 조건을 다시 제안할 수 있어요.
-            <br />
+            {latest.safePayment && <>안전거래는 결제가 시작되기 전까지만 조건을 다시 제안할 수 있어요.<br /></>}
             {latest.safePayment ? `확정 후 이용자가 ${money(latest.upfrontFeeKrw + latest.successFeeKrw + latest.safetyFeeKrw)}원을 안전거래로 결제해요.` : '확정하면 직접 거래 매칭이 완료돼요. 착수·결과 등록 없이 당사자끼리 진행하고, 이용자는 후기를 남길 수 있어요.'}
           </p>
         </ConfirmModal>

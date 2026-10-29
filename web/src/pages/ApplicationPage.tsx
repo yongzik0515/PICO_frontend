@@ -41,7 +41,7 @@ const statusLabels: Record<ProfileStatus | 'none', string> = { none: '미신청'
 const fieldNames: Record<string, string> = {
   image: '프로필 이미지', activityName: '활동 닉네임', headline: '한 줄 소개', bio: '상세 소개', platformIds: '가능한 예매처', categories: '공연 분야',
   primaryCategory: '주로 맡는 공연 분야', contactHoursNote: '활동 가능 시간·일정', upfrontFeeKrw: '최소 착수비', successFee: '수고비',
-  payout: '정산 계좌', contact: '매칭 후 연락 방법', careerDescription: '경력 요약', career: '경력 인증', business: '사업자 등록번호',
+  payout: '본인 계좌', contact: '매칭 후 연락 방법', careerDescription: '경력 요약', career: '경력 인증', business: '사업자 등록번호',
 };
 const scanLabels: Record<string, string> = { clean: '검토 완료', pending: '운영팀 파일 검토 전', blocked: '차단됨 · 다시 제출해 주세요', unknown: '제출 완료' };
 const categories = Object.keys(categoryNames) as Category[];
@@ -429,7 +429,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
 
   function validateProfile() {
     if (edit && !state.identityVerified) return '본인인증이 완료되지 않아 공개 프로필을 저장할 수 없어요. 인증 상태를 확인해 주세요.';
-    if (edit && !state.payoutVerified) return '정산 계좌 인증이 완료되지 않아 공개 프로필을 저장할 수 없어요. 계좌 인증 상태를 확인해 주세요.';
+    if (edit && !state.payoutVerified) return '본인 계좌 확인이 완료되지 않아 공개 프로필을 저장할 수 없어요. 계좌 확인 상태를 확인해 주세요.';
     if (!p.platformIds.length) return '가능한 예매처를 하나 이상 선택해 주세요.';
     if (!p.categories.length) return '공연 분야를 하나 이상 선택해 주세요.';
     if ((p.successFeeMax ?? 0) < (p.successFeeMin ?? 0)) return '수고비 최대 금액은 최소 금액 이상이어야 해요.';
@@ -479,7 +479,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
     const message = !state.identityVerified
       ? '본인인증을 완료해 주세요.'
       : !state.payoutVerified
-        ? '정산 계좌를 확인해 주세요.'
+        ? '본인 계좌를 확인해 주세요.'
         : !caseStates.some((c) => c.scan === 'clean')
           ? '경력 인증 자료를 제출하고 파일 검토가 완료될 때까지 기다려 주세요.'
           : !agreed.rules || !agreed.contact
@@ -531,7 +531,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
 
   const titles = [
     ['어떤 도우미인가요?', '이용자가 보게 될 공개 프로필을 만들어요.'],
-    ['활동에 필요한 확인', '본인인증·연락 방법·정산 계좌와 경력 자료를 확인해요.'],
+    ['활동에 필요한 확인', '본인인증·연락 방법·본인 계좌와 경력 자료를 확인해요.'],
     ['마지막으로 확인해 주세요', '입력한 내용이 공개 프로필에 이렇게 표시돼요.'],
   ][step];
 
@@ -736,7 +736,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
           <form noValidate onSubmit={saveStep1}>
             <Card title="계정 인증">
               {changeBanner}
-              <Note>본인인증과 정산 계좌 확인이 끝나야 심사를 신청할 수 있어요.</Note>
+              <Note>본인인증과 본인 계좌 확인이 끝나야 심사를 신청할 수 있어요.</Note>
               <Verification title="본인인증" text="서로 안심하고 요청과 매칭을 시작해요." done={state.identityVerified}>
                 {!state.identityVerified && (
                   <button type="button" className="btn secondary" disabled={pending} onClick={() => run(verifyIdentity, '본인인증을 완료했어요.').then((ok) => ok && reload())}>
@@ -744,7 +744,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
                   </button>
                 )}
               </Verification>
-              <Verification title="정산 계좌 확인" text="도우미 활동에 사용할 정산 정보를 확인해요. 본인 명의 계좌만 등록할 수 있어요." done={state.payoutVerified} doneText={state.payoutMasked ? `확인 완료 · ${state.payoutMasked}` : undefined} />
+              <Verification title="본인 계좌 확인" text="도우미 활동에 필요한 본인 명의 계좌인지 확인해요. PICO는 이 계좌로 돈을 보내지 않아요." done={state.payoutVerified} doneText={state.payoutMasked ? `확인 완료 · ${state.payoutMasked}` : undefined} />
               {!state.payoutVerified && (
                 <>
                   <Field label="은행" required className={fl('payout')}>
@@ -767,7 +767,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
                         type="button"
                         className="btn primary"
                         disabled={pending || !state.identityVerified || bank.number.length < 8}
-                        onClick={() => run(() => verifyPayout(bank.code, bank.number), '정산 계좌를 확인했어요.').then((ok) => ok && reload())}
+                        onClick={() => run(() => verifyPayout(bank.code, bank.number), '본인 계좌를 확인했어요.').then((ok) => ok && reload())}
                       >
                         계좌 확인
                       </button>

@@ -61,6 +61,8 @@ export function ReviewPage() {
   if (load.status === 'error') return <Navigate to="/requests" replace />;
 
   const { request: r, stage, review } = load.data;
+  // 예전 안전거래 거래만 결제·정산 결과가 있다. 직접 거래 후기의 예매 결과는 참고 정보일 뿐이다.
+  const safePayment = load.data.agreements.some((a) => a.status === 'FINALIZED' && a.safePayment);
   const used = !!review || r.reviewWritten || usedReviews.has(requestId);
   if ((stage !== 'completed' && stage !== 'matching_completed') || roleIn(r, me, mode) !== 'user' || used)
     return (
@@ -123,7 +125,9 @@ export function ReviewPage() {
                   </label>
                 ))}
               </div>
-              <small className="field-helper">이용자가 후기에 남기는 정보예요. 다시 누르면 선택이 풀려요. 결제·정산의 확정 결과에는 영향을 주지 않아요.</small>
+              <small className="field-helper">
+                {safePayment ? '이용자가 후기에 남기는 정보예요. 다시 누르면 선택이 풀려요. 결제·정산의 확정 결과에는 영향을 주지 않아요.' : '이용자가 기록하는 참고 정보예요. 다시 누르면 선택이 풀려요.'}
+              </small>
             </fieldset>
             <label className="field">
               <span>

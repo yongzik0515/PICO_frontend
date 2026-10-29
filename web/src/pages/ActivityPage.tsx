@@ -230,14 +230,14 @@ export function AgentActivityPage({ kind }: { kind: 'leads' | 'matches' }) {
         <div>
           <small>{received ? '답변할 요청' : '진행 중인 거래'}</small>
           <strong>
-            {received ? all.filter((r) => r.status === 'PENDING').length : all.filter((r) => ['MATCHED', 'IN_PROGRESS'].includes(r.status)).length}
+            {received ? all.filter((r) => r.status === 'PENDING').length : all.filter((r) => ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status)).length}
             <span>건</span>
           </strong>
         </div>
         <div>
-          <small>결과 확인 중</small>
+          <small>매칭 완료</small>
           <strong>
-            {all.filter((r) => r.status === 'DISPUTED').length}
+            {all.filter((r) => r.status === 'MATCHING_COMPLETED').length}
             <span>건</span>
           </strong>
         </div>

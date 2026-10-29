@@ -360,8 +360,8 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
             {applicationStatus !== 'none' && (
               <>
                 <Verification
-                  title="정산 계좌 확인"
-                  text="도우미 활동에 사용할 정산 정보를 확인해요. 본인 명의 계좌만 등록할 수 있어요."
+                  title="본인 계좌 확인"
+                  text="도우미 활동에 필요한 본인 명의 계좌인지 확인해요. PICO는 이 계좌로 돈을 보내지 않아요."
                   done={state.payoutVerified}
                   doneText={state.payoutMasked ? `확인 완료 · ${state.payoutMasked}` : undefined}
                 />
@@ -385,7 +385,7 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
                       type="button"
                       className="btn primary"
                       disabled={pending || !state.identityVerified || bank.number.length < 8}
-                      onClick={() => run(() => verifyPayout(bank.code, bank.number), '정산 계좌를 확인했어요.').then((ok) => ok && reload())}
+                      onClick={() => run(() => verifyPayout(bank.code, bank.number), '본인 계좌를 확인했어요.').then((ok) => ok && reload())}
                     >
                       {state.payoutVerified ? '계좌 변경' : '계좌 확인'}
                     </button>
@@ -461,8 +461,8 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
               if (ok) signOut('탈퇴했어요. 그동안 이용해 주셔서 고마워요.', '/');
             }}
           >
-            <p className="prose">탈퇴하면 계정으로 로그인할 수 없고, 연락처·본인인증·정산계좌 정보는 바로 지워져요. 거래·결제 기록은 법에 따라 보관돼요.</p>
-            <p className="prose">진행 중인 거래가 있거나 받을 돈·환불받을 돈이 남아 있으면 탈퇴할 수 없어요. 탈퇴 후 30일 동안은 같은 명의로 다시 본인인증을 할 수 없어요(도우미 활동이 정지된 상태에서 탈퇴하면 3년).</p>
+            <p className="prose">탈퇴하면 계정으로 로그인할 수 없고, 연락처·본인인증·계좌 확인 정보는 바로 지워져요. 거래·결제 기록은 법에 따라 보관돼요.</p>
+            <p className="prose">응답 대기·조건 협의 중인 요청이나 진행 중인 거래가 있으면 탈퇴할 수 없어요. 매칭권 환불이 처리 중이거나 예전 안전거래의 지급·환불이 남아 있을 때도 끝난 뒤에 탈퇴할 수 있어요. 탈퇴 후 30일 동안은 같은 명의로 다시 본인인증을 할 수 없어요(도우미 활동이 정지된 상태에서 탈퇴하면 3년).</p>
             {hasLocal ? <><Field label="비밀번호 확인" required>
               <input type="password" required maxLength={72} value={withdrawPassword} onChange={(e) => setWithdrawPassword(e.target.value)} autoComplete="current-password" />
             </Field>
@@ -694,11 +694,11 @@ function AgentHistory() {
               ) : tab === 'usages' ? (
                 <>
                   <div>
-                    <span className={`tx-status ${r.restored ? 'amber' : 'blue'}`}>{r.restored ? '복구됨' : '사용'}</span>
+                    <span className={`tx-status ${r.restored ? 'amber' : 'blue'}`}>{r.restored ? '복원됨' : '사용'}</span>
                     <h3>요청 수락 · 매칭권 1장</h3>
                     <p>
                       {utcToLocal(str(r.usedAt) ?? '')}
-                      {r.restoredAt ? ` · 복구 ${utcToLocal(str(r.restoredAt) ?? '')}` : ''}
+                      {r.restoredAt ? ` · 복원 ${utcToLocal(str(r.restoredAt) ?? '')}` : ''}
                     </p>
                   </div>
                   <div>
