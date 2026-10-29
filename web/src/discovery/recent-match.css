@@ -1,0 +1,6 @@
+/* 최근 매칭은 화면 너비에 따라 숨기는 평균 응답 시간과 별도로 표시한다. */
+.agent-card .site-tags > .recent-match {
+  display: inline-flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
