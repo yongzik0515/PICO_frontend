@@ -22,6 +22,7 @@ export interface Agent {
   category: string;
   identityVerified: boolean;
   accountVerified: boolean;
+  lastMatchedAt?: string;
   detail?: string;
   hours?: string;
   successMin?: number;
@@ -94,6 +95,7 @@ export function toAgent(raw: Raw): Agent {
     identityVerified: pick(raw, 'identityVerified', 'verification.identity') === true,
     accountVerified: pick(raw, 'payoutAccountVerified', 'accountVerified', 'verification.payoutAccount') === true,
     image: str(pick(raw, 'profileImageUrl', 'imageUrl', 'profile.imageUrl')),
+    lastMatchedAt: str(raw.lastMatchedAt),
   };
 }
 

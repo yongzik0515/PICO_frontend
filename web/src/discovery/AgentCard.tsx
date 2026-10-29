@@ -1,9 +1,24 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { Icon } from '../ui/Icon';
 import { ImagePreview } from '../ui/ImagePreview';
 import { money, responseTime, successRate } from '../ui/format';
 import type { Agent } from './agent';
 import { useFavorites } from './favorites';
+import { recentMatch } from './recentMatch';
+
+function RecentMatch({ value }: { value: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const stamp = recentMatch(value, now);
+  return stamp ? <span className="response-time">
+    <Icon name="clock" size={13} />
+    최근 매칭 · <time dateTime={stamp.dateTime}>{stamp.text}</time>
+  </span> : null;
+}
 
 // 프로토타입 discovery.js의 avatar()/badges()/card()/favoriteButton()
 export function Avatar({ agent, size = '' }: { agent: Pick<Agent, 'name' | 'initial' | 'color' | 'image'>; size?: string }) {
@@ -72,6 +87,7 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
       </div>
       <div className="agent-bottom">
         <div className="site-tags">
+          {a.lastMatchedAt && <RecentMatch value={a.lastMatchedAt} />}
           {a.sites.map((s) => (
             <span key={s}>{s}</span>
           ))}
