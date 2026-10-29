@@ -18,7 +18,7 @@ export interface paths {
         get: operations["get"];
         /**
          * 수락 전 요청 내용 전체 수정
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. Create와 같은 전체 입력을 받습니다. 이용자만 만료 전 PENDING 요청을 수정할 수 있으며 대상 도우미 변경은 금지됩니다. 수정하면 정책 승인이 초기화됩니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. Create와 같은 전체 입력을 받습니다. 이용자만 만료 전 PENDING 요청을 수정할 수 있으며 대상 도우미 변경은 금지됩니다. 수정 내용은 다시 검사합니다. 내용 검사 PASS는 ALLOWED로 도우미 전달, REJECT는 BLOCKED로 저장·보류, 불확실·AI 미사용/미설정/장애는 PENDING 수동 검토입니다. data.contentReview={decision,issues,message,source}와 policyGateStatus를 확인하세요. 저장 성공이 곧 도우미 전달 성공은 아닙니다. 인증·예매처 등 기존 검증 실패는 오류입니다.
          */
         put: operations["edit"];
         post?: never;
@@ -332,6 +332,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/ai/settings/helper-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 도우미 AI 자동 사전 심사 ON/OFF
+         * @description DB에 저장하며 재기동 후에도 유지됩니다. ON이고 라이너 키·AI_PERSONAL_DATA_TRANSFER_ENABLED가 있으면 도우미가 신청을 제출할 때마다 AI가 사전 심사합니다. PASS는 관리자 없이 게시하고, 그 밖의 결과는 관리자 심사 대기로 남깁니다.
+         */
+        put: operations["toggle"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhooks/payments": {
         parameters: {
             query?: never;
@@ -346,6 +366,26 @@ export interface paths {
          * @description PortOne V2(웹훅 버전 2024-04-25) 전용이며 일반 사용자 인증을 요구하지 않습니다. 원본 바이트와 webhook-id·webhook-timestamp·webhook-signature 헤더로 Standard Webhooks 서명(HMAC-SHA256)을 검증하고, 검증 전에는 파싱·기록·상태 변경을 하지 않습니다. 검증 후 우리 상점(storeId)의 Transaction.* 이벤트이고 data.paymentId가 서버 주문번호와 일치하면 payment_events(webhook-id로 중복 제거)와 수신마다 payment_event_deliveries를 기록하고 200을 반환합니다(PortOne은 200 이외 응답을 최대 5회 재전송). 같은 webhook-id 재전송은 이벤트를 새로 만들지 않고 중복 수신으로만 기록합니다. 다른 상점·모르는 주문·빌링키 등 지원하지 않는 이벤트는 기록 없이 200(IGNORED)으로 응답해 재전송을 멈춥니다. 현재 결제 상태는 바꾸지 않으며(RECEIVED) 상태 반영은 후속 처리가 PortOne 결제 조회로 수행합니다.
          */
         post: operations["receiveWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/groble": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 그로블 결제 이벤트 수신
+         * @description 일반 사용자 인증을 요구하지 않습니다. 원본 바이트와 X-Groble-Timestamp로 HEX(HMAC-SHA256(secret, "{timestamp}.{body}"))를 계산해 X-Groble-Signature 또는 X-Groble-Signature-Previous와 대조하고(±5분), 검증 전에는 파싱·기록·상태 변경을 하지 않습니다. payment.completed는 sellerReference(그로블 주문 생성 API가 만든 주문번호)로 주문을 찾아 상품 ID·일반결제·KRW·금액이 주문과 모두 같을 때만 PAID로 확정하고 매칭권을 최초 한 번 지급합니다. payment.refunded는 환불액 ÷ 회당 가격만큼 남은 매칭권을 회수하고 결제를 PARTIALLY_REFUNDED/REFUNDED로 반영합니다. payment.cancel_requested는 기록만 합니다. 같은 X-Groble-Idempotency-Key 재전송은 다시 처리하지 않습니다. 우리 주문이 아닌 이벤트(ref 없음·테스트 발송)는 기록 없이 200(IGNORED), 판정할 수 없는 건은 지급·회수 없이 FAILED로 기록하고 200입니다. 구매자 개인정보는 저장하지 않습니다.
+         */
+        post: operations["receiveWebhook_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -367,7 +407,7 @@ export interface paths {
         put?: never;
         /**
          * 지정 도우미에게 견적요청
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자 본인인증(VERIFIED)이 필요하며 미인증은 403입니다. applicationOpenDate/Time 및 scheduledUseDate/Time은 한국 현지 시각, expiresAt은 UTC입니다. 도우미의 본인·계좌 인증 및 게시 프로필, 지원 분야·신청처, 이용자 연락처·동의가 필요합니다. 요청은 정책 검토 대기로 생성됩니다. agencyBudgetDesired는 희망 수고비, agencyBudgetMax는 최대 수고비이며 둘 다 입력하면 희망 금액은 최대 금액 이하여야 합니다. platformId 또는 otherPlatformName 중 하나만 입력합니다. 활성 예매처는 정책 미입력도 요청 가능하며 BLOCK인 예매처는 진행할 수 없습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자 본인인증(VERIFIED)이 필요하며 미인증은 403입니다. 내용 검사 PASS는 ALLOWED로 도우미 전달, REJECT는 BLOCKED로 저장·보류, 불확실·AI 미사용/미설정/장애는 PENDING 수동 검토입니다. data.contentReview={decision,issues,message,source}와 policyGateStatus를 확인하세요. 저장 성공이 곧 도우미 전달 성공은 아닙니다. 인증·예매처 등 기존 검증 실패는 오류입니다. applicationOpenDate/Time 및 scheduledUseDate/Time은 한국 현지 시각, expiresAt은 UTC입니다. 도우미의 본인·계좌 인증 및 게시 프로필, 지원 분야·신청처, 이용자 연락처·동의가 필요합니다. 요청은 내용 검사 결과에 따라 전달 또는 수동 검토·보류됩니다. agencyBudgetDesired는 희망 수고비, agencyBudgetMax는 최대 수고비이며 둘 다 입력하면 희망 금액은 최대 금액 이하여야 합니다. platformId 또는 otherPlatformName 중 하나만 입력합니다. 활성 예매처는 정책 미입력도 요청 가능하며 BLOCK인 예매처는 진행할 수 없습니다.
          */
         post: operations["create"];
         delete?: never;
@@ -686,8 +726,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 요청 취소 및 필요 시 매칭권 복구
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. MatchingPassPort JDBC 구현으로 실제 지급·결제 완료된 유효 매칭권을 차감·복구합니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. MATCHED 취소는 이용자가 취소할 때만 매칭권을 복구하고, 도우미가 스스로 취소하면 복구하지 않습니다.
+         * 요청 취소(매칭권 복구 없음)
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 수락하면 MatchingPassPort JDBC 구현으로 지급·결제 완료된 유효 매칭권 1회를 차감하고, 취소는 매칭권을 복구하지 않습니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. 매칭권은 수락 시 사용이 확정되어 MATCHED 취소는 이용자·도우미 누구의 취소든 매칭권을 복구하지 않습니다. 공식 공연 취소·예매처·플랫폼 장애는 관리자 예외 복원 API로 처리합니다.
          */
         post: operations["cancel"];
         delete?: never;
@@ -735,7 +775,7 @@ export interface paths {
         put?: never;
         /**
          * 새 최종합의안 제안
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 첫 제안은 도우미만 작성합니다(이용자 403). MATCHED 상태이고 활성 결제가 없어야 합니다. 최신 PROPOSED를 받은 상대방은 조건 전체와 reason(공백 불가, 최대 2,000자), expectedAgreementVersion을 한 번에 보내 역제안합니다. 기존 PROPOSED는 SUPERSEDED, 새 버전은 PROPOSED로 저장되며 reason과 교체 이력을 같은 트랜잭션에 기록합니다. 보내는 순간 상대방 차례이며 자기 제안을 다시 덮어쓰면 409 AGREEMENT_REVIEW_REQUIRED입니다. expectedAgreementVersion은 작성 시작 때 본 최신 버전(최초는 0)입니다. 값이 다르면 409 AGREEMENT_CHANGED이며 직접 역제안에서 reason 또는 버전을 생략하면 400입니다. 최초·호환용 수정 요청 후 재제안에는 버전 생략을 허용하나 항상 전송을 권장합니다. 확정과 역제안이 경합하여 먼저 FINALIZED가 되면 reason을 포함한 직접 역제안은 409입니다. 확정 후 사유를 포함한 재협의는 기존 change-requests로 먼저 요청합니다. 제안자는 해당 버전에 동의한 것으로 기록되고 상대방이 확정하면 FINALIZED가 됩니다. 기존 사유 전용 change-requests로 접수된 미해결 요청은 양측 재제안으로 처리할 수 있도록 호환성을 유지합니다. safePayment=true이면 안전거래 수수료는 성공보수의 3%(원 단위 올림), 최소 1,000원입니다. 금액은 서버에서 계산해 저장하며 이 API는 결제하지 않습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 첫 제안은 도우미만 작성합니다(이용자 403). MATCHED 상태이고 활성 결제가 없어야 합니다. 최신 PROPOSED를 받은 상대방은 조건 전체와 reason(공백 불가, 최대 2,000자), expectedAgreementVersion을 한 번에 보내 역제안합니다. 기존 PROPOSED는 SUPERSEDED, 새 버전은 PROPOSED로 저장되며 reason과 교체 이력을 같은 트랜잭션에 기록합니다. 보내는 순간 상대방 차례이며 자기 제안을 다시 덮어쓰면 409 AGREEMENT_REVIEW_REQUIRED입니다. expectedAgreementVersion은 작성 시작 때 본 최신 버전(최초는 0)입니다. 값이 다르면 409 AGREEMENT_CHANGED이며 직접 역제안에서 reason 또는 버전을 생략하면 400입니다. 최초·호환용 수정 요청 후 재제안에는 버전 생략을 허용하나 항상 전송을 권장합니다. 확정과 역제안이 경합하여 먼저 FINALIZED가 되면 reason을 포함한 직접 역제안은 409입니다. 확정 후 사유를 포함한 재협의는 기존 change-requests로 먼저 요청합니다. 제안자는 해당 버전에 동의한 것으로 기록되고 상대방이 확정하면 FINALIZED가 됩니다. 기존 사유 전용 change-requests로 접수된 미해결 요청은 양측 재제안으로 처리할 수 있도록 호환성을 유지합니다. 현재 신규 거래는 직접 거래만 제공하며 웹은 항상 safePayment=false로 보냅니다(안전거래 수수료 0원). 서버는 기존 안전거래 호환을 위해 safePayment=true도 받으며, 이때 안전거래 수수료는 성공보수의 3%(원 단위 올림), 최소 1,000원입니다. 금액은 서버에서 계산해 저장하며 이 API는 결제하지 않습니다.
          */
         post: operations["propose"];
         delete?: never;
@@ -779,7 +819,7 @@ export interface paths {
         put?: never;
         /**
          * 해당 버전 최종합의에 동의
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 요청 본문 없이 해당 합의 버전을 확정합니다. 거래 당사자만 호출할 수 있고, PROPOSED는 제안한 사람이 아닌 상대방만 확정할 수 있습니다(자기 제안 확정은 403). MATCHED 상태이며 활성 결제·미해결 수정 요청이 없어야 합니다. 상대방 동의를 기록하고 FINALIZED로 전환합니다. SUPERSEDED 등 확정할 수 없는 버전은 409입니다. 최신 버전이 아닌 합의는 409 AGREEMENT_CHANGED입니다. 최신 FINALIZED인 합의는 요청이 MATCHED 또는 MATCHING_COMPLETED이면 기존 합의를 반환합니다. 안전거래는 조건 확정만으로 결제·착수하지 않으며, 활성 결제가 없으면 결제 전 재협의가 가능합니다. 직접 거래(수수료 0원)는 조건 확정 시 MATCHING_COMPLETED로 매칭이 완료됩니다. 직접 거래는 착수·결과 제출 없이 후기 작성과 연락처 조회가 가능하며 확정 후 조건 변경·요청 취소는 409입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 요청 본문 없이 해당 합의 버전을 확정합니다. 거래 당사자만 호출할 수 있고, PROPOSED는 제안한 사람이 아닌 상대방만 확정할 수 있습니다(자기 제안 확정은 403). MATCHED 상태이며 활성 결제·미해결 수정 요청이 없어야 합니다. 상대방 동의를 기록하고 FINALIZED로 전환합니다. SUPERSEDED 등 확정할 수 없는 버전은 409입니다. 최신 버전이 아닌 합의는 409 AGREEMENT_CHANGED입니다. 최신 FINALIZED인 합의는 요청이 MATCHED 또는 MATCHING_COMPLETED이면 기존 합의를 반환합니다. 안전거래는 조건 확정만으로 결제·착수하지 않으며, 활성 결제가 없으면 결제 전 재협의가 가능합니다. 직접 거래(수수료 0원)는 조건 확정 시 MATCHING_COMPLETED로 매칭이 완료됩니다. 연락처는 MATCHED부터 양측에 공개되며, 직접 거래는 확정 후 착수·결과 제출 없이 이용자가 후기를 작성할 수 있고 확정 후 조건 변경·요청 취소는 409입니다.
          */
         post: operations["acceptAgreement"];
         delete?: never;
@@ -799,7 +839,7 @@ export interface paths {
         put?: never;
         /**
          * 요청 수락 및 매칭권 차감
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. MatchingPassPort JDBC 구현으로 실제 지급·결제 완료된 유효 매칭권을 차감·복구합니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. MATCHED 취소는 이용자가 취소할 때만 매칭권을 복구하고, 도우미가 스스로 취소하면 복구하지 않습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 수락하면 MatchingPassPort JDBC 구현으로 지급·결제 완료된 유효 매칭권 1회를 차감하고, 취소는 매칭권을 복구하지 않습니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. 매칭권은 수락 시 사용이 확정되어 MATCHED 취소는 이용자·도우미 누구의 취소든 매칭권을 복구하지 않습니다. 공식 공연 취소·예매처·플랫폼 장애는 관리자 예외 복원 API로 처리합니다.
          */
         post: operations["accept"];
         delete?: never;
@@ -1156,6 +1196,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/matching-passes/groble-checkouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 그로블 결제창 매칭권 주문 생성
+         * @description 그로블 상품 설정(10장 5,000원)으로 pass_purchases와 PENDING 결제 주문(checkout_provider=GROBLE)을 만들고, 주문번호를 ref로 붙인 그로블 결제 링크(checkoutUrl)를 반환합니다. 구매자가 그 링크에서 결제하면 서명된 결제 완료 웹훅(POST /api/webhooks/groble)으로 PAID 확정·지급됩니다. 이 주문은 POST /purchases/{purchaseId}/payment(PG 승인)과 PG 환불 대상이 아닙니다. 환불은 그로블 결제 취소(payment.refunded 웹훅으로 반영)로 처리하며, 원결제를 취소할 수 없어 운영팀이 계좌로 송금한 환불(결제 후 3개월 경과 등)은 관리자 API(POST /api/admin/payments/{paymentId}/groble-manual-refund)로 매칭권을 회수합니다. 구매 조건은 일반 구매와 같습니다(본인인증 필요, 이용 정지·탈퇴·도우미 정지 계정은 403). 그로블 웹훅 시크릿·결제 링크가 설정되지 않으면 주문 없이 503입니다. 결제하지 않고 30분이 지나면 주문은 만료되지만, 이후 결제 완료 웹훅이 오면 같은 판정으로 되살려 지급합니다.
+         */
+        post: operations["createGrobleCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/inquiries": {
         parameters: {
             query?: never;
@@ -1460,6 +1520,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/request-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 요청 내용 사전 검사
+         * @description 개인정보·외부 거래 유도·욕설/비하/협박 검사. AI 미사용 시 단순 규칙으로 검출하고 나머지는 MANUAL_REVIEW. 원문·검출된 개인정보는 응답하지 않습니다.
+         */
+        post: operations["request_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/performances/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 검색어를 실제 KOPIS 공연 후보에 매핑
+         * @description 로그인 필요. 조회 기간 기본 오늘부터 30일, 최대 30일. 최대 100개 조회 후보 중 실제 ID만 반환합니다. 라이너·KOPIS 미설정 또는 장애는 503.
+         */
+        post: operations["search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agreements/{agreementId}/safe-payment": {
         parameters: {
             query?: never;
@@ -1531,7 +1631,7 @@ export interface paths {
         put?: never;
         /**
          * 요청 진행 가능 여부 검토 결과 기록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 미만료 PENDING 상태 요청의 BLOCKED 게이트도 allowed:true로 내용 수정 없이 승인할 수 있습니다. AI를 다시 호출하지 않습니다. 도우미가 REJECTED로 종료한 요청을 다시 여는 기능은 아닙니다. ADMIN 권한이 필요합니다.
          */
         post: operations["policy"];
         delete?: never;
@@ -1578,6 +1678,26 @@ export interface paths {
          * @description 운영팀이 결과 분쟁(RESULT: DISPUTED 요청) 또는 부분성공 정산(SETTLEMENT)의 조정안을 제시합니다. 응답 대기 중인 조정안이 있으면 409(MEDIATION_IN_PROGRESS), 이미 2회 제시했거나 합의가 안 됐으면 409(MEDIATION_FAILED), 이미 확정됐으면 409입니다. 관리자 본인이 당사자인 거래는 403입니다. 양측에 알림이 가고 응답 기한은 3일입니다.
          */
         post: operations["propose_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/{requestId}/matching-pass-restoration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 도우미 매칭권 예외 복원
+         * @description 매칭권은 수락 시 사용이 확정되며 요청 취소로 자동 복원하지 않습니다. 운영팀이 공식 공연·예매 취소(EVENT_CANCELLED), 예매처 장애(BOOKING_SITE_FAILURE), 플랫폼 장애(PLATFORM_FAILURE)를 확인한 경우에만 해당 요청의 매칭권 1회를 복원합니다. 질병·사고 등 당사자 개인 사유는 복원 사유가 아닙니다. 대상은 당사자(이용자 또는 도우미)가 취소한 CANCELLED 요청 또는 직접 거래 MATCHING_COMPLETED 요청이며 활성 안전거래 결제가 없어야 합니다. 활성 관리자만 가능하고 해당 요청의 당사자인 관리자는 403입니다. evidenceVerified=true와 decisionNote(1~500자)가 필요합니다(아니면 400). 중복 승인은 최초 기록을 반환하며, 이전 정책의 자동 복원분·V30 이전 복원 이력·그 밖의 상태는 409입니다. 사용 이력이 없으면 404입니다. 요청·결제 상태와 현금을 바꾸지 않습니다.
+         */
+        post: operations["restore"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1682,6 +1802,26 @@ export interface paths {
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다.
          */
         post: operations["createPlatform"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/payments/{paymentId}/groble-manual-refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 그로블 매칭권 운영팀 송금 환불 기록
+         * @description 환불은 기간·정산 여부와 관계없이 그로블 결제 취소가 원칙입니다(구매 후 7일이 지나도 운영팀이 판매 관리에서 취소하거나 그로블 운영팀에 요청). 이 API는 원결제를 취소할 수 없어(개정 환불 규정 기준 결제 후 3개월 경과 등) 운영팀이 구매자 계좌로 송금한 경우에만 호출합니다. 송금 자체는 하지 않습니다. 그로블 결제 취소로 처리한 환불은 payment.refunded 웹훅이 반영하므로 이 API로 다시 기록하지 않습니다. 대상은 checkout_provider=GROBLE 매칭권 결제 중 PAID·PARTIALLY_REFUNDED이며, 그 밖의 결제·상태는 409, 없는 결제는 404입니다. units는 현재 회수 가능한 남은 수량(유효한 원구매 잔량 먼저, 이후 유효한 복원분. 그로블 취소 웹훅과 같은 순서) 이하여야 하며 초과하면 409입니다. 환불액은 요청으로 받지 않고 서버가 units × (구매 금액 ÷ 구매 수량)원으로 계산하며, 누적 환불이 결제액을 넘으면 409입니다. 회수와 함께 money_actions REFUND SUCCEEDED를 남기고, 결제는 누적 환불이 결제액이면 REFUNDED, 아니면 PARTIALLY_REFUNDED가 됩니다. 상태가 바뀌면 처리한 관리자와 사유 GROBLE_MANUAL_REFUND로 결제 이력을 남기고, 구매자에게 환불 완료 알림을 보냅니다. 구매자의 환불 내역에는 고정 사유만 보이며 decisionNote(1~500자)는 내부 기록으로 관리자 응답에만 포함됩니다. 같은 paymentId·transferReference(1~100자) 재요청은 다시 회수하지 않고 기존 기록을 200으로 반환하며, units가 다르면 409입니다. 활성 관리자만 가능하고 구매자 본인인 관리자는 403입니다.
+         */
+        post: operations["recordManualRefund"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1802,6 +1942,46 @@ export interface paths {
          * @description PENDING 신청을 CHANGES_REQUESTED로 변경합니다. note와 changeFields가 필수입니다. 신청자는 같은 버전의 프로필·증빙을 보완하고 재제출할 수 있습니다.
          */
         post: operations["requestProfileChanges"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/agent-profiles/{profileId}/ai/pre-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 도우미 AI 사전 심사 실행
+         * @description ON일 때 프로필·경력 검토 결과를 제공합니다. OFF는 DISABLED 수동 검토 결과. 이 API는 결과만 돌려주며 상태를 바꾸지 않습니다(제출 시 자동 심사는 별도).
+         */
+        post: operations["helper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/agent-profiles/{profileId}/ai/career-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 경력 설명·증빙 사진 AI 비교
+         * @description 관리자 전용. 최신 CLEAN JPEG/PNG 증빙 최대 3개. 판독 불가·PDF·동영상·자료 초과는 수동 검토. 외부 제공 설정이 필요합니다.
+         */
+        post: operations["career"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2475,7 +2655,7 @@ export interface paths {
          * 게시된 도우미 검색·필터
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. data={items,totalCount,page,size}. q는 게시된 활동명·소개(공연명 포함)·경력·지원 예매처명을 검색합니다. name은 기존 활동명 전용 필터입니다. platformIds는 OR, availableDates는 한국 날짜 기준 하루 중 가능한 시간이 겹치는 날짜 중 하나(OR)입니다. 필터 종류 사이는 AND입니다. 기본 RECOMMENDED 정렬은 요청 가능 여부→평점→완료 거래 수 순서입니다. identityVerified와 payoutAccountVerified는 실제 인증 상태의 boolean입니다. 공연 일정 카탈로그 검색은 아닙니다. 가능 구간의 날짜·시각은 UTC이며 ISO LocalDateTime 형식으로 전달합니다.
          */
-        get: operations["search"];
+        get: operations["search_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2693,7 +2873,7 @@ export interface paths {
         };
         /**
          * 정책 검토 대기 요청 목록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 미만료 PENDING 및 BLOCKED 요청을 포함합니다. policyGateNote는 관리자 전용 내부 검토 안내입니다. 관리자가 거래 당사자이면 제외합니다. ADMIN 권한이 필요합니다.
          */
         get: operations["pending"];
         put?: never;
@@ -2776,6 +2956,26 @@ export interface paths {
          * @description 자동 재시도하지 않는 실패 웹훅 이벤트, 결제의 수동 확인 표시(결과 불일치·환불액 불일치 등), 30분 넘게 PG 결과 확인 중인 결제, 1시간 넘게 끝나지 않은 환불을 기준 시각 최신순으로 반환합니다. 처리 완료 기록이 있는 항목은 제외합니다. ADMIN 권한이 필요합니다.
          */
         get: operations["getPaymentReviewItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/payments/groble-manual-refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 그로블 매칭권 운영팀 송금 환불 처리 이력
+         * @description 운영팀 송금 환불 기록을 최근 처리 순(decidedAt 내림차순)으로 반환합니다. 항목마다 결제(paymentId), 회수 장수(revokedUnits), 환불액(amountKrw), 현재 결제 상태, 송금 식별자, 처리 사유(decisionNote, 내부 메모), 처리한 관리자(decidedByUserId), 처리 시각(UTC)을 포함합니다. 그로블 결제 취소 웹훅으로 반영된 환불은 이 목록이 아니라 결제의 환불 내역에 있습니다. page는 0부터, size는 1~100(기본 20)이며 범위를 벗어나면 400입니다. 활성 관리자만 조회할 수 있습니다(아니면 403).
+         */
+        get: operations["manualRefundHistory"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2904,6 +3104,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/ai/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 관리자 AI 설정 조회 */
+        get: operations["settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/agent-profiles": {
         parameters: {
             query?: never;
@@ -2984,62 +3201,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/requests/{requestId}/matching-pass-restoration": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["restore"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/matching-passes/groble-checkouts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 그로블 결제창 매칭권 주문 생성
-         * @description 그로블 상품 설정(10장 5,000원)으로 pass_purchases와 PENDING 결제 주문(checkout_provider=GROBLE)을 만들고, 주문번호를 ref로 붙인 그로블 결제 링크(checkoutUrl)를 반환합니다. 구매자가 그 링크에서 결제하면 서명된 결제 완료 웹훅(POST /api/webhooks/groble)으로 PAID 확정·지급됩니다. 이 주문은 POST /purchases/{purchaseId}/payment(PG 승인)과 PG 환불 대상이 아니며, 환불은 그로블 결제 취소로만 처리됩니다. 구매 조건은 일반 구매와 같습니다(본인인증 필요, 이용 정지·탈퇴·도우미 정지 계정은 403). 그로블 웹훅 시크릿·결제 링크가 설정되지 않으면 주문 없이 503입니다. 결제하지 않고 30분이 지나면 주문은 만료되지만, 이후 결제 완료 웹훅이 오면 같은 판정으로 되살려 지급합니다.
-         */
-        post: operations["createGrobleCheckout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/webhooks/groble": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 그로블 결제 이벤트 수신
-         * @description 일반 사용자 인증을 요구하지 않습니다. 원본 바이트와 X-Groble-Timestamp로 HEX(HMAC-SHA256(secret, "{timestamp}.{body}"))를 계산해 X-Groble-Signature 또는 X-Groble-Signature-Previous와 대조하고(±5분), 검증 전에는 파싱·기록·상태 변경을 하지 않습니다. payment.completed는 sellerReference(그로블 주문 생성 API가 만든 주문번호)로 주문을 찾아 상품 ID·일반결제·KRW·금액이 주문과 모두 같을 때만 PAID로 확정하고 매칭권을 최초 한 번 지급합니다. payment.refunded는 환불액 ÷ 회당 가격만큼 남은 매칭권을 회수하고 결제를 PARTIALLY_REFUNDED/REFUNDED로 반영합니다. payment.cancel_requested는 기록만 합니다. 같은 X-Groble-Idempotency-Key 재전송은 다시 처리하지 않습니다. 우리 주문이 아닌 이벤트(ref 없음·테스트 발송)는 기록 없이 200(IGNORED), 판정할 수 없는 건은 지급·회수 없이 FAILED로 기록하고 200입니다. 구매자 개인정보는 저장하지 않습니다.
-         */
-        post: operations["receiveWebhook_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/search/events": {
         parameters: {
             query?: never;
@@ -3072,6 +3233,46 @@ export interface paths {
          * @description 공개 조회. 전날 KST 검색을 집계하며 동일 브라우저의 동일 대상은 하루 1회만 계산합니다. 3개 이상 브라우저에서 검색된 실제 공연·공개 도우미·예매처만 노출합니다. 데이터 부족·기능 OFF는 items=[]입니다. 최초 정상 집계 후 하루 한 번 갱신합니다.
          */
         get: operations["popular"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/search-keyword": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 도우미 검색어 AI 교정
+         * @description 로그인 필요. Enter·검색 버튼으로 확정한 검색에만 호출합니다(입력 중 호출 금지). 오타·줄임말을 고친 검색어를 돌려주며, 고칠 것이 없으면 입력과 같습니다. 화면은 원래 검색어와 함께 GET /api/agents의 alias로 넘깁니다. 회원당 분당 20회(429), 라이너 미설정·오류 503.
+         */
+        post: operations["keyword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/ai/profile-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 도우미 신청 AI 자동 심사 기록
+         * @description 관리자 전용. 최근 심사순. 버전마다 최신 결과 1건이며 자동 게시(autoPublished) 여부와 지금 상태를 함께 보여 줍니다.
+         */
+        get: operations["profileReviews"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3279,6 +3480,20 @@ export interface components {
          * @enum {string}
          */
         PolicyAssessment: "UNKNOWN" | "ALLOW" | "CONDITIONAL" | "BLOCK";
+        AiHelperReviewToggle: {
+            enabled: boolean;
+        };
+        AiReviewSettings: {
+            helperReviewEnabled?: boolean;
+            linerConfigured?: boolean;
+            personalDataTransferEnabled?: boolean;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAiReviewSettings: {
+            success?: boolean;
+            data?: components["schemas"]["AiReviewSettings"];
+            message?: string;
+        };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponsePaymentWebhookResponse: {
             success?: boolean;
@@ -4476,6 +4691,46 @@ export interface components {
             /** @description payments.pass_purchase_id로 연결된 최신 결제 시도(created_at DESC, id DESC); 결제 시도가 없으면 null */
             payment?: components["schemas"]["PaymentResponse"] | null;
         };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseGrobleCheckoutResponse: {
+            success?: boolean;
+            data?: components["schemas"]["GrobleCheckoutResponse"];
+            message?: string;
+        };
+        /** @description 그로블 결제창 매칭권 주문. checkoutUrl로 이동해 결제하면 서명된 결제 완료 웹훅으로 지급된다 */
+        GrobleCheckoutResponse: {
+            /**
+             * Format: int64
+             * @description pass_purchases.id
+             * @example 101
+             */
+            purchaseId: number;
+            /**
+             * Format: int32
+             * @description pass_purchases.purchased_units. 그로블 상품 수량
+             * @example 10
+             */
+            purchasedUnits: number;
+            /**
+             * Format: int64
+             * @description pass_purchases.price_krw. 그로블 상품 금액(원)
+             * @example 5000
+             */
+            priceKrw: number;
+            /**
+             * Format: int32
+             * @description pass_purchases.valid_days. 지급일부터 사용 가능한 일수
+             * @example 330
+             */
+            validDays: number;
+            /**
+             * @description 그로블 결제 링크. ref에 이 주문의 주문번호가 붙어 있으며 바꾸면 지급되지 않는다
+             * @example https://www.groble.im/payment/k6pnFx?ref=pass-0f1e2d3c4b5a69788796a5b4c3d2e1f0
+             */
+            checkoutUrl: string;
+            /** @description 생성된 PENDING 결제 주문 */
+            payment: components["schemas"]["PaymentResponse"];
+        };
         InquiryCreate: {
             subject: string;
             message: string;
@@ -4628,6 +4883,62 @@ export interface components {
              */
             reviewNote?: string | null;
         };
+        AiRequestReviewInput: {
+            text: string;
+        };
+        AiReviewResult: {
+            /** @enum {string} */
+            decision?: "PASS" | "REJECT" | "MANUAL_REVIEW";
+            issues?: ("CONTACT" | "BANK_ACCOUNT" | "CREDENTIAL" | "PERSONAL_ID" | "OFF_PLATFORM" | "ABUSE" | "MISMATCH" | "UNCERTAIN")[];
+            message?: string;
+            source?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAiReviewResult: {
+            success?: boolean;
+            data?: components["schemas"]["AiReviewResult"];
+            message?: string;
+        };
+        AiPerformanceSearchInput: {
+            query: string;
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+        };
+        AiPerformanceMapping: {
+            normalizedKeyword?: string;
+            items?: components["schemas"]["Performance"][];
+            attribution?: string[];
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAiPerformanceMapping: {
+            success?: boolean;
+            data?: components["schemas"]["AiPerformanceMapping"];
+            message?: string;
+        };
+        BookingLink: {
+            name?: string;
+            url?: string;
+        };
+        Performance: {
+            kopisId?: string;
+            name?: string;
+            /** Format: date */
+            startsOn?: string;
+            /** Format: date */
+            endsOn?: string;
+            venueName?: string;
+            venueId?: string;
+            posterUrl?: string;
+            area?: string;
+            genre?: string;
+            performanceStatus?: string;
+            scheduleText?: string;
+            ticketPriceText?: string;
+            bookingLinks?: components["schemas"]["BookingLink"][];
+            attribution?: string[];
+        };
         Resolve: {
             result: components["schemas"]["RequestResult"];
             note: string;
@@ -4672,6 +4983,12 @@ export interface components {
              */
             note: string;
         };
+        PassRestorationRequest: {
+            /** @enum {string} */
+            reason: "EVENT_CANCELLED" | "BOOKING_SITE_FAILURE" | "PLATFORM_FAILURE";
+            decisionNote: string;
+            evidenceVerified?: boolean;
+        };
         DisputeQuestion: {
             party: string;
             body: string;
@@ -4699,6 +5016,85 @@ export interface components {
          * @enum {string}
          */
         PolicyDocumentType: "TERMS" | "PRIVACY" | "CONTACT_SHARING";
+        /** @description 운영팀이 계좌로 송금한 그로블 매칭권 환불 기록. 금액은 받지 않고 서버가 회수 수량 × 장당 가격으로 계산한다 */
+        GrobleManualRefundRequest: {
+            /**
+             * Format: int32
+             * @description 회수할 매칭권 수량. 현재 회수 가능한 남은 수량 이하
+             * @example 4
+             */
+            units: number;
+            /**
+             * @description 운영팀 송금 식별자(이체 확인 번호 등). 결제별로 고유하며 같은 값으로 다시 보내면 기존 기록을 반환
+             * @example TR-20261029-0001
+             */
+            transferReference: string;
+            /**
+             * @description 내부 처리 메모(고객센터 접수 번호, 확인 내용 등). 구매자에게 공개하지 않음
+             * @example 고객센터 접수 #1234, 남은 4장 환불 송금 확인
+             */
+            decisionNote: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseGrobleManualRefundResponse: {
+            success?: boolean;
+            data?: components["schemas"]["GrobleManualRefundResponse"];
+            message?: string;
+        };
+        /** @description 그로블 매칭권 운영팀 송금 환불 기록(관리자 전용). 금액·회수 수량은 money_actions REFUND SUCCEEDED 행 */
+        GrobleManualRefundResponse: {
+            /**
+             * Format: int64
+             * @description money_actions.id (kind=REFUND). 구매자의 환불 내역(GET /api/payments/{paymentId}/refunds)에도 표시
+             * @example 401
+             */
+            refundId: number;
+            /**
+             * Format: int64
+             * @description payments.id
+             * @example 301
+             */
+            paymentId: number;
+            /**
+             * Format: int32
+             * @description money_actions.revoked_units. 회수한 매칭권 수량
+             * @example 4
+             */
+            revokedUnits: number;
+            /**
+             * Format: int64
+             * @description money_actions.amount_krw. 서버 계산 환불액(회수 수량 × 장당 가격, 원)
+             * @example 2000
+             */
+            amountKrw: number;
+            /**
+             * @description 응답 시점 결제 상태. 누적 환불이 결제액이면 REFUNDED, 아니면 PARTIALLY_REFUNDED
+             * @example PARTIALLY_REFUNDED
+             */
+            paymentStatus: components["schemas"]["PaymentStatus"];
+            /**
+             * @description groble_manual_refunds.transfer_reference
+             * @example TR-20261029-0001
+             */
+            transferReference: string;
+            /**
+             * @description groble_manual_refunds.decision_note. 내부 메모(관리자 응답에만 포함)
+             * @example 고객센터 접수 #1234, 남은 4장 환불 송금 확인
+             */
+            decisionNote: string;
+            /**
+             * Format: int64
+             * @description groble_manual_refunds.decided_by_user_id → users.id(기록한 관리자)
+             * @example 1
+             */
+            decidedByUserId: number;
+            /**
+             * Format: date-time
+             * @description groble_manual_refunds.decided_at. UTC
+             * @example 2026-10-29T01:00:00
+             */
+            decidedAt: string;
+        };
         /** @description 결제 확인 항목 처리 완료 기록 요청 */
         PaymentReviewResolveRequest: {
             /**
@@ -4868,10 +5264,6 @@ export interface components {
             data?: components["schemas"]["Page"];
             message?: string;
         };
-        BookingLink: {
-            name?: string;
-            url?: string;
-        };
         Page: {
             source?: string;
             /** Format: int32 */
@@ -4879,24 +5271,6 @@ export interface components {
             /** Format: int32 */
             size?: number;
             items?: components["schemas"]["Performance"][];
-            attribution?: string[];
-        };
-        Performance: {
-            kopisId?: string;
-            name?: string;
-            /** Format: date */
-            startsOn?: string;
-            /** Format: date */
-            endsOn?: string;
-            venueName?: string;
-            venueId?: string;
-            posterUrl?: string;
-            area?: string;
-            genre?: string;
-            performanceStatus?: string;
-            scheduleText?: string;
-            ticketPriceText?: string;
-            bookingLinks?: components["schemas"]["BookingLink"][];
             attribution?: string[];
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
@@ -5002,7 +5376,7 @@ export interface components {
             notificationId: number;
             /**
              * @description notifications.kind
-             * @example PAYMENT
+             * @example MATCH
              */
             kind: components["schemas"]["NotificationKind"];
             /**
@@ -5013,12 +5387,12 @@ export interface components {
             requestId?: number | null;
             /**
              * @description notifications.title
-             * @example 결제 상태가 변경되었습니다.
+             * @example 직접 거래 매칭이 완료됐어요
              */
             title: string;
             /**
              * @description notifications.body
-             * @example 안전거래 결제가 완료되었습니다.
+             * @example '콘서트 예매' 요청의 조건이 확정됐어요. 이용자와 직접 진행해 주세요. 플랫폼에 착수·결과를 등록할 필요는 없어요.
              */
             body: string;
             /**
@@ -5086,7 +5460,7 @@ export interface components {
             usedAt: string;
             /**
              * Format: date-time
-             * @description 매칭 취소 등으로 복구된 서버 시각(UTC). 미복구이면 null
+             * @description 복구된 서버 시각(UTC). 공식 공연·예매 취소, 예매처·플랫폼 장애를 운영팀이 확인한 관리자 예외 복원이며, 이전 정책의 자동 복구분도 포함합니다. 미복구이면 null
              * @example 2026-09-19T02:00:00
              */
             restoredAt?: string | null;
@@ -5224,6 +5598,12 @@ export interface components {
             occurredAt: string;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListGrobleManualRefundResponse: {
+            success?: boolean;
+            data?: components["schemas"]["GrobleManualRefundResponse"][];
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseListPartialSettlementResponse: {
             success?: boolean;
             data?: components["schemas"]["PartialSettlementResponse"][];
@@ -5238,52 +5618,6 @@ export interface components {
             data: null;
             /** @example 인증이 필요합니다. */
             message: string;
-        };
-        PassRestorationRequest: {
-            /** @enum {string} */
-            reason: "ILLNESS_OR_ACCIDENT" | "EVENT_CANCELLED" | "BOOKING_SITE_FAILURE" | "PLATFORM_FAILURE";
-            decisionNote: string;
-            evidenceVerified?: boolean;
-        };
-        /** @description 그로블 결제창 매칭권 주문. checkoutUrl로 이동해 결제하면 서명된 결제 완료 웹훅으로 지급된다 */
-        GrobleCheckoutResponse: {
-            /**
-             * Format: int64
-             * @description pass_purchases.id
-             * @example 101
-             */
-            purchaseId: number;
-            /**
-             * Format: int32
-             * @description pass_purchases.purchased_units. 그로블 상품 수량
-             * @example 10
-             */
-            purchasedUnits: number;
-            /**
-             * Format: int64
-             * @description pass_purchases.price_krw. 그로블 상품 금액(원)
-             * @example 5000
-             */
-            priceKrw: number;
-            /**
-             * Format: int32
-             * @description pass_purchases.valid_days. 지급일부터 사용 가능한 일수
-             * @example 330
-             */
-            validDays: number;
-            /**
-             * @description 그로블 결제 링크. ref에 이 주문의 주문번호가 붙어 있으며 바꾸면 지급되지 않는다
-             * @example https://www.groble.im/payment/k6pnFx?ref=pass-0f1e2d3c4b5a69788796a5b4c3d2e1f0
-             */
-            checkoutUrl: string;
-            /** @description 생성된 PENDING 결제 주문 */
-            payment: components["schemas"]["PaymentResponse"];
-        };
-        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
-        ApiResponseGrobleCheckoutResponse: {
-            success?: boolean;
-            data?: components["schemas"]["GrobleCheckoutResponse"];
-            message?: string;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponsePopularSearchReceipt: {
@@ -5317,6 +5651,46 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string;
             items?: components["schemas"]["PopularSearchItem"][];
+        };
+        AiSearchKeywordInput: {
+            query: string;
+        };
+        /** @description AI가 고친 검색어. 고칠 것이 없으면 입력과 같습니다. */
+        AiSearchKeyword: {
+            keyword?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAiSearchKeyword: {
+            success?: boolean;
+            data?: components["schemas"]["AiSearchKeyword"];
+            message?: string;
+        };
+        /** @description 도우미 신청 AI 자동 사전 심사 결과(버전별 최신 1건) */
+        AiProfileReviewRecord: {
+            /** Format: int64 */
+            profileId?: number;
+            /** Format: int64 */
+            userId?: number;
+            activityName?: string;
+            /** Format: int32 */
+            version?: number;
+            /** @description 지금 프로필 버전 상태(PENDING·PUBLISHED·REJECTED 등) */
+            status?: string;
+            /** @enum {string} */
+            decision?: "PASS" | "REJECT" | "MANUAL_REVIEW";
+            issues?: ("CONTACT" | "BANK_ACCOUNT" | "CREDENTIAL" | "PERSONAL_ID" | "OFF_PLATFORM" | "ABUSE" | "MISMATCH" | "UNCERTAIN")[];
+            /** @description LINER(AI 판단), RULES(서버 규칙에 걸려 AI에 보내지 않음), UNSUPPORTED_EVIDENCE(사진을 읽을 수 없음), AI_UNAVAILABLE(라이너 오류) */
+            source?: string;
+            /** @description PASS로 관리자 없이 게시됐으면 true */
+            autoPublished?: boolean;
+            /** Format: date-time */
+            reviewedAt?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListAiProfileReviewRecord: {
+            success?: boolean;
+            data?: components["schemas"]["AiProfileReviewRecord"][];
+            message?: string;
         };
     };
     responses: never;
@@ -7022,6 +7396,66 @@ export interface operations {
             };
         };
     };
+    toggle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiHelperReviewToggle"];
+            };
+        };
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     receiveWebhook: {
         parameters: {
             query?: never;
@@ -7075,6 +7509,69 @@ export interface operations {
                 };
             };
             /** @description 웹훅 시크릿 미설정. 상태 변경·기록 없음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    receiveWebhook_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 그로블 원본 JSON {id, type, version, occurredAt, data{object}}. 수신 바이트 그대로 서명 검증 후 파싱합니다. */
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description 검증 완료. 처리 결과(PROCESSED·FAILED) 또는 기록 없이 무시(IGNORED) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePaymentWebhookResponse"];
+                };
+            };
+            /** @description 서명은 유효하지만 본문이 JSON·UTF-8이 아님 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서명 검증 실패: 헤더 누락, 서명 불일치 또는 허용 시각(±5분) 초과 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 웹훅 시크릿 미설정. 상태 변경·기록 없음(그로블이 재전송) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -10920,6 +11417,71 @@ export interface operations {
             };
         };
     };
+    createGrobleCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 그로블 결제 링크와 PENDING 결제 주문 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGrobleCheckoutResponse"];
+                };
+            };
+            /** @description 잘못된 요청 값 또는 형식 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 구매할 수 없는 계정 상태 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 그로블 연동 미설정 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     mine: {
         parameters: {
             query?: {
@@ -11912,6 +12474,126 @@ export interface operations {
             };
         };
     };
+    request_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiRequestReviewInput"];
+            };
+        };
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiPerformanceSearchInput"];
+            };
+        };
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     createSafePayment: {
         parameters: {
             query?: never;
@@ -12480,6 +13162,59 @@ export interface operations {
             };
         };
     };
+    restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassRestorationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     disputeQuestion: {
         parameters: {
             query?: never;
@@ -12944,6 +13679,90 @@ export interface operations {
             };
         };
     };
+    recordManualRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description payments.id
+                 * @example 301
+                 */
+                paymentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrobleManualRefundRequest"];
+            };
+        };
+        responses: {
+            /** @description 새 기록 또는 같은 송금 식별자의 기존 기록 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGrobleManualRefundResponse"];
+                };
+            };
+            /** @description units·transferReference·decisionNote 누락 또는 범위·길이 초과 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description ADMIN 권한 없음, 비활성 관리자 또는 구매자 본인 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 결제 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 그로블 매칭권 결제가 아니거나 환불할 수 없는 상태, 남은 수량·결제액 초과, 같은 송금 식별자에 다른 수량 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     resolvePaymentReviewItem: {
         parameters: {
             query?: never;
@@ -13354,6 +14173,122 @@ export interface operations {
             };
             /** @description 서버 오류가 발생했습니다. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    helper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    career: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15721,7 +16656,7 @@ export interface operations {
             };
         };
     };
-    search: {
+    search_1: {
         parameters: {
             query?: {
                 name?: string;
@@ -15740,6 +16675,7 @@ export interface operations {
                 platformIds?: number[];
                 availableDates?: string[];
                 completedMin?: number;
+                alias?: string;
             };
             header?: never;
             path?: never;
@@ -16922,6 +17858,65 @@ export interface operations {
             };
         };
     };
+    manualRefundHistory: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 처리 이력(없으면 빈 목록) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListGrobleManualRefundResponse"];
+                };
+            };
+            /** @description page·size 범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description ADMIN 권한 없음 또는 비활성 관리자 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     getUnproposedPartialSettlements: {
         parameters: {
             query?: {
@@ -17300,6 +18295,62 @@ export interface operations {
             };
         };
     };
+    settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     profiles: {
         parameters: {
             query?: {
@@ -17558,187 +18609,6 @@ export interface operations {
             };
         };
     };
-    restore: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                requestId: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PassRestorationRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
-                };
-            };
-            /** @description 인증 필요 (Bearer JWT) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 접근 권한이 없습니다. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 서버 오류가 발생했습니다. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-        };
-    };
-    createGrobleCheckout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 그로블 결제 링크와 PENDING 결제 주문 */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseGrobleCheckoutResponse"];
-                };
-            };
-            /** @description 잘못된 요청 값 또는 형식 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 인증 필요 (Bearer JWT) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 구매할 수 없는 계정 상태 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 서버 오류가 발생했습니다. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 그로블 연동 미설정 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-        };
-    };
-    receiveWebhook_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description 그로블 원본 JSON {id, type, version, occurredAt, data{object}}. 수신 바이트 그대로 서명 검증 후 파싱합니다. */
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        responses: {
-            /** @description 검증 완료. 처리 결과(PROCESSED·FAILED) 또는 기록 없이 무시(IGNORED) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponsePaymentWebhookResponse"];
-                };
-            };
-            /** @description 서명은 유효하지만 본문이 JSON·UTF-8이 아님 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 서명 검증 실패: 헤더 누락, 서명 불일치 또는 허용 시각(±5분) 초과 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 서버 오류가 발생했습니다. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 웹훅 시크릿 미설정. 상태 변경·기록 없음(그로블이 재전송) */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-        };
-    };
     record: {
         parameters: {
             query?: never;
@@ -17792,6 +18662,125 @@ export interface operations {
             };
             /** @description 서버 오류가 발생했습니다. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    keyword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiSearchKeywordInput"];
+            };
+        };
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    profileReviews: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

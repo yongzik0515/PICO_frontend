@@ -38,6 +38,23 @@ const tabs: [Tab, string][] = [
 const categoryNames: Record<string, string> = { CONCERT: '콘서트', MUSICAL: '뮤지컬', SPORTS: '스포츠', COURSE: '강좌', FACILITY: '시설', OTHER: '기타' };
 const purposeNames: Record<string, string> = { CAREER: '경력', ACTIVITY: '활동', BUSINESS: '사업자', RESULT: '결과', ATTEMPT: '시도', REPORT: '신고' };
 
+// 도우미 신청 AI 자동 사전 심사(GET /api/admin/agent-profiles의 ai*, GET /api/admin/ai/profile-reviews)
+const aiDecisionNames: Record<string, string> = { PASS: '문제 없음', REJECT: '문제 발견', MANUAL_REVIEW: '판단 어려움' };
+const aiIssueNames: Record<string, string> = {
+  CONTACT: '연락처', BANK_ACCOUNT: '계좌번호', CREDENTIAL: '비밀번호 등 계정 정보', PERSONAL_ID: '주민번호 등 식별번호',
+  OFF_PLATFORM: '외부 거래 유도', ABUSE: '욕설·비하', MISMATCH: '경력 설명과 사진이 맞지 않음', UNCERTAIN: '확실하지 않음',
+};
+const aiSourceNames: Record<string, string> = {
+  LINER: 'AI 판단', RULES: '서버 규칙에 걸려 AI에 보내지 않음', UNSUPPORTED_EVIDENCE: '사진을 읽을 수 없음(PDF·영상·사진 4장 이상 등)', AI_UNAVAILABLE: '라이너 오류로 판단하지 못함',
+};
+const profileStatusNames: Record<string, string> = { PENDING: '심사 대기', PUBLISHED: '게시됨', REJECTED: '반려', ARCHIVED: '보관(새 버전으로 바뀜)', CHANGES_REQUESTED: '보완 요청', DRAFT: '작성 중' };
+function aiSummary(decision: string, issues: unknown, source: string) {
+  if (!decision) return '';
+  const found = (Array.isArray(issues) ? issues.map(String) : String(issues ?? '').split(','))
+    .filter((i) => i && i !== 'UNCERTAIN').map((i) => aiIssueNames[i] ?? i);
+  return [aiDecisionNames[decision] ?? decision, found.join(', '), aiSourceNames[source] ?? source].filter(Boolean).join(' · ');
+}
+
 const s = (raw: unknown, ...keys: string[]) => str(pick(raw, ...keys)) ?? '';
 const n = (raw: unknown, ...keys: string[]) => num(pick(raw, ...keys));
 
@@ -367,6 +384,70 @@ function InquiriesTab() {
   </>;
 }
 
+/** 도우미 신청 AI 자동 사전 심사 ON/OFF. 서버에 라이너 키와 외부 전송 설정이 있어야 실제로 동작한다. */
+function AiReviewSwitch() {
+  const [load, reload] = useLoad<Raw>(
+    () => unwrap<unknown>(api.GET('/api/admin/ai/settings')).then((r) => (r ?? {}) as Raw, (e) => { throw new Error(errorText(e)); }),
+    [],
+  );
+  const { pending, run } = useAction();
+  if (load.status !== 'done') {
+    return (
+      <section className="content-card">
+        <h2>AI 자동 사전 심사</h2>
+        {load.status === 'error' ? <Notice tone="error">{load.message}</Notice> : <p className="prose">불러오는 중이에요.</p>}
+      </section>
+    );
+  }
+  const on = pick(load.data, 'helperReviewEnabled') === true;
+  const missing = pick(load.data, 'linerConfigured') !== true ? '서버에 라이너 키가 없어서'
+    : pick(load.data, 'personalDataTransferEnabled') !== true ? '서버의 외부 AI 전송 설정(AI_PERSONAL_DATA_TRANSFER_ENABLED)이 꺼져 있어서' : '';
+  const toggle = async () => {
+    const ok = await run(() => unwrap(api.PUT('/api/admin/ai/settings/helper-review', { body: { enabled: !on } })), on ? '자동 사전 심사를 껐어요.' : '자동 사전 심사를 켰어요.');
+    if (ok) reload();
+  };
+  return (
+    <section className="content-card">
+      <div className="title-between">
+        <h2>AI 자동 사전 심사 · {on ? '켜짐' : '꺼짐'}</h2>
+        <button type="button" className={on ? 'btn secondary' : 'btn primary'} disabled={pending} onClick={toggle}>
+          {on ? '끄기' : '켜기'}
+        </button>
+      </div>
+      <p className="record-note">
+        켜 두면 도우미가 신청할 때마다 AI가 경력 설명과 증빙 사진을 비교해요. 문제가 없으면 관리자 승인 없이 바로 게시되고, 문제가 있거나 판단하기 어려우면 아래 심사 대기 목록에 남아요. 꺼 두면 모든 신청을 관리자가 심사해요.
+      </p>
+      {on && missing && <Notice tone="error">{missing} 지금은 자동 심사가 동작하지 않아요. 신청은 모두 심사 대기 목록에 남아요.</Notice>}
+    </section>
+  );
+}
+
+/** AI가 내린 결정 이력: 무엇을(결과·문제), 왜(판단 근거), 언제, 자동 게시 여부. 사람이 내린 승인·반려는 포함하지 않는다. */
+function AiReviewHistory() {
+  const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/ai/profile-reviews', { params: { query: { page: 0, size: 50 } } })));
+  return (
+    <ListBlock title="AI 자동 심사 기록" desc="최근 50건. 자동 게시된 프로필도 여기서 확인해요. 게시 후 문제가 보이면 회원 제재 탭에서 처리해요." load={load} reload={reload} empty="아직 AI가 심사한 신청이 없어요.">
+      {(rows) =>
+        rows.map((row) => (
+          <Item
+            key={`${n(row, 'profileId')}-${s(row, 'reviewedAt')}`}
+            raw={row}
+            title={`${s(row, 'activityName')} · 프로필 #${n(row, 'profileId')}`}
+            rows={[
+              ['AI 결과', aiSummary(s(row, 'decision'), pick(row, 'issues'), s(row, 'source'))],
+              ['처리', pick(row, 'autoPublished') === true ? 'AI가 바로 게시' : '관리자 심사로 넘김'],
+              ['지금 상태', profileStatusNames[s(row, 'status')] ?? s(row, 'status')],
+              ['회원', n(row, 'userId')],
+              ['버전', n(row, 'version') ? `${n(row, 'version')}차` : ''],
+              ['심사 시각', utcToLocal(s(row, 'reviewedAt'))],
+            ]}
+          />
+        ))
+      }
+    </ListBlock>
+  );
+}
+
 function ProfilesTab() {
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/agent-profiles', { params: { query: { page: 0, size: 100 } } })));
   const { open, modal, pending, run } = useDialog(reload);
@@ -384,7 +465,8 @@ function ProfilesTab() {
     });
   return (
     <>
-      <ListBlock title="심사 대기 프로필" desc="승인하면 도우미 찾기에 게시돼요. 서버가 본인·정산계좌 인증과 경력 증빙 최소 1건(CLEAN)을 다시 확인해요. 경력 자료는 '증빙 보기'로 확인해 주세요." load={load} reload={reload} empty="심사할 프로필이 없어요.">
+      <AiReviewSwitch />
+      <ListBlock title="심사 대기 프로필" desc="승인하면 도우미 찾기에 게시돼요. 서버가 본인·정산계좌 인증과 경력 증빙 최소 1건(CLEAN)을 다시 확인해요. 경력 자료는 '증빙 보기'로 확인해 주세요. AI 자동 사전 심사가 켜져 있으면 AI가 문제를 찾았거나 판단하지 못한 신청만 여기에 남아요." load={load} reload={reload} empty="심사할 프로필이 없어요.">
         {(rows) =>
           rows.map((row) => (
             <Item
@@ -394,6 +476,7 @@ function ProfilesTab() {
               rows={[
                 // GET /api/admin/agent-profiles: 비용·연락 가능 시간·경력·platforms[{platformId,name}]·categories 포함
                 ['회원', n(row, 'userId')],
+                ['AI 사전 심사', s(row, 'aiDecision') ? `${aiSummary(s(row, 'aiDecision'), s(row, 'aiIssues'), s(row, 'aiSource'))} (${utcToLocal(s(row, 'aiReviewedAt'))})` : ''],
                 ['버전', n(row, 'version') ? `${n(row, 'version')}차` : ''],
                 ['한 줄 소개', s(row, 'headline')],
                 ['대표 분야', categoryNames[s(row, 'primaryCategory')] ?? s(row, 'primaryCategory')],
@@ -431,6 +514,7 @@ function ProfilesTab() {
           ))
         }
       </ListBlock>
+      <AiReviewHistory />
       {correction !== null && <ProfileCorrectionModal profileId={correction} onClose={() => setCorrection(null)} onDone={() => { setCorrection(null); reload(); }} />}
       {evidence && (
         <Modal title={`프로필 #${evidence.id} 증빙`} onClose={() => setEvidence(null)} wide>

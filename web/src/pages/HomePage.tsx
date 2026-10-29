@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppState } from '../AppState';
+import { useAuth } from '../auth/AuthContext';
 import { useAgentSearch } from '../discovery/agent';
 import { AgentCard } from '../discovery/AgentCard';
 import { FilterModal, QuickFilter } from '../discovery/FilterControls';
 import { emptyFilters, filterLabels, removeFilter, sortOptions, type Filters, type Sort } from '../discovery/filters';
 import { TicketCarousel } from '../home/TicketCarousel';
+import { correctKeyword } from '../home/aiKeyword';
 import { loadPopularSearch, recordSearch, type PopularKeyword } from '../home/popularSearch';
 import '../home/home-layout.css';
 import { Icon } from '../ui/Icon';
@@ -91,6 +93,7 @@ function GuideTip() {
 
 export function HomePage() {
   const [state, setState] = useAppState();
+  const { loggedIn } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [filterOpen, setFilterOpen] = useState(false);
@@ -111,17 +114,25 @@ export function HomePage() {
   }, []);
 
   const { query, sort, filters } = state;
-  const result = useAgentSearch(query, sort, filters, reload);
+  // Enter·검색 버튼으로 확정한 검색어를 AI가 고친 결과. 입력을 바꾸면(query가 달라지면) 더 쓰지 않는다.
+  const [aiAlias, setAiAlias] = useState<{ query: string; keyword: string } | null>(null);
+  const alias = aiAlias && aiAlias.query === query.trim() ? aiAlias.keyword : undefined;
+  const result = useAgentSearch(query, sort, filters, reload, alias);
   const list = result.status === 'done' ? result.items : [];
   const total = result.status === 'done' ? result.total : 0;
   const labels = filterLabels(filters);
   const search = !!query || labels.length > 0;
   const setFilters = (f: Filters) => setState((s) => ({ ...s, filters: f }));
   const reset = () => setState((s) => ({ ...s, query: '', filters: emptyFilters() }));
-  function submitSearch(keyword = query) {
+  /** ai=false: 인기 검색어 칩처럼 이미 정리된 이름은 AI를 부르지 않는다. */
+  function submitSearch(keyword = query, ai = true) {
     setState((s) => ({ ...s, query: keyword }));
     setReload((n) => n + 1);
     void recordSearch(keyword);
+    if (ai && loggedIn && keyword.trim()) {
+      const asked = keyword.trim();
+      void correctKeyword(asked).then((fixed) => setAiAlias(fixed ? { query: asked, keyword: fixed } : null));
+    }
   }
 
   function saveAlert(e: FormEvent<HTMLFormElement>) {
@@ -158,7 +169,7 @@ export function HomePage() {
         {popular.length > 0 && <div className="popular-shows">
           <span>인기 검색</span>
           {popular.map((p) => (
-            <button key={`${p.category}:${p.keyword}`} onClick={() => submitSearch(p.keyword)}>
+            <button key={`${p.category}:${p.keyword}`} onClick={() => submitSearch(p.keyword, false)}>
               {p.keyword}
             </button>
           ))}
@@ -178,6 +189,7 @@ export function HomePage() {
           <span className="tiny-label">{search ? '나에게 맞는 조건으로' : '함께할 순간을 기다리는'}</span>
           <h2>{search ? '도우미 검색 결과' : '이번 주, 주목할 도우미'}</h2>
           <p>{search ? `${total}명의 도우미를 찾았어요` : '꼼꼼한 안내와 좋은 후기로 눈길을 끄는 도우미예요.'}</p>
+          {alias && <p className="record-note">AI가 고친 검색어 ‘{alias}’로 찾은 도우미도 함께 보여 드려요.</p>}
         </div>
       </div>
       <div className="pc-filterbar">
