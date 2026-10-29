@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getBanners, type Banner } from './banners';
+import { getBanners, getPerformance, safeExternalUrl, type Banner, type PerformanceDetail } from './banners';
+import { Modal } from '../ui/Modal';
+import { Icon } from '../ui/Icon';
 import './ticket-carousel.css';
 
 // 홈 히어로의 티켓 스텁 캐러셀.
-// 배너 내용은 banners.ts에서만 관리한다. 이 파일은 보여 주는 방법만 담당한다.
+// KOPIS 집계와 상세를 표시하며 가상 공연/예매 오픈 일정은 만들지 않는다.
 
 const AUTOPLAY_MS = 4000; // 자동으로 다음 배너로 넘어가기까지 걸리는 시간
 const MOVE_MS = 600; // 카드 이동 시간(CSS --tsb-move와 같게)
@@ -13,29 +14,8 @@ const CLONES = 2; // 무한 루프용으로 앞뒤에 붙이는 복제본 수(�
 const SIDE_MIN = 40; // 화면이 좁아도 양옆 카드가 최소 이만큼은 보이게 한다
 const MOBILE_MAX = 768;
 const FALLBACK_COLOR = '#2B2F6E';
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const DRAG_START = 6; // 이만큼(px) 가로로 움직여야 드래그로 본다(그 전에는 클릭)
 const DRAG_GO = 0.15; // 카드 폭의 15% 넘게 끌면 다음·이전 배너로 넘긴다
-
-// 티켓 오픈 일시와 오늘을 날짜 단위로 비교해 D-5 / D-DAY / 오픈 중을 만든다.
-function ddayLabel(openAt: string, now: Date) {
-  const open = new Date(openAt);
-  if (Number.isNaN(open.getTime())) return { text: '미정', isWord: true };
-  const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const b = new Date(open.getFullYear(), open.getMonth(), open.getDate());
-  const days = Math.round((b.getTime() - a.getTime()) / 86400000);
-  if (days > 0) return { text: `D-${days}`, isWord: false };
-  if (days === 0) return { text: 'D-DAY', isWord: true };
-  return { text: '오픈 중', isWord: true };
-}
-
-// 2026-10-08T14:00 → ['2026.10.08 (목)', '14:00'] (스텁 폭에 따라 한 줄 또는 두 줄로 놓는다)
-function openAtLabel(openAt: string) {
-  const d = new Date(openAt);
-  if (Number.isNaN(d.getTime())) return null;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return [`${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} (${WEEKDAYS[d.getDay()]})`, `${pad(d.getHours())}:${pad(d.getMinutes())}`];
-}
 
 // 대표 색상이 비어 있으면 이미지 왼쪽 가장자리(너비의 4%)의 평균 색을 뽑는다.
 // 흰 글자가 올라가므로 너무 밝은 색은 어둡게 낮춘다. 실패하면 FALLBACK_COLOR.
@@ -78,8 +58,58 @@ function edgeColor(img: HTMLImageElement): string {
 type Size = { view: number; left: number; card: number; gap: number };
 
 export function TicketCarousel() {
-  const navigate = useNavigate();
-  const banners = useMemo(() => getBanners(), []);
+  const [page, setPage] = useState<Awaited<ReturnType<typeof getBanners>> | null>(null);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
+  const [selected, setSelected] = useState<Banner | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    getBanners(controller.signal).then((result) => {
+      if (!controller.signal.aborted) setPage(result);
+    }, () => {
+      if (!controller.signal.aborted) setError('공연 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+    });
+    return () => controller.abort();
+  }, [reload]);
+  return <>
+    {!page ? <div className="content-card" role="status">
+      <p>{error || 'KOPIS 공연 정보를 불러오는 중이에요.'}</p>
+      {error && <button type="button" className="btn secondary" onClick={() => { setError(''); setPage(null); setReload((n) => n + 1); }}>다시 불러오기</button>}
+    </div> : <>
+      {page.banners.length ? <Carousel banners={page.banners} onOpen={setSelected} /> : <p role="status">현재 집계된 공연이 없습니다.</p>}
+    </>}
+    {selected && <PerformanceDialog key={selected.id} banner={selected} onClose={() => setSelected(null)} />}
+  </>;
+}
+
+function PerformanceDialog({ banner, onClose }: { banner: Banner; onClose: () => void }) {
+  const [detail, setDetail] = useState<PerformanceDetail | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    getPerformance(banner.id, controller.signal).then((item) => {
+      if (!controller.signal.aborted) setDetail(item);
+    }, () => { if (!controller.signal.aborted) setError('공연 상세 정보를 불러오지 못했어요. 창을 닫고 다시 선택해 주세요.'); });
+    return () => controller.abort();
+  }, [banner.id]);
+  const links = (detail?.bookingLinks ?? []).flatMap((link) => {
+    const url = safeExternalUrl(link.url);
+    return url ? [{ ...link, url }] : [];
+  });
+  return <Modal title={banner.title} onClose={onClose}>
+    {!detail ? <p role="status">{error || '공연 상세 정보를 불러오는 중이에요.'}</p> : <div className="kopis-detail">
+      <p>공연장: {detail.venueName || '정보 없음'}</p>
+      <p>공연 기간: {detail.startsOn || '?'} ~ {detail.endsOn || '?'}</p>
+      {detail.scheduleText && <p>공연 시간: {detail.scheduleText}</p>}
+      {detail.ticketPriceText && <p>가격 안내: {detail.ticketPriceText}</p>}
+      <p>예매 오픈 시각과 대리예매 허용 여부는 각 예매처에서 별도로 확인해 주세요.</p>
+      {links.length ? links.map((link) => <p key={link.url}><a href={link.url} target="_blank" rel="noopener noreferrer">{link.name || '예매처'}에서 공연 보기 ↗</a></p>) : <p>KOPIS에서 제공한 예매 링크가 없습니다.</p>}
+      <div className="kopis-attribution">{detail.attribution?.map((line) => <p key={line}>{line}</p>)}</div>
+    </div>}
+  </Modal>;
+}
+
+function Carousel({ banners, onOpen }: { banners: Banner[]; onOpen: (banner: Banner) => void }) {
   const count = banners.length;
   const loop = count > 1;
 
@@ -249,19 +279,7 @@ export function TicketCarousel() {
     }
   };
 
-  const open = useCallback(
-    (href: string) => {
-      if (href.startsWith('#')) {
-        const target = document.getElementById(href.slice(1));
-        target?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
-        target?.focus({ preventScroll: true });
-      } else navigate(href);
-    },
-    [navigate, reduceMotion],
-  );
-
   if (!count) return null;
-  const now = new Date();
   const vars = size
     ? ({ '--tsb-view': `${size.view}px`, '--tsb-left': `${size.left}px`, '--tsb-card-w': `${size.card}px`, '--tsb-gap': `${size.gap}px` } as CSSProperties)
     : undefined;
@@ -272,7 +290,7 @@ export function TicketCarousel() {
       ref={hostRef}
       role="region"
       aria-roledescription="캐러셀"
-      aria-label="티켓 오픈 예정 공연"
+      aria-label="KOPIS 집계 공연 순위"
       style={vars}
       onKeyDown={onKeyDown}
       onMouseEnter={() => setHovered(true)}
@@ -300,16 +318,31 @@ export function TicketCarousel() {
               banner={banner}
               position={i === index ? 'active' : i < index ? 'prev' : 'next'}
               eager={i === first} /* 첫 배너 이미지만 바로 불러오고 나머지는 지연 로딩 */
-              now={now}
               page={((((i - first) % count) + count) % count) + 1}
               total={count}
               filled={filled}
               onPick={() => go(i - index)}
-              onOpen={() => open(banner.href)}
+              onOpen={() => onOpen(banner)}
             />
           ))}
         </div>
       </div>
+      {loop && <>
+        <button
+          type="button"
+          className="tsb-nav tsb-nav-prev"
+          aria-label="이전 공연"
+          disabled={jumping || index < first || index >= first + count}
+          onClick={() => go(-1)}
+        ><Icon name="chevron" size={22} /></button>
+        <button
+          type="button"
+          className="tsb-nav tsb-nav-next"
+          aria-label="다음 공연"
+          disabled={jumping || index < first || index >= first + count}
+          onClick={() => go(1)}
+        ><Icon name="chevron" size={22} /></button>
+      </>}
       <p className="tsb-visually-hidden" aria-live="polite">{`${real + 1}번째 배너, ${banners[real].title}`}</p>
     </div>
   );
@@ -319,7 +352,6 @@ function Slide({
   banner,
   position,
   eager,
-  now,
   page,
   total,
   filled,
@@ -329,7 +361,6 @@ function Slide({
   banner: Banner;
   position: 'active' | 'prev' | 'next';
   eager: boolean;
-  now: Date;
   page: number;
   total: number;
   filled: number;
@@ -340,8 +371,6 @@ function Slide({
   const [imgOk, setImgOk] = useState(true); // 이미지 파일이 없으면 배경색만 남긴다
   const [autoColor, setAutoColor] = useState<string | null>(null);
   const color = banner.color || autoColor || FALLBACK_COLOR;
-  const dday = ddayLabel(banner.ticketOpenAt, now);
-  const openAt = openAtLabel(banner.ticketOpenAt);
   const pad = (n: number) => String(n).padStart(2, '0');
 
   return (
@@ -359,7 +388,7 @@ function Slide({
         style={{ '--tsb-color': color } as CSSProperties}
         role={active ? 'link' : undefined}
         tabIndex={active ? 0 : -1}
-        aria-label={active ? `${banner.title} 도우미 찾기` : undefined}
+        aria-label={active ? `${banner.title} 공연 정보 보기` : undefined}
         onKeyDown={(e) => {
           if (!active || (e.key !== 'Enter' && e.key !== ' ')) return;
           e.preventDefault();
@@ -367,7 +396,7 @@ function Slide({
         }}
       >
         <div className="tsb-main">
-          {imgOk && (
+          {imgOk && banner.image && (
             <img
               className="tsb-img"
               src={banner.image}
@@ -408,13 +437,9 @@ function Slide({
 
         <div className="tsb-stub">
           <div className="tsb-stub-top">
-            <span className="tsb-open-label">TICKET OPEN</span>
-            <strong className={`tsb-dday${dday.isWord ? ' is-word' : ''}`}>{dday.text}</strong>
-            {openAt && (
-              <span className="tsb-open-at">
-                <span>{openAt[0]}</span> <span>{openAt[1]}</span>
-              </span>
-            )}
+            <span className="tsb-open-label">KOPIS RANK</span>
+            <strong className="tsb-dday is-word">{banner.rank}위</strong>
+            <span className="tsb-open-at">공연 정보 보기</span>
           </div>
           <span className="tsb-count">
             {pad(page)} / {pad(total)}

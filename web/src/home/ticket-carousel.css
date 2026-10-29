@@ -445,3 +445,50 @@
     animation: none;
   }
 }
+.kopis-attribution {
+  max-width: 1200px;
+  margin: 12px auto;
+  padding: 0 20px;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
+  white-space: normal;
+}
+.kopis-attribution p { margin: 4px 0; }
+.kopis-detail { color: #182234; line-height: 1.7; overflow-wrap: anywhere; }
+.kopis-detail a { color: #334dcc; text-decoration: underline; }
+
+/* 티켓 좌우 가장자리에만 놓아 공연 상세 클릭·드래그 영역과 분리한다. */
+.tsb-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 1px solid #e1e5f2;
+  border-radius: 50%;
+  background: #fff;
+  color: #485bff;
+  box-shadow: 0 4px 16px #2027511a;
+  cursor: pointer;
+  transition: background 160ms, box-shadow 160ms;
+}
+.tsb-nav-prev { left: calc((100% - var(--tsb-card-w)) / 2 - 22px); }
+.tsb-nav-next { right: calc((100% - var(--tsb-card-w)) / 2 - 22px); }
+.tsb-nav-prev svg { transform: rotate(180deg); }
+.tsb-nav:hover:not(:disabled) { background: #eef0ff; box-shadow: 0 4px 20px #485bff30; }
+.tsb-nav:focus-visible { outline: 3px solid #485bff; outline-offset: 3px; }
+.tsb-nav:disabled { cursor: default; }
+@media (max-width: 768px) {
+  .tsb-nav { width: 36px; height: 36px; }
+  .tsb-nav-prev { left: calc((100% - var(--tsb-card-w)) / 2 - 18px); }
+  .tsb-nav-next { right: calc((100% - var(--tsb-card-w)) / 2 - 18px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tsb-nav { transition: none; }
+}
