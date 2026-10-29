@@ -205,6 +205,13 @@
   color: rgba(255, 255, 255, 0.8);
   font-variant-numeric: tabular-nums;
 }
+.tsb .tsb-copy .tsb-meta > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tsb .tsb-copy .tsb-meta > span + span { margin-top: 4px; }
 .tsb-meta i {
   font-style: normal;
   margin: 0 8px;
@@ -270,7 +277,8 @@
   font-size: 32px;
 }
 .tsb-open-at {
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.8);
   font-variant-numeric: tabular-nums;
@@ -360,13 +368,14 @@
     display: flex;
     flex-direction: column;
   }
-  /* 이미지: 위쪽, 아래로 갈수록 카드 배경색에 스며드는 세로 페이드 */
+  /* 모바일은 사진 아래쪽이 배경에 자연스럽게 스며들도록 한다. */
   .tsb-img {
     position: static;
     flex: 1 1 auto;
     min-height: 96px;
+    height: 0;
     width: 100%;
-    object-position: center 30%;
+    object-position: center;
     -webkit-mask-image: linear-gradient(to bottom, #000 55%, #0000 100%);
     mask-image: linear-gradient(to bottom, #000 55%, #0000 100%);
   }
