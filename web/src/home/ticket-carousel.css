@@ -465,6 +465,9 @@
   white-space: normal;
 }
 .kopis-attribution p { margin: 4px 0; }
+/* 홈 배너 아래 KOPIS 표기. 본문 왼쪽 끝에 맞춘다. */
+.kopis-attribution.tsb-attribution { margin: 12px 0 0; padding: 0; }
+.tsb-attribution small { display: block; margin: 2px 0; font-size: inherit; }
 .kopis-detail { color: #182234; line-height: 1.7; overflow-wrap: anywhere; }
 .kopis-detail a { color: #334dcc; text-decoration: underline; }
 
