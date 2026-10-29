@@ -205,6 +205,13 @@
   color: rgba(255, 255, 255, 0.8);
   font-variant-numeric: tabular-nums;
 }
+.tsb .tsb-copy .tsb-meta > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tsb .tsb-copy .tsb-meta > span + span { margin-top: 4px; }
 .tsb-meta i {
   font-style: normal;
   margin: 0 8px;
@@ -270,7 +277,8 @@
   font-size: 32px;
 }
 .tsb-open-at {
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.8);
   font-variant-numeric: tabular-nums;
@@ -360,13 +368,14 @@
     display: flex;
     flex-direction: column;
   }
-  /* 이미지: 위쪽, 아래로 갈수록 카드 배경색에 스며드는 세로 페이드 */
+  /* 모바일은 사진 아래쪽이 배경에 자연스럽게 스며들도록 한다. */
   .tsb-img {
     position: static;
     flex: 1 1 auto;
     min-height: 96px;
+    height: 0;
     width: 100%;
-    object-position: center 30%;
+    object-position: center;
     -webkit-mask-image: linear-gradient(to bottom, #000 55%, #0000 100%);
     mask-image: linear-gradient(to bottom, #000 55%, #0000 100%);
   }
@@ -445,3 +454,40 @@
     animation: none;
   }
 }
+.kopis-attribution {
+  max-width: 1200px;
+  margin: 12px auto;
+  padding: 0 20px;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
+  white-space: normal;
+}
+.kopis-attribution p { margin: 4px 0; }
+/* 홈 배너 아래 KOPIS 표기. 본문 왼쪽 끝에 맞춘다. */
+.kopis-attribution.tsb-attribution { margin: 12px 0 0; padding: 0; }
+.tsb-attribution small { display: block; margin: 2px 0; font-size: inherit; }
+.kopis-detail { color: #182234; line-height: 1.7; overflow-wrap: anywhere; }
+.kopis-detail a { color: #334dcc; text-decoration: underline; }
+
+/* 양옆의 미리보기 카드 전체와 중앙 카드 가장자리를 클릭 영역으로 잡는다.
+   가운데 사진/텍스트는 예매 링크로 이동하며, 키보드 포커스 외에는 표시하지 않는다. */
+.tsb-nav {
+  position: absolute;
+  top: 0;
+  z-index: 3;
+  width: max(44px, calc((var(--tsb-view) - var(--tsb-card-w)) / 2 + 16px));
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+.tsb-nav-prev { left: calc(-1 * var(--tsb-left)); }
+.tsb-nav-next { right: calc(100% + var(--tsb-left) - var(--tsb-view)); }
+.tsb-nav:hover, .tsb-nav:active { background: transparent; box-shadow: none; }
+.tsb-nav:focus-visible { outline: 3px solid #485bff; outline-offset: 3px; }
+.tsb-nav:disabled { cursor: default; }
