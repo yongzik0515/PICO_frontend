@@ -22,10 +22,7 @@ const BIZ = {
   email: '', // 고객 문의 이메일
 };
 
-// 사업자등록번호 진위는 공정거래위원회 '사업자정보확인'으로 연결해야 한다(하이픈 없는 10자리).
-const BIZ_INFO_URL = `https://www.ftc.go.kr/bizCommPop.do?wrkr_no=${BIZ.bizNo.replace(/-/g, '')}`;
-
-type BizItem = { label: string; value: string; href?: string };
+type BizItem = { label: string; value: string };
 
 // 값이 빈 항목은 줄에서 빼고, 줄 전체가 비면 그 줄도 그리지 않는다.
 function bizLines(): BizItem[][] {
@@ -36,7 +33,7 @@ function bizLines(): BizItem[][] {
       { label: '개인정보보호책임자', value: BIZ.cpo && BIZ.cpoEmail ? `${BIZ.cpo}(${BIZ.cpoEmail})` : BIZ.cpo },
     ],
     [
-      { label: '사업자등록번호', value: BIZ.bizNo, href: BIZ_INFO_URL },
+      { label: '사업자등록번호', value: BIZ.bizNo },
       { label: '통신판매업신고번호', value: BIZ.mailOrderNo },
     ],
     [
@@ -322,13 +319,7 @@ export function AppLayout() {
             <li key={i}>
               {line.map((item) => (
                 <span key={item.label}>
-                  {item.label}: {item.href ? (
-                    <a href={item.href} target="_blank" rel="noreferrer noopener">
-                      {item.value}
-                    </a>
-                  ) : (
-                    item.value
-                  )}
+                  {item.label}: {item.value}
                 </span>
               ))}
             </li>
