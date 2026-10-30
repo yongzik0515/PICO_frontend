@@ -4,16 +4,16 @@ import { fileURLToPath } from 'node:url';
 const legalDocuments = JSON.parse(await readFile(new URL('../src/legal/legalDocuments.json', import.meta.url), 'utf8'));
 
 // Published bytes are immutable. Change the version when changing a published document.
-const privacyUrl = '/legal/2026-10-31.1/privacy.html';
-const termsUrl = '/legal/2026-10-30.1/terms.html';
+const privacyUrl = '/legal/2026-10-31.2/privacy.html';
+const termsUrl = '/legal/2026-10-30.2/terms.html';
 const contactUrl = '/legal/2026-10-31/contact-sharing.html';
 const escape = (value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 function article(document) {
   return `<article><h1>${escape(document.title)}</h1>${document.sections.map(section => `<section><h2>${escape(section.title)}</h2>${section.paragraphs.map(p => `<p>${escape(p)}</p>`).join('')}${section.rows.length ? `<div class="table"><table><thead><tr>${section.rows[0].map(c => `<th scope="col">${escape(c)}</th>`).join('')}</tr></thead><tbody>${section.rows.slice(1).map(row => `<tr>${row.map((c, i) => i ? `<td>${escape(c)}</td>` : `<th scope="row">${escape(c)}</th>`).join('')}</tr>`).join('')}</tbody></table></div>` : ''}</section>`).join('')}</article>`;
 }
 for (const [type, filename, documents, version, effectiveAt, effectiveDate, previousUrl] of [
-  ['PRIVACY', 'privacy', [legalDocuments.signupPrivacy, legalDocuments.privacy], '2026-10-31.1', '2026-10-30T15:00:00', '2026년 10월 31일', '/legal/2026-10-31/privacy.html'],
-  ['TERMS', 'terms', [legalDocuments.terms], '2026-10-30.1', '2026-10-30T12:21:06', '2026년 10월 30일', '/legal/2026-10-29.1/terms.html'],
+  ['PRIVACY', 'privacy', [legalDocuments.signupPrivacy, legalDocuments.privacy], '2026-10-31.2', '2026-10-30T15:00:00', '2026년 10월 31일', '/legal/2026-10-31.1/privacy.html'],
+  ['TERMS', 'terms', [legalDocuments.terms], '2026-10-30.2', '2026-10-30T12:34:33', '2026년 10월 30일', '/legal/2026-10-30.1/terms.html'],
 ]) {
   const directory = new URL(`../public/legal/${version}/`, import.meta.url);
   await mkdir(directory, { recursive: true });
