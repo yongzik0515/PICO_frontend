@@ -43,7 +43,7 @@ const fieldNames: Record<string, string> = {
   primaryCategory: '주로 맡는 공연 분야', contactHoursNote: '활동 가능 시간·일정', upfrontFeeKrw: '최소 착수비', successFee: '수고비',
   payout: '본인 계좌', contact: '매칭 후 연락 방법', careerDescription: '경력 요약', career: '경력 인증', business: '사업자 등록번호',
 };
-const scanLabels: Record<string, string> = { clean: '검토 완료', pending: '운영팀 파일 검토 전', blocked: '차단됨 · 다시 제출해 주세요', unknown: '제출 완료' };
+const scanLabels: Record<string, string> = { clean: '검토 완료', pending: '운영팀 파일 검토 전', blocked: '차단됨 · 다시 올려 주세요', unknown: '제출 완료' };
 const categories = Object.keys(categoryNames) as Category[];
 // 매칭 후 연락 방법(마이페이지 연락처와 같은 값)
 const contactKinds: Record<string, string> = { PHONE: '전화번호', KAKAO: '카카오톡 ID', EMAIL: '이메일' };
@@ -810,6 +810,9 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
                     </span>
                   )}
                 </div>
+                {careerCase?.scan === 'blocked' && careerCase.blockedReasons.map((reason, i) => (
+                  <p key={i} className="field-error">사유: {reason}</p>
+                ))}
                 <p>
                   경력을 보여줄 자료(예매 내역·활동 기록 등)와 설명을 함께 제출해 주세요. 개인정보는 가려 주세요.
                   <br />

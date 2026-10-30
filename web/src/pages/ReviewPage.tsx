@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
-import { fetchDetail, mimeOf, roleIn, useLoad, usedReviews, type RequestResult } from '../transactions/model';
-import { Notice, useAction } from '../transactions/ui';
+import type { Raw } from '../api/pick';
+import { fetchDetail, mimeOf, roleIn, toRequest, useLoad, usedReviews, type RequestResult } from '../transactions/model';
+import { Notice, useAction, utcToLocal } from '../transactions/ui';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
 import { Icon } from '../ui/Icon';
@@ -69,7 +70,13 @@ export function ReviewPage() {
       <>
         <PageTitle title="후기를 작성할 수 없어요" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
         <div className="empty">
-          <p>{used ? '이미 후기를 남긴 거래예요. 거래당 후기는 한 번만 쓸 수 있어요(삭제한 뒤에도 다시 쓸 수 없어요).' : '매칭 완료 후 이용자가 한 번 작성할 수 있어요.'}</p>
+          <p>
+            {used
+              ? '이미 후기를 남긴 거래예요. 거래당 후기는 한 번만 쓸 수 있어요(삭제한 뒤에도 다시 쓸 수 없어요).'
+              : stage === 'booking_upcoming'
+                ? `후기는 ${r.useAt ? utcToLocal(r.useAt) : '이용 예정일'} 이후에 쓸 수 있어요.`
+                : '매칭 완료 후 이용자가 한 번 작성할 수 있어요.'}
+          </p>
           <button type="button" className="btn secondary" onClick={() => navigate(`/requests/${requestId}`)}>
             요청 상세로
           </button>
@@ -92,10 +99,11 @@ export function ReviewPage() {
       try {
         await unwrap(api.POST('/api/requests/{requestId}/review', { params: { path: { requestId } }, body: { rating, comment: comment.trim() || null, imageKey: imageKey ?? null, bookingResult: bookingResult || undefined } }));
       } catch (err) {
-        // 완료된 거래에서만 이 화면이 열리므로, 서버 409는 이미 후기를 쓴 경우다(삭제·숨김 포함, 재작성 불가).
+        // 409는 이미 후기를 썼거나(삭제·숨김 포함, 재작성 불가) 이용 예정일 전인 경우다. 서버 메시지를 그대로 보여 주고,
+        // 이미 쓴 거래로 확인될 때만 다시 쓰기를 막는다.
         if (err instanceof ApiError && err.status === 409) {
-          usedReviews.add(requestId);
-          throw new Error('이 거래의 후기는 이미 작성했어요(삭제·숨김 포함). 거래당 후기는 한 번만 쓸 수 있어요.');
+          const fresh = await unwrap<Raw>(api.GET('/api/requests/{requestId}', { params: { path: { requestId } } })).then(toRequest, () => null);
+          if (fresh?.reviewWritten) usedReviews.add(requestId);
         }
         throw err;
       }

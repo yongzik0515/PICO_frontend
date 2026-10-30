@@ -13,6 +13,7 @@ import { useAuth } from '../auth/AuthContext';
 import {
   fetchDetail,
   latestAgreement,
+  policyBlockMessage,
   resultNames,
   roleIn,
   useLoad,
@@ -217,7 +218,7 @@ function ResultModal({ r, upfrontApplies, onClose, onSubmit }: { r: TxRequest; u
   );
 }
 
-type Dialog = '' | 'accept' | 'reject' | 'cancel' | 'agree' | 'revision' | 'start' | 'result' | 'deleteReview' | 'withdraw';
+type Dialog = '' | 'accept' | 'reject' | 'cancel' | 'agree' | 'revision' | 'start' | 'result' | 'deleteReview' | 'withdraw' | 'consent';
 
 export function RequestDetailPage() {
   const { id } = useParams();
@@ -281,6 +282,10 @@ export function RequestDetailPage() {
   const confirmDue = r.resultConfirmDueAt ? utcToLocal(r.resultConfirmDueAt) : '';
   // 도우미가 결과를 내지 않아 운영팀이 종결한 거래(결과 없이 완료)
   const noResultClosed = r.status === 'COMPLETED' && !r.agentResult && !!r.adminResolutionNote;
+  // 이용 예정 시각(공연 일시, 없으면 티켓 오픈 일시). 직접 거래 매칭 완료는 이때까지 진행 중이고 후기도 이 뒤에 쓴다.
+  const useAt = r.useAt ? utcToLocal(r.useAt) : '';
+  // 연락처가 공유되는 단계. 이때만 거래별 연락처 제공 동의를 철회할 수 있다.
+  const contactsShared = ['MATCHED', 'MATCHING_COMPLETED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status);
   const counterpartId = agent ? r.requesterId : r.agentId;
   const counterpartName = agent ? r.requesterName : r.agentName;
   const path = { params: { path: { requestId } } };
@@ -372,9 +377,9 @@ export function RequestDetailPage() {
           <Notice>운영 정책상 수락할 수 없는 요청이에요.</Notice>
         ) : (
           <>
-            <Notice tone="error">해당 공연·예매처는 도움 요청을 진행할 수 없어요. 내용을 수정하면 다시 검토해요.</Notice>
+            <Notice tone="error">{policyBlockMessage(r) || '요청을 도우미에게 보낼 수 없어요.'} 내용을 고치면 다시 확인해요.</Notice>
             <div className="tx-request-actions">
-              {r.agentId ? go(`/quote/${r.agentId}?edit=${r.id}`, '요청 내용 수정') : null}
+              {r.agentId ? go(`/quote/${r.agentId}?edit=${r.id}`, '요청 고치기') : null}
               {btn('요청 취소', () => setDialog('cancel'), 'ghost tx-danger')}
             </div>
           </>
@@ -392,11 +397,35 @@ export function RequestDetailPage() {
           )
         ) : (
           <>
-            <Notice>{stage === 'policy_review' ? '운영팀이 요청을 검토하고 있어요.' : '도우미의 응답을 기다리고 있어요.'}</Notice>
+            <Notice>{stage === 'policy_review' ? '운영팀이 요청 내용을 확인하고 있어요. 확인이 끝나면 도우미에게 전달해요.' : '도우미의 응답을 기다리고 있어요.'}</Notice>
             <div className="tx-request-actions">
               {r.agentId ? go(`/quote/${r.agentId}?edit=${r.id}`, '요청 내용 수정') : null}
               {btn('요청 취소', () => setDialog('cancel'), 'ghost tx-danger')}
             </div>
+          </>
+        );
+      case 'opening_passed':
+        // 티켓 오픈 시각이 지나 조건을 확정할 수 없다. 조건 제안·확정 버튼은 숨기고 취소만 둔다.
+        return (
+          <>
+            <Notice tone="error">티켓 오픈 시각이 지나 조건을 확정할 수 없어요. 거래를 취소해 주세요.</Notice>
+            {cancelMatched}
+          </>
+        );
+      case 'booking_upcoming':
+        // 이용 예정 시각 전의 직접 거래 매칭 완료: 진행 중으로 보이고, 후기는 이용 예정 시각 뒤에 쓸 수 있다(서버 409).
+        return (
+          <>
+            <Notice tone="success">직접 거래 매칭이 완료됐어요. 이용 예정일{useAt ? `(${useAt})` : ''}까지는 진행 중으로 보여요.</Notice>
+            {!agent && (
+              <>
+                <button type="button" className="btn primary full" disabled>
+                  후기 작성
+                </button>
+                <p className="record-note">후기는 {useAt || '이용 예정일'} 이후에 쓸 수 있어요.</p>
+              </>
+            )}
+            {agent && <p className="record-note">공식 공연·예매 취소나 예매처·PICO 장애로 진행하지 못하게 되면 <Link to={`/inquiries?type=PASS_RESTORATION&requestId=${r.id}`}>매칭권 복원 요청</Link>을 보내 주세요.</p>}
           </>
         );
       case 'terms_needed':
@@ -678,6 +707,12 @@ export function RequestDetailPage() {
               <Notice>수락되지 않은 요청이라 연락처가 공유되지 않았어요.</Notice>
             ) : ['COMPLETED', 'CANCELLED'].includes(r.status) ? (
               <Notice>거래가 끝나 연락처 공개가 종료됐어요.</Notice>
+            ) : r.myContactConsentWithdrawn ? (
+              <Notice>연락처 제공 동의를 철회했어요. 이 거래에서는 서로의 연락처가 보이지 않아요.</Notice>
+            ) : r.counterpartyContactConsentWithdrawn ? (
+              <Notice>상대방이 연락처 제공 동의를 철회해 연락처가 보이지 않아요.</Notice>
+            ) : d.contactsError ? (
+              <Notice>{d.contactsError}</Notice>
             ) : contacts.length ? (
               <>
                 <dl className="document-rows">
@@ -689,9 +724,15 @@ export function RequestDetailPage() {
                   ))}
                 </dl>
                 <p className="record-note">매칭한 {other}에게만 공개되는 정보예요. 예매처 계정정보는 공유하지 마세요.</p>
+                {r.contactsVisibleUntil && <p className="record-note">연락처는 {utcToLocal(r.contactsVisibleUntil)}까지 볼 수 있어요.</p>}
               </>
             ) : (
               <Notice>{other}가 공개한 연락처가 없어요.</Notice>
+            )}
+            {contactsShared && !r.myContactConsentWithdrawn && (
+              <button type="button" className="text-link" disabled={pending} onClick={() => setDialog('consent')}>
+                연락처 제공 동의 철회
+              </button>
             )}
           </TxCard>
 
@@ -970,6 +1011,18 @@ export function RequestDetailPage() {
           <Field label="철회 사유">
             <textarea rows={3} maxLength={10000} value={withdrawNote} onChange={(e) => setWithdrawNote(e.target.value)} placeholder="선택 입력" />
           </Field>
+        </ConfirmModal>
+      )}
+      {dialog === 'consent' && (
+        <ConfirmModal
+          title="연락처 제공 동의 철회"
+          submitText="동의 철회"
+          onClose={close}
+          onConfirm={() => act(() => unwrap(api.POST('/api/requests/{requestId}/contact-consent/withdraw', path)), '연락처 제공 동의를 철회했어요.')}
+        >
+          <p className="prose">
+            이 거래에서 내 연락처 제공 동의를 철회할까요? 철회하면 이 거래에서 서로의 연락처가 바로 보이지 않고, 다시 동의할 수 없어요. 상대방에게는 받은 연락처를 지워 달라고 알려요.
+          </p>
         </ConfirmModal>
       )}
       {dialog === 'deleteReview' && (

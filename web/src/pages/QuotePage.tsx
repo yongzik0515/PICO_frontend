@@ -6,7 +6,7 @@ import { findPolicy, policyPaths, usePolicies } from '../api/policies';
 import { BookingTermsNotice } from '../transactions/BookingTermsNotice';
 import { useAuth } from '../auth/AuthContext';
 import { categoryCodes, categoryNames, toAgent, usePlatforms } from '../discovery/agent';
-import { fetchDetail, useLoad, type RequestBody } from '../transactions/model';
+import { fetchDetail, policyBlockMessage, toRequest, useLoad, type RequestBody } from '../transactions/model';
 import { Field, Notice, TxCard, useAction } from '../transactions/ui';
 import { Modal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
@@ -520,19 +520,43 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
 export function RequestSentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  // 보낸 요청의 정책 검토 결과(policyGateStatus)로 안내를 나눈다. 불러오지 못하면 기존 안내를 보인다.
+  const [load] = useLoad(() => unwrap<Raw>(api.GET('/api/requests/{requestId}', { params: { path: { requestId: Number(id) } } })).then(toRequest), [id]);
+  const r = load.status === 'done' ? load.data : null;
+  const gate = r?.policyStatus.toUpperCase() ?? '';
+  const blocked = gate === 'BLOCKED';
+  const [title, body]: [string, string[]] =
+    load.status === 'loading'
+      ? ['요청 상태를 확인하고 있어요', []]
+      : gate === 'ALLOWED'
+        ? ['도우미에게 요청이 도착했어요', ['도우미가 수락하면 알림으로 알려드릴게요.']]
+        : gate === 'PENDING'
+          ? ['운영팀이 요청 내용을 확인하고 있어요', ['확인이 끝나면 도우미에게 전달하고 알림으로 알려드릴게요.']]
+          : blocked && r
+            ? ['요청을 도우미에게 보낼 수 없어요', [policyBlockMessage(r) || '요청 내용을 확인하고 고쳐 주세요.']]
+            : ['도우미에게 마음이 도착했어요', ['요청 내용을 자동으로 확인한 뒤 도우미에게 전달해요. 추가 확인이 필요하면 운영팀이 검토해요.', '수락과 최종 조건 도착 소식은 알림으로 알려드릴게요.']];
   return (
     <section className="tx-success">
       <div className="success-circle">
-        <Icon name="check" size={34} />
+        <Icon name={blocked ? 'info' : 'check'} size={34} />
       </div>
-      <span className="tiny-label">요청 전송 완료</span>
-      <h1>도우미에게 마음이 도착했어요</h1>
-      <p>
-        <span>요청 내용을 자동으로 확인한 뒤 도우미에게 전달해요. 추가 확인이 필요하면 운영팀이 검토해요.</span>
-        <span>수락과 최종 조건 도착 소식은 알림으로 알려드릴게요.</span>
-      </p>
+      <span className="tiny-label">{blocked ? '요청 확인 필요' : '요청 전송 완료'}</span>
+      <h1>{title}</h1>
+      {body.length > 0 && (
+        <p>
+          {body.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </p>
+      )}
       <div>
-        <button type="button" className="btn primary" onClick={() => navigate(`/requests/${id}`)}>
+        {blocked && r?.agentId ? (
+          // 수락 전 요청을 고치는 기존 진입점(요청 상세의 '요청 고치기'와 같다)
+          <button type="button" className="btn primary" onClick={() => navigate(`/quote/${r.agentId}?edit=${r.id}`)}>
+            요청 고치기
+          </button>
+        ) : null}
+        <button type="button" className={`btn ${blocked && r?.agentId ? 'secondary' : 'primary'}`} onClick={() => navigate(`/requests/${id}`)}>
           보낸 요청 확인
         </button>
         <button type="button" className="btn secondary" onClick={() => navigate('/requests')}>

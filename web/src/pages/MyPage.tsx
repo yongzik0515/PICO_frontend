@@ -10,7 +10,7 @@ import { startSocial, useSocialProviders, socialNames } from '../auth/social';
 import { fetchRequests, latestAgreement, toAgreement, useLoad } from '../transactions/model';
 import { Field, useAction, utcToLocal, won } from '../transactions/ui';
 import { AccountCard, AccountInput, AccountNote, Verification } from '../ui/account';
-import { tokenFrom } from '../ui/format';
+import { kstLastDay, tokenFrom } from '../ui/format';
 import { Icon } from '../ui/Icon';
 import { ImagePreview } from '../ui/ImagePreview';
 import { Modal } from '../ui/Modal';
@@ -700,6 +700,8 @@ function AgentHistory() {
                       {utcToLocal(str(r.usedAt) ?? '')}
                       {r.restoredAt ? ` · 복원 ${utcToLocal(str(r.restoredAt) ?? '')}` : ''}
                     </p>
+                    {/* 예외 복원으로 돌려받은 매칭권의 사용 기한(그 시각 직전까지). 마지막 사용 가능일을 한국 날짜로 보여 준다. */}
+                    {r.restored === true && str(r.restoredExpiresAt) && <small>복원됨 · {kstLastDay(str(r.restoredExpiresAt) ?? '')}까지 사용 가능</small>}
                   </div>
                   <div>
                     <button type="button" className="btn secondary" onClick={() => navigate(`/requests/${num(r.requestId)}`)}>

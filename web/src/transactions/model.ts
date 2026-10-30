@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, unwrap } from '../api/client';
+import { api, unwrap, ApiError } from '../api/client';
 import { bool, list, num, pick, str, type Raw } from '../api/pick';
 import { getTokens } from '../api/tokens';
 import type { components } from '../api/schema';
@@ -68,6 +68,20 @@ export interface TxRequest {
   agreementChangePending: boolean;
   /** 후기를 이미 썼음(삭제·숨김 포함). 숨겨진 후기는 조회가 404라 이 값으로 다시 쓰기를 막는다. */
   reviewWritten: boolean;
+  /** 티켓 오픈 시각(UTC) */
+  opensAt: string;
+  /** 이용 예정 시각(UTC). 공연 일시, 없으면 티켓 오픈 일시 */
+  useAt: string;
+  /** 직접 거래 연락처 공개가 끝나는 시각(UTC, useAt+7일) */
+  contactsVisibleUntil: string;
+  /** 정책 검토 차단 주체(이용자에게만): AUTO 자동 검사 · ADMIN 운영팀 */
+  policyBlockedBy: string;
+  /** 차단 사유(이용자에게만). 자동 검사는 고정 항목명, 운영팀은 이용자에게 쓴 사유 */
+  policyBlockReason: string;
+  /** 이 거래에서 내가 연락처 제공 동의를 철회했음 */
+  myContactConsentWithdrawn: boolean;
+  /** 이 거래에서 상대방이 연락처 제공 동의를 철회했음 */
+  counterpartyContactConsentWithdrawn: boolean;
   raw: Raw;
 }
 
@@ -122,6 +136,13 @@ export function toRequest(raw: Raw): TxRequest {
     paymentStatus: s('paymentStatus', 'payment.status', 'safePayment.status'),
     agreementChangePending: pick(raw, 'agreementChangePending') === true || num(pick(raw, 'agreementChangePending')) === 1,
     reviewWritten: pick(raw, 'reviewWritten') === true || num(pick(raw, 'reviewWritten')) === 1,
+    opensAt: s('opensAt'),
+    useAt: s('useAt'),
+    contactsVisibleUntil: s('contactsVisibleUntil'),
+    policyBlockedBy: s('policyBlockedBy'),
+    policyBlockReason: s('policyBlockReason'),
+    myContactConsentWithdrawn: pick(raw, 'myContactConsentWithdrawn') === true,
+    counterpartyContactConsentWithdrawn: pick(raw, 'counterpartyContactConsentWithdrawn') === true,
     raw,
   };
 }
@@ -196,6 +217,8 @@ export type Stage =
   | 'in_progress'
   | 'result_submitted'
   | 'disputed'
+  | 'opening_passed'
+  | 'booking_upcoming'
   | 'matching_completed'
   | 'completed'
   | 'rejected'
@@ -214,6 +237,8 @@ export const stageNames: Record<Stage, string> = {
   in_progress: '예매 진행 중',
   result_submitted: '결과 확인 대기',
   disputed: '결과 확인 중(분쟁)',
+  opening_passed: '티켓 오픈 지남, 확정 불가',
+  booking_upcoming: '예매 예정',
   matching_completed: '직접 거래 매칭 완료',
   completed: '거래 완료',
   rejected: '요청 거절',
@@ -242,6 +267,10 @@ const serverStages: Record<string, Stage> = {
   IN_PROGRESS: 'in_progress',
   RESULT_CONFIRMATION: 'result_submitted',
   DISPUTED: 'disputed',
+  // 티켓 오픈 시각이 지나도록 조건을 확정하지 못한 MATCHED(확정 불가, 취소 안내)
+  OPENING_PASSED: 'opening_passed',
+  // 이용 예정 시각 전의 직접 거래 매칭 완료(진행 중)
+  BOOKING_UPCOMING: 'booking_upcoming',
   MATCHING_COMPLETED: 'matching_completed',
   COMPLETED: 'completed',
   REJECTED: 'rejected',
@@ -284,6 +313,22 @@ export function stageOf(r: TxRequest, agreements: Agreement[] = [], changeReques
     default:
       return 'cancelled';
   }
+}
+
+/**
+ * 정책 검토에서 막힌 요청(policy_gate_status=BLOCKED)을 이용자에게 설명하는 문구. 서버가 차단 주체를 주지 않으면 빈 문자열.
+ * AUTO: 자동 검사가 찾은 항목의 고정 이름(사전 연락처 공유·계좌정보 공유·욕설 등, 원문은 주지 않는다) · ADMIN: 운영팀이 이용자에게 쓴 사유
+ */
+export function policyBlockMessage(r: Pick<TxRequest, 'policyBlockedBy' | 'policyBlockReason'>) {
+  const reason = r.policyBlockReason.trim();
+  if (r.policyBlockedBy === 'AUTO') {
+    if (!reason) return '요청 내용에 보낼 수 없는 항목이 있어요.';
+    // 연락처는 매칭 뒤 서로 공개되므로 요청서에 적을 필요가 없다는 점을 함께 알린다.
+    const contact = reason.includes('연락처') ? ' 연락처는 매칭되면 서로에게 공개되니 요청서에는 적지 말아 주세요.' : '';
+    return `요청 내용에 보낼 수 없는 항목이 있어요: ${reason}.${contact}`;
+  }
+  if (r.policyBlockedBy === 'ADMIN') return reason ? `운영팀 안내: ${reason}` : '';
+  return '';
 }
 
 /** 목록처럼 합의 정보가 없을 때 쓰는 단계. 서버 stage가 있으면 정확하다. */
@@ -329,6 +374,8 @@ export interface Detail {
   changeRequests: Raw[];
   evidences: Evidence[];
   contacts: Raw | null;
+  /** 연락처 조회가 403일 때 서버 메시지(공개 기간 종료·동의 철회) */
+  contactsError: string;
   payment: Raw | null;
   /** 이용자가 남긴 후기(없으면 null) */
   review: Review | null;
@@ -355,11 +402,20 @@ export async function fetchDetail(id: number): Promise<Detail> {
   const latest = latestAgreement(agreements);
   const safe = !!latest?.safePayment;
   // 직접 거래 매칭 완료 후에도 연락처를 조회한다. 안전거래 완료·요청 취소 후에는 닫힌다.
-  const contactsOpen = ['MATCHED', 'MATCHING_COMPLETED', 'IN_PROGRESS', 'DISPUTED'].includes(request.status);
+  // 어느 한쪽이 연락처 제공 동의를 철회했으면 서버가 403으로 막으므로 부르지 않는다.
+  const consentWithdrawn = request.myContactConsentWithdrawn || request.counterpartyContactConsentWithdrawn;
+  const contactsOpen = ['MATCHED', 'MATCHING_COMPLETED', 'IN_PROGRESS', 'DISPUTED'].includes(request.status) && !consentWithdrawn;
+  let contactsError = '';
   const started = ['IN_PROGRESS', 'DISPUTED', 'COMPLETED'].includes(request.status);
   const [evidences, contacts, resultEvidencesRaw] = await Promise.all([
     safe && matched ? soft(unwrap<Evidence[]>(api.GET('/api/requests/{requestId}/attempt-evidences', { params: { path: { requestId: id }, query: { page: 0, size: 20 } } })), []) : Promise.resolve([]),
-    contactsOpen ? soft(unwrap<Raw>(api.GET('/api/requests/{requestId}/contacts', path(id))), null) : Promise.resolve(null),
+    contactsOpen
+      ? unwrap<Raw>(api.GET('/api/requests/{requestId}/contacts', path(id))).catch((e) => {
+          // 공개 기간이 끝났거나 동의가 철회되면 403. 서버 메시지를 그대로 보여 준다.
+          if (e instanceof ApiError && e.status === 403) contactsError = e.message;
+          return null;
+        })
+      : Promise.resolve(null),
     safe && started ? soft(unwrap<unknown>(api.GET('/api/requests/{requestId}/result/evidence', path(id))), []) : Promise.resolve([]),
   ]);
   // 확정된 조건에도 이용자가 변경을 요청할 수 있다(결제 전). 이때도 요청 사유를 보여 주려고 불러온다.
@@ -377,9 +433,10 @@ export async function fetchDetail(id: number): Promise<Detail> {
   const known = latest?.paymentStatus || request.paymentStatus;
   const payment = paymentId && !known ? await soft(unwrap<Raw>(api.GET('/api/payments/{paymentId}', { params: { path: { paymentId } } })), null) : null;
   if (latest && payment && !latest.paymentStatus) latest.paymentStatus = str(payment.status) ?? '';
-  // 후기 없음·삭제·숨김은 404. '후기 없음'으로 본다.
+  const stage = stageOf(request, agreements, changeRequests);
+  // 후기 없음·삭제·숨김은 404. '후기 없음'으로 본다. 이용 예정 시각 전(booking_upcoming)에는 후기를 쓸 수 없다.
   const completed = request.status === 'COMPLETED';
-  const reviewable = completed || request.status === 'MATCHING_COMPLETED';
+  const reviewable = completed || (request.status === 'MATCHING_COMPLETED' && stage !== 'booking_upcoming');
   const finalized = agreements.find((a) => a.status === 'FINALIZED');
   const final = request.finalResult ?? (request.requesterResult === request.agentResult ? request.agentResult : undefined);
   const [review, partial, refunds] = await Promise.all([
@@ -397,12 +454,13 @@ export async function fetchDetail(id: number): Promise<Detail> {
     changeRequests,
     evidences: Array.isArray(evidences) ? evidences : [],
     contacts,
+    contactsError,
     payment,
     review,
     resultEvidences: list(resultEvidencesRaw),
     partial,
     refunds: allRefunds,
-    stage: stageOf(request, agreements, changeRequests),
+    stage,
   };
 }
 

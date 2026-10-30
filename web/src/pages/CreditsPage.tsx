@@ -13,7 +13,8 @@ const PRODUCT = { units: 10, price: 5000 };
 const PENDING_KEY = 'pico.pendingGroblePass';
 const CONFIRM_LIMIT_MS = 180_000;
 
-type Pending = { purchaseId: number; units: number };
+/** orderNumber: 그로블 주문번호. 결제가 확인되지 않을 때 문의에 적도록 안내한다(이전 버전에서 저장한 값에는 없을 수 있다). */
+type Pending = { purchaseId: number; units: number; orderNumber?: string };
 const savePending = (p: Pending | null) => {
   try {
     if (p) sessionStorage.setItem(PENDING_KEY, JSON.stringify(p));
@@ -32,6 +33,8 @@ const loadPending = (): Pending | null => {
 };
 
 const STATUS_NAMES: Record<string, string> = { FAILED: '결제 실패', EXPIRED: '결제 만료', CANCELLED: '결제 취소', PROCESSING: '결제 확인 중', REFUNDED: '환불 완료', PARTIALLY_REFUNDED: '부분 환불' };
+// 충전 내역에 함께 보여 주는 최근 결제 상태(payment.status)
+const PAYMENT_NAMES: Record<string, string> = { ...STATUS_NAMES, PENDING: '결제 대기', PAID: '결제 완료', CANCEL_REQUESTED: '취소 진행 중' };
 
 export function CreditsPage() {
   const [load, reload] = useLoad(async () => {
@@ -57,7 +60,7 @@ export function CreditsPage() {
       clearInterval(timer);
       setWaiting(null);
       savePending(null);
-      toast('결제 확인이 늦어지고 있어요. 결제를 마쳤다면 잠시 후 충전 내역에서 확인해 주세요.');
+      toast(`결제 확인이 늦어지고 있어요. 결제를 마쳤다면 잠시 후 충전 내역에서 확인해 주세요.${waiting.orderNumber ? ` 주문번호: ${waiting.orderNumber}` : ''}`);
     }, CONFIRM_LIMIT_MS);
     return () => {
       clearInterval(timer);
@@ -84,7 +87,7 @@ export function CreditsPage() {
 
   async function buy() {
     setCharged(null);
-    const target = { url: '', purchaseId: 0 };
+    const target = { url: '', purchaseId: 0, orderNumber: '' };
     const ok = await run(async () => {
       const checkout = await unwrap<Raw>(api.POST('/api/matching-passes/groble-checkouts'));
       const purchaseId = num(pick(checkout, 'purchaseId'));
@@ -92,10 +95,11 @@ export function CreditsPage() {
       if (!purchaseId || !url || !url.startsWith('https://')) throw new Error('결제 주문을 만들지 못했어요.');
       target.url = url;
       target.purchaseId = purchaseId;
+      target.orderNumber = str(pick(checkout, 'payment.orderNumber', 'orderNumber')) ?? '';
     });
     if (!ok) return;
     // 결제를 마치면 그로블 결제 완료 화면의 '매칭권 확인하기'로 이 화면에 돌아온다. 돌아오면 이 주문의 지급을 확인한다.
-    savePending({ purchaseId: target.purchaseId, units: PRODUCT.units });
+    savePending({ purchaseId: target.purchaseId, units: PRODUCT.units, orderNumber: target.orderNumber || undefined });
     window.location.assign(target.url);
   }
 
@@ -150,6 +154,16 @@ export function CreditsPage() {
                       </span>
                       <h3>매칭권 {num(p.purchasedUnits)}장</h3>
                       <p>{utcToLocal(str(p.createdAt) ?? '')}</p>
+                      {(str(pick(p, 'payment.orderNumber')) || str(pick(p, 'payment.status'))) && (
+                        <small>
+                          {[
+                            str(pick(p, 'payment.orderNumber')) && `주문번호 ${str(pick(p, 'payment.orderNumber'))}`,
+                            str(pick(p, 'payment.status')) && `결제 상태: ${PAYMENT_NAMES[str(pick(p, 'payment.status')) ?? ''] ?? str(pick(p, 'payment.status'))}`,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </small>
+                      )}
                     </div>
                     <div>
                       <strong>{won(num(p.priceKrw))}</strong>
@@ -160,6 +174,9 @@ export function CreditsPage() {
             ) : (
               <p className="tx-file-empty">아직 충전 내역이 없어요.</p>
             )}
+            <p className="record-note">
+              결제했는데 매칭권이 들어오지 않았다면 주문번호를 적어 <Link to="/inquiries">문의</Link>해 주세요.
+            </p>
           </TxCard>
         </div>
         <aside className="tx-side">
@@ -182,7 +199,8 @@ export function CreditsPage() {
             </button>
             {waiting ? (
               <Notice>
-                결제 결과를 확인하고 있어요. 그로블에서 결제를 마쳤다면 잠시 후 매칭권이 자동으로 충전돼요. 다시 결제하지 마세요.{' '}
+                결제 결과를 확인하고 있어요. 그로블에서 결제를 마쳤다면 잠시 후 매칭권이 자동으로 충전돼요. 다시 결제하지 마세요.
+                {waiting.orderNumber ? ` 주문번호: ${waiting.orderNumber}.` : ''}{' '}
                 <button type="button" className="text-link" onClick={stopWaiting}>
                   결제하지 않았어요
                 </button>

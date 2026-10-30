@@ -13,7 +13,12 @@ export interface Agent {
   rating: number;
   reviews: number;
   trades: number;
-  success: number;
+  /** 성공률(%). 공개 후기 중 예매 결과를 고른 후기의 성공 비율. 그런 후기가 없으면 null */
+  success: number | null;
+  /** 성공률을 계산한 후기 수(예매 결과를 남긴 공개 후기) */
+  successReviews: number;
+  /** 새 요청 받기. 서버가 값을 주지 않으면 받는 것으로 본다 */
+  acceptsRequests: boolean;
   /** 평균 응답(분). 응답에 없으면 null */
   reply: number | null;
   fee: number;
@@ -83,7 +88,9 @@ export function toAgent(raw: Raw): Agent {
     rating: num(pick(raw, 'averageRating', 'ratingAverage', 'rating', 'stats.averageRating')) ?? 0,
     reviews: num(pick(raw, 'reviewCount', 'reviewsCount', 'stats.reviewCount')) ?? 0,
     trades: num(pick(raw, 'completedCount', 'completedRequestCount', 'completedTradeCount', 'tradeCount', 'stats.completedCount')) ?? 0,
-    success: num(pick(raw, 'successRate', 'stats.successRate')) ?? 0,
+    success: num(pick(raw, 'successRate', 'stats.successRate')) ?? null,
+    successReviews: num(pick(raw, 'successRateReviewCount', 'stats.successRateReviewCount')) ?? 0,
+    acceptsRequests: pick(raw, 'acceptsRequests') !== false,
     reply: num(pick(raw, 'averageResponseMinutes', 'responseMinutes', 'avgResponseMinutes', 'stats.averageResponseMinutes')) ?? null,
     fee: num(pick(raw, 'upfrontFeeKrw', 'profile.upfrontFeeKrw', 'upfrontFee')) ?? 0,
     successMin: num(pick(raw, 'successFeeMin', 'profile.successFeeMin')),

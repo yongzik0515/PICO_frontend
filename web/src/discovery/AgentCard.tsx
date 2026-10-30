@@ -60,6 +60,7 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
           <div className="agent-title">
             <h3>{a.name}</h3>
             <Badges agent={a} />
+            {!a.acceptsRequests && <span className="badge account-badge-warn">새 요청 받지 않음</span>}
           </div>
           <p>{a.intro}</p>
           <div className="agent-stats">
@@ -75,6 +76,7 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
             <span className="stat-divider"></span>
             <span>
               성공률 <strong>{successRate(a.success)}</strong>
+              {a.success !== null && <small className="muted"> (후기 {a.successReviews}건)</small>}
             </span>
           </div>
         </div>

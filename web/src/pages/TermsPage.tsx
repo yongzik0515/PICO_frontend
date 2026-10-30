@@ -193,7 +193,7 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
               <span>정산 방식</span>
               <strong>당사자끼리 직접 정산</strong>
             </div>
-            <Field label="실패·환불 처리" required error={errors.refundRule} helper="실패하거나 취소될 때 착수비·수고비를 어떻게 할지 두 분이 정해 적어 주세요. PICO는 금액을 정하지 않아요. 분쟁은 신고하기나 고객센터로 알려 주시면 운영팀이 이 내용을 참고해 구속력 없는 조정안을 드릴 수 있어요.">
+            <Field label="실패·환불 처리" required error={errors.refundRule} helper="실패하거나 취소될 때 착수비·수고비를 어떻게 할지 두 분이 정해 적어 주세요. PICO는 금액을 정하지 않아요. 분쟁은 거래 상세의 신고하기로 알려 주시면 운영팀이 이 내용을 참고해 구속력 없는 조정안을 드릴 수 있어요.">
               <textarea name="refundRule" rows={5} required maxLength={10000} value={draft.refundRule} onChange={(e) => setDraft((old) => ({ ...old, refundRule: e.target.value }))} placeholder={'예시)\n- 약속한 시도를 했지만 예매에 실패: 착수비는 도우미 몫, 수고비는 받지 않음(미리 받았다면 돌려줌)\n- 도우미가 시도하지 않았거나 도우미 사정으로 취소: 받은 금액 전액 돌려줌\n- 이용자 사정으로 취소: 시도 시작 전이면 전액, 시작 후면 착수비를 뺀 나머지 돌려줌\n- 공연·예매 공식 취소: 받은 금액 전액 돌려줌'} />
             </Field>
             {counteroffering && <Field label="수정 사유" required error={errors.reason}>

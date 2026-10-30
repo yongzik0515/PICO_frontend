@@ -1,6 +1,6 @@
 import { clearPlatformCache } from '../discovery/agent';
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import type { components } from '../api/schema';
@@ -8,6 +8,7 @@ import { toRequest, useLoad } from '../transactions/model';
 import { inquiryTypeNames, privacyActionNames, restorableStatusNames, restorationReasonNames, type InquiryType, type PrivacyAction, type RestorationReason } from '../transactions/inquiry';
 import { requestRows } from '../transactions/requestRows';
 import { EvidenceFileNames, Field, MoneyInput, Notice, useAction, utcToLocal, won } from '../transactions/ui';
+import { kstLastDay } from '../ui/format';
 import { Modal } from '../ui/Modal';
 import { ImagePreview, ImageViewer } from '../ui/ImagePreview';
 import { isImageFile } from '../ui/imageFile';
@@ -18,7 +19,7 @@ import { PageTitle } from '../ui/PageTitle';
 // 권한은 서버가 검사한다(ROLE_ADMIN이 아니면 403). 메뉴에는 노출하지 않고 /admin 주소로 들어온다.
 // 목록 응답 필드가 명세에 없는 API가 많아(data: object) pick()으로 찾고, 항목마다 원본 응답을 펼쳐 볼 수 있게 했다.
 
-type Tab = 'pass-restoration' | 'inquiries' | 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'payments' | 'reports' | 'reviews' | 'users' | 'setup';
+type Tab = 'pass-restoration' | 'inquiries' | 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'payments' | 'pass-purchases' | 'reports' | 'reviews' | 'users' | 'setup';
 const tabs: [Tab, string][] = [
   ['policy', '요청 정책 검토'],
   ['inquiries', '문의 답변'],
@@ -30,6 +31,7 @@ const tabs: [Tab, string][] = [
   ['requests', '결과 확인·만료'],
   ['resolved', '결과 확정 이력'],
   ['payments', '결제 확인'],
+  ['pass-purchases', '매칭권 구매'],
   ['reports', '신고'],
   ['reviews', '후기'],
   ['users', '회원 제재'],
@@ -240,7 +242,12 @@ function PolicyTab() {
   const decide = (row: Raw, allowed: boolean) =>
     open({
       title: allowed ? '요청 진행 승인' : '요청 진행 제한',
-      fields: [{ ...noteField(allowed ? '승인 근거' : '제한 사유', 10000), required: !allowed }],
+      // 제한 사유는 요청 상세에서 이용자에게 그대로 보인다(서버 policyBlockReason). 승인 근거는 내부 기록이다.
+      fields: [
+        allowed
+          ? { ...noteField('승인 근거 (내부 기록)', 10000), required: false }
+          : { ...noteField('제한 사유 (이용자에게 보여요)', 10000), helper: '요청 상세에서 이용자에게 그대로 보여요. 무엇을 고치면 되는지 적고, 내부 메모는 적지 마세요.' },
+      ],
       submitText: allowed ? '승인' : '진행 제한',
       danger: !allowed,
       success: allowed ? '승인했어요. 도우미가 수락할 수 있어요.' : '요청 진행을 제한했어요.',
@@ -377,7 +384,9 @@ const privacyDue = (createdAt: string) => {
 
 function inquiryRows(row: Raw, member: (id: number | undefined) => string): [string, ReactNode][] {
   const type = s(row, 'type') as InquiryType;
-  const rows: [string, ReactNode][] = [['작성자', member(n(row, 'userId'))], ['접수 시각', utcToLocal(s(row, 'createdAt'))]];
+  // 작성자: 닉네임 #회원번호, 로그인 이메일(소셜 전용 계정은 없음)
+  const writer = s(row, 'writerNickname') ? `${s(row, 'writerNickname')} #${n(row, 'userId') ?? ''}` : member(n(row, 'userId'));
+  const rows: [string, ReactNode][] = [['작성자', [writer, s(row, 'writerEmail')].filter(Boolean).join(', ')], ['접수 시각', utcToLocal(s(row, 'createdAt'))]];
   if (type === 'PASS_RESTORATION') {
     const restoredAt = s(row, 'passRestoredAt');
     rows.push(
@@ -393,6 +402,17 @@ function inquiryRows(row: Raw, member: (id: number | undefined) => string): [str
       ['결제', [n(row, 'paymentId') != null ? `#${n(row, 'paymentId')}` : '', s(row, 'checkoutProvider') === 'GROBLE' ? '그로블' : s(row, 'checkoutProvider'), passPaymentNames[s(row, 'paymentStatus')] ?? s(row, 'paymentStatus')].filter(Boolean).join(' · ')],
       ['주문번호', s(row, 'orderNumber')],
     );
+    // 대상 구매의 지금 상태: 사용·남은 장수와 환불 가능 금액. 운영팀은 그로블 판매 관리에서 이 금액만큼 취소한 뒤 답변한다.
+    const purchase = pick(row, 'purchase') as AdminPassPurchase | undefined;
+    if (purchase && typeof purchase === 'object') {
+      const remaining = purchase.remainingUnits == null ? '확인 불가' : `${purchase.remainingUnits}장`;
+      rows.push(
+        ['사용·남은 장수', `사용 ${purchase.usedUnits ?? 0}장 · 남은 ${remaining}`],
+        ['지금 환불 가능 금액', won(purchase.refundableAmountKrw ?? 0)],
+        ['그로블 취소 요청', purchase.cancelRequestedAt ? `${utcToLocal(purchase.cancelRequestedAt)}${purchase.cancelRequestOpen ? ' · 처리 기록 전' : ''}` : ''],
+        ['처리 안내', `그로블 판매 관리에서 ${won(purchase.refundableAmountKrw ?? 0)}(남은 ${remaining})만 취소한 뒤 답변해 주세요. 부분 취소는 주문당 한 번이고, 정산 뒤에는 그로블 운영팀에 취소를 요청해요. 원결제를 취소할 수 없어 계좌로 송금했다면 매칭권 구매 탭에서 송금 환불을 기록해 주세요.`],
+      );
+    }
   }
   if (type === 'PRIVACY') {
     rows.push(['요청 종류', privacyActionNames[s(row, 'privacyAction') as PrivacyAction] ?? s(row, 'privacyAction')]);
@@ -414,18 +434,23 @@ function InquiryRestoreModal({ row, onClose, onDone }: { row: Raw; onClose: () =
     e.preventDefault();
     const ok = await run(async () => {
       // 복원은 같은 요청에 다시 호출해도 최초 기록을 돌려준다. 답변 등록이 실패하면 다시 눌러도 중복 지급되지 않는다.
-      await unwrap(api.POST('/api/admin/requests/{requestId}/matching-pass-restoration', { params: { path: { requestId } }, body: { reason, decisionNote: `문의 #${n(row, 'id')}: ${note.trim()}`, evidenceVerified: verified } }));
-      await unwrap(api.POST('/api/admin/inquiries/{inquiryId}/reply', { params: { path: { inquiryId: n(row, 'id')! } }, body: { reply: reply.trim() } }));
+      const restored = await unwrap<Raw>(api.POST('/api/admin/requests/{requestId}/matching-pass-restoration', { params: { path: { requestId } }, body: { reason, decisionNote: `문의 #${n(row, 'id')}: ${note.trim()}`, evidenceVerified: verified } }));
+      // 복원한 매칭권의 사용 기한(expiresAt, 그 시각 직전까지)을 답변 끝에 붙인다. 이미 기한을 적었으면 붙이지 않는다.
+      const expiresAt = s(restored, 'expiresAt');
+      const text = reply.trim();
+      const body = expiresAt && !text.includes('까지 쓸 수 있어요') ? `${text}\n복원한 매칭권은 ${kstLastDay(expiresAt)}까지 쓸 수 있어요.` : text;
+      await unwrap(api.POST('/api/admin/inquiries/{inquiryId}/reply', { params: { path: { inquiryId: n(row, 'id')! } }, body: { reply: body } }));
     }, '매칭권을 복원하고 답변을 등록했어요.');
     if (ok) onDone();
   }
   return <Modal title={`요청 #${requestId} 매칭권 1회 복원`} onClose={() => { if (!pending) onClose(); }}>
     <form onSubmit={submit}>
-      <p className="prose">{s(row, 'targetName')}의 도우미에게 매칭권 1회를 복원하고 문의에 답변해요. 이미 복원한 요청은 추가 지급하거나 만료일을 연장하지 않아요. 복원하지 않을 때는 이 창을 닫고 답변 작성으로 거절 사유를 알려 주세요.</p>
+      <p className="prose">{s(row, 'targetName')}의 도우미에게 매칭권 1회를 복원하고 문의에 답변해요. 이미 복원한 요청은 추가 지급하거나 만료일을 연장하지 않아요. 복원하지 않을 때는 이 창을 닫고 답변 작성으로 거절 사유를 알려 주세요. 답변 끝에 복원한 매칭권의 사용 기한이 자동으로 붙어요.</p>
       <Field label="확인한 사유" required><select value={reason} onChange={(e) => setReason(e.target.value as RestorationReason)}>{(Object.keys(restorationReasonNames) as RestorationReason[]).map((r) => <option key={r} value={r}>{restorationReasonNames[r]}</option>)}</select></Field>
       <Field label="확인 근거(내부 기록)" required helper="공식 공지·장애 공지 등 판단 근거를 적어 주세요. 문의 번호는 자동으로 붙고, 문의자에게는 보이지 않아요."><textarea required maxLength={470} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
       <label className="check-row"><input type="checkbox" required checked={verified} onChange={(e) => setVerified(e.target.checked)} />공식 공지 등으로 사유와 거래에 미친 영향을 확인했습니다.</label>
-      <Field label="답변 내용" required><textarea required rows={3} maxLength={3000} value={reply} onChange={(e) => setReply(e.target.value)} /></Field>
+      {/* 서버 답변 한도는 3000자. 자동으로 붙는 사용 기한 문장 몫을 남겨 둔다. */}
+      <Field label="답변 내용" required><textarea required rows={3} maxLength={2950} value={reply} onChange={(e) => setReply(e.target.value)} /></Field>
       <div className="modal-actions"><button type="button" className="btn secondary" disabled={pending} onClick={onClose}>돌아가기</button><button type="submit" className="btn primary" disabled={pending || !verified || !note.trim() || !reply.trim()}>{pending ? '처리 중…' : '복원하고 답변 등록'}</button></div>
     </form>
   </Modal>;
@@ -1265,44 +1290,61 @@ function ResolvedTab() {
 }
 
 // ── 결제 확인 ─────────────────────────────────────────────
-const reviewTypes: Record<string, string> = { EVENT: '실패 웹훅', PAYMENT_FLAG: '수동 확인 표시', PAYMENT_STUCK: 'PG 확인 지연', REFUND_STUCK: '환불 지연' };
-function PaymentsTab() {
+const reviewTypes: Record<string, string> = { EVENT: '실패 웹훅', PAYMENT_FLAG: '수동 확인 표시', PAYMENT_STUCK: 'PG 확인 지연', REFUND_STUCK: '환불 지연', CANCEL_REQUEST: '그로블 결제 취소 요청' };
+const cancelRequestLabel = '그로블 결제 취소 요청: 구매 건 보기에서 남은 장수와 환불 가능 금액을 확인하고 그로블 판매 관리에서 처리한 뒤 처리 내용을 기록해 주세요. 이미 쓴 매칭권이 있으면 전액을 승인하지 말고 환불 가능 금액만 취소해 주세요';
+const reviewCodeLabels: Record<string, string> = {
+  GROBLE_REFUND_EXCEEDS_REMAINING: '이미 쓴 매칭권까지 환불됨(그로블 환불액이 남은 장수보다 많음)',
+  GROBLE_CANCEL_REQUESTED: cancelRequestLabel,
+};
+function PaymentsTab({ onOpenPurchase }: { onOpenPurchase: (q: string) => void }) {
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/payments/review', { params: { query: { page: 0, size: 100 } } })));
   const { open, modal, pending } = useDialog(reload);
   return (
     <>
       <ListBlock title="결제 확인 목록" desc="자동 처리가 사람에게 넘긴 결제예요. 처리 기록은 상태를 바꾸지 않으니, 돈을 움직이는 조치(PG 취소 등)는 따로 한 뒤 기록해요." load={load} reload={reload} empty="확인할 결제가 없어요.">
         {(rows) =>
-          rows.map((row) => (
-            <Item
-              key={s(row, 'key')}
-              raw={row}
-              title={`${reviewTypes[s(row, 'type')] ?? s(row, 'type')} · 주문 ${s(row, 'orderNumber')}`}
-              rows={[
-                ['결제', `#${n(row, 'paymentId')} · ${s(row, 'paymentStatus')} · ${won(n(row, 'amountKrw'))}`],
-                ['코드', s(row, 'code')],
-                ['내용', s(row, 'detail')],
-                ['발생 시각', utcToLocal(s(row, 'occurredAt'))],
-              ]}
-            >
-              <button
-                type="button"
-                className="btn primary"
-                disabled={pending}
-                onClick={() =>
-                  open({
-                    title: '처리 완료 기록',
-                    fields: [noteField('확인·조치 내용', 1000)],
-                    submitText: '기록',
-                    success: '처리 완료로 기록했어요.',
-                    action: (v) => unwrap(api.POST('/api/admin/payments/review/resolutions', { body: { key: s(row, 'key'), note: v.note } })),
-                  })
-                }
+          rows.map((row) => {
+            const cancelRequest = s(row, 'type') === 'CANCEL_REQUEST' || s(row, 'code') === 'GROBLE_CANCEL_REQUESTED';
+            const code = s(row, 'code');
+            const purchaseQuery = s(row, 'orderNumber') || (n(row, 'passPurchaseId') != null ? String(n(row, 'passPurchaseId')) : '');
+            return (
+              <Item
+                key={s(row, 'key')}
+                raw={row}
+                title={`${reviewTypes[s(row, 'type')] ?? s(row, 'type')} · 주문 ${s(row, 'orderNumber')}`}
+                rows={[
+                  ['결제', `#${n(row, 'paymentId')} · ${s(row, 'paymentStatus')} · ${won(n(row, 'amountKrw'))}`],
+                  ['구매 회원', n(row, 'buyerUserId') != null ? `${s(row, 'buyerNickname') || '회원'} #${n(row, 'buyerUserId')}` : ''],
+                  ['구매 번호', n(row, 'passPurchaseId') != null ? `#${n(row, 'passPurchaseId')}` : ''],
+                  ['코드', cancelRequest ? `${cancelRequestLabel}${code ? ` (${code})` : ''}` : reviewCodeLabels[code] ? `${reviewCodeLabels[code]} (${code})` : code],
+                  ['내용', s(row, 'detail')],
+                  ['발생 시각', utcToLocal(s(row, 'occurredAt'))],
+                ]}
               >
-                처리 완료 기록
-              </button>
-            </Item>
-          ))
+                {cancelRequest && purchaseQuery && (
+                  <button type="button" className="btn secondary" onClick={() => onOpenPurchase(purchaseQuery)}>
+                    구매 건 보기
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={pending}
+                  onClick={() =>
+                    open({
+                      title: '처리 완료 기록',
+                      fields: [noteField('확인·조치 내용', 1000)],
+                      submitText: '기록',
+                      success: '처리 완료로 기록했어요.',
+                      action: (v) => unwrap(api.POST('/api/admin/payments/review/resolutions', { body: { key: s(row, 'key'), note: v.note } })),
+                    })
+                  }
+                >
+                  처리 완료 기록
+                </button>
+              </Item>
+            );
+          })
         }
       </ListBlock>
       {modal}
@@ -1310,15 +1352,194 @@ function PaymentsTab() {
   );
 }
 
+// ── 매칭권 구매 ─────────────────────────────────────────────
+// 환불 문의·그로블 취소 요청을 처리할 때 남은 장수와 환불 가능 금액을 확인한다. 환불 자체는 그로블 판매 관리에서 결제를 취소하고,
+// 원결제를 취소할 수 없어 운영팀이 계좌로 송금한 경우에만 송금 환불을 기록한다(서버가 장수 × 장당 가격으로 환불액을 계산).
+type AdminPassPurchase = components['schemas']['AdminPassPurchaseResponse'];
+type ManualRefund = components['schemas']['GrobleManualRefundResponse'];
+
+/** 구매 건 요약 행. 문의 탭(PASS_REFUND)과 함께 쓴다. */
+function purchaseRows(p: AdminPassPurchase): [string, ReactNode][] {
+  const remaining = p.remainingUnits == null ? '확인 불가(장부 불일치)' : `${p.remainingUnits}장`;
+  return [
+    ['회원', `${p.buyerNickname ?? '회원'} #${p.buyerUserId ?? ''}${p.buyerEmail ? `, ${p.buyerEmail}` : ''}`],
+    ['주문번호', p.orderNumber ?? ''],
+    ['결제 상태', [p.checkoutProvider === 'GROBLE' ? '그로블' : p.checkoutProvider ?? '', passPaymentNames[p.paymentStatus ?? ''] ?? p.paymentStatus ?? ''].filter(Boolean).join(' · ')],
+    ['구매', `${p.purchasedUnits ?? '-'}장 · ${won(p.priceKrw)} · ${p.unitPriceKrw != null ? `장당 ${won(p.unitPriceKrw)}` : '장당 가격 계산 불가'}`],
+    ['사용·회수·남은 장수', `사용 ${p.usedUnits ?? 0}장 · 회수 ${p.revokedUnits ?? 0}장 · 남은 ${remaining}`],
+    ['환불된 금액', won(p.refundedAmountKrw ?? 0)],
+    ['지금 환불 가능 금액', won(p.refundableAmountKrw ?? 0)],
+    ['유효기간', p.validUntil ? `${utcToLocal(p.validUntil)}까지` : p.grantedAt ? '기한 없음' : '지급 전'],
+    ['그로블 취소 요청', p.cancelRequestedAt ? `${utcToLocal(p.cancelRequestedAt)}${p.cancelRequestOpen ? ' · 처리 기록 전' : ''}` : ''],
+  ];
+}
+
+/** 운영팀 송금 환불 기록. 원결제를 취소할 수 없어 계좌로 송금한 경우에만 쓴다. 송금 자체는 하지 않는다. */
+function ManualRefundModal({ purchase, onClose, onDone }: { purchase: AdminPassPurchase; onClose: () => void; onDone: () => void }) {
+  const max = purchase.remainingUnits ?? 0;
+  const [units, setUnits] = useState(1);
+  const [reference, setReference] = useState('');
+  const [note, setNote] = useState('');
+  const { pending, run } = useAction();
+  const validUnits = Number.isInteger(units) && units >= 1 && units <= max;
+  const missing = !validUnits || !reference.trim() || !note.trim();
+  return (
+    <Modal title={`구매 #${purchase.purchaseId} 송금 환불 기록`} onClose={() => { if (!pending) onClose(); }}>
+      <form
+        noValidate
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (missing || purchase.paymentId == null) return;
+          const paymentId = purchase.paymentId;
+          const ok = await run(
+            () => unwrap(api.POST('/api/admin/payments/{paymentId}/groble-manual-refund', { params: { path: { paymentId } }, body: { units, transferReference: reference.trim(), decisionNote: note.trim() } })),
+            `송금 환불을 기록하고 매칭권 ${units}장을 회수했어요.`,
+          );
+          if (ok) onDone();
+        }}
+      >
+        <p className="prose">그로블에서 결제를 취소할 수 없어 운영팀이 계좌로 송금한 경우에만 기록하세요. 그로블에서 취소한 환불은 자동으로 반영돼요.</p>
+        <Field label="회수할 장수" required helper={`1 ~ ${max}장`}>
+          <input type="number" min={1} max={max} step={1} required value={units} onChange={(e) => setUnits(Number(e.target.value))} />
+        </Field>
+        <p className="record-note">
+          예상 환불액: {purchase.unitPriceKrw != null ? won((validUnits ? units : 0) * purchase.unitPriceKrw) : '장당 가격을 정할 수 없어 계산할 수 없어요'} (장수 × 장당 가격, 서버가 다시 계산해요)
+        </p>
+        <Field label="송금 식별자" required helper="이체 확인 번호 등. 같은 값으로 다시 보내면 기존 기록을 돌려줘요.">
+          <input required maxLength={100} value={reference} onChange={(e) => setReference(e.target.value)} />
+        </Field>
+        <Field label="처리 메모(내부 기록)" required helper="구매자에게는 보이지 않아요.">
+          <textarea rows={3} required maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        <div className="modal-actions">
+          <button type="button" className="btn secondary" disabled={pending} onClick={onClose}>
+            돌아가기
+          </button>
+          <button type="submit" className="btn danger" disabled={pending || missing}>
+            {pending ? '처리 중…' : '송금 환불 기록'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function ManualRefundHistory({ version }: { version: number }) {
+  const member = useMemberName();
+  const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/payments/groble-manual-refunds', { params: { query: { page: 0, size: 100 } } })));
+  useEffect(() => {
+    if (version) reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
+  return (
+    <ListBlock title="송금 환불 처리 이력" desc="운영팀이 계좌로 송금한 환불 기록이에요. 그로블 결제 취소로 반영된 환불은 여기에 없어요." load={load} reload={reload} empty="송금 환불 기록이 없어요.">
+      {(rows) =>
+        rows.map((row) => {
+          const r = row as unknown as ManualRefund;
+          return (
+            <Item
+              key={String(r.refundId)}
+              raw={row}
+              title={`결제 #${r.paymentId} · ${r.revokedUnits}장 · ${won(r.amountKrw)}`}
+              rows={[
+                ['결제 상태', passPaymentNames[r.paymentStatus] ?? r.paymentStatus],
+                ['송금 식별자', r.transferReference],
+                ['처리 메모(내부)', r.decisionNote],
+                ['처리한 관리자', member(r.decidedByUserId)],
+                ['처리 시각', utcToLocal(r.decidedAt)],
+              ]}
+            />
+          );
+        })
+      }
+    </ListBlock>
+  );
+}
+
+function PassPurchasesTab({ initialQuery }: { initialQuery: string }) {
+  const [input, setInput] = useState(initialQuery);
+  const [query, setQuery] = useState(initialQuery);
+  const [page, setPage] = useState(0);
+  const [refunding, setRefunding] = useState<AdminPassPurchase | null>(null);
+  const [version, setVersion] = useState(0);
+  const [load, reload] = useLoad<Raw[]>(
+    () =>
+      unwrap<unknown>(api.GET('/api/admin/pass-purchases', { params: { query: { q: query || undefined, page, size: 20 } } })).then(list, (e) => {
+        throw new Error(errorText(e));
+      }),
+    [query, page],
+  );
+  return (
+    <>
+      <section className="content-card">
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            setQuery(input.trim());
+            setPage(0);
+          }}
+        >
+          <Field label="검색" helper="회원 번호·구매 번호(숫자), 로그인 이메일(@ 포함), 주문번호 또는 닉네임 일부. 비우면 최근 구매순이에요.">
+            <input value={input} maxLength={200} onChange={(e) => setInput(e.target.value)} />
+          </Field>
+          <button type="submit" className="btn primary">
+            검색
+          </button>
+        </form>
+      </section>
+      <ListBlock title="매칭권 구매" desc="환불 문의와 그로블 취소 요청을 처리할 때 남은 장수와 지금 환불할 수 있는 금액을 확인해요. 이 화면은 환불하지 않아요. 결제 취소는 그로블 판매 관리에서 해요." load={load} reload={reload} empty="구매 건이 없어요.">
+        {(rows) =>
+          rows.map((row) => {
+            const p = row as unknown as AdminPassPurchase;
+            const refundable = p.checkoutProvider === 'GROBLE' && ['PAID', 'PARTIALLY_REFUNDED'].includes(p.paymentStatus ?? '') && (p.remainingUnits ?? 0) > 0 && p.paymentId != null;
+            return (
+              <Item key={String(p.purchaseId)} raw={row} title={`구매 #${p.purchaseId}`} rows={purchaseRows(p)}>
+                {refundable && (
+                  <button type="button" className="btn secondary" onClick={() => setRefunding(p)}>
+                    송금 환불 기록
+                  </button>
+                )}
+              </Item>
+            );
+          })
+        }
+      </ListBlock>
+      <div className="modal-actions">
+        <button type="button" className="btn ghost" disabled={page === 0 || load.status !== 'done'} onClick={() => setPage(page - 1)}>
+          이전
+        </button>
+        <span>{page + 1}페이지</span>
+        <button type="button" className="btn ghost" disabled={load.status !== 'done' || load.data.length < 20} onClick={() => setPage(page + 1)}>
+          다음
+        </button>
+      </div>
+      <ManualRefundHistory version={version} />
+      {refunding && (
+        <ManualRefundModal
+          purchase={refunding}
+          onClose={() => setRefunding(null)}
+          onDone={() => {
+            setRefunding(null);
+            reload();
+            setVersion((v) => v + 1);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 // ── 신고 ─────────────────────────────────────────────────
-// OPEN → INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING → RESOLVED/DISMISSED. 최종 처리 사유는 신고자에게 공개된다.
-// '처리 완료'는 조치(도우미 활동 제한·회원 이용 정지·후기 숨김)를 함께 실행할 수 있다. 조치 사유는 운영 내부 기록이고 신고자에게는 처리 사유만 공개된다.
+// OPEN → INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING → RESOLVED/DISMISSED. 처리 결과는 신고자와 신고 대상 모두에게 공개된다.
+// 조사 시작(INVESTIGATING)이면 신고 대상에게 알림이 가고, 대상은 받은 신고 화면에서 소명을 남길 수 있다.
+// '처리 완료'는 조치(도우미 활동 제한·회원 이용 정지·후기 숨김)를 함께 실행할 수 있다. 조치 사유는 운영 내부 기록이다.
 type ReportStatus = components['schemas']['ReportStatus'];
 type ReportAction = components['schemas']['ReportAction'];
 const reportStatusNames: Record<ReportStatus, string> = { OPEN: '접수', INVESTIGATING: '조사 중', RESOLVED: '처리 완료', DISMISSED: '처리 안 함' };
 const reportActionNames: Record<ReportAction, string> = { NONE: '조치 없이 기록만', RESTRICT_AGENT: '도우미 활동 제한', SUSPEND_USER: '회원 이용 정지', HIDE_REVIEW: '관련 거래의 후기 숨김' };
 const reportActionHelp: Record<ReportAction, string> = {
-  NONE: '신고 상태와 처리 사유만 기록해요.',
+  NONE: '신고 상태와 처리 결과만 기록해요.',
   RESTRICT_AGENT: '신고 대상의 도우미 공개 목록 노출과 요청 수신이 멈춰요. 이용자로서의 이용은 그대로예요. 대상에게 알림이 가요.',
   SUSPEND_USER: '신고 대상이 로그인할 수 없고 모든 로그인 세션이 끊겨요. 진행 중인 거래가 있어도 막혀요.',
   HIDE_REVIEW: '이 신고에 연결된 거래의 후기를 공개 목록에서 숨겨요. 연결된 거래가 없거나 후기가 없으면 처리되지 않아요.',
@@ -1364,7 +1585,7 @@ function StatusFilter<T extends string>({ value, onChange, options }: { value: T
   );
 }
 
-/** 신고 '처리 완료' 모달: 공개 처리 사유 + (선택) 조치와 내부 조치 사유. 조치가 실패하면 서버가 신고 처리도 취소한다. */
+/** 신고 '처리 완료' 모달: 공개 처리 결과 + (선택) 조치와 내부 조치 사유. 조치가 실패하면 서버가 신고 처리도 취소한다. */
 function ReportResolveModal({ row, onClose, onDone }: { row: Raw; onClose: () => void; onDone: () => void }) {
   const [note, setNote] = useState('');
   const [action, setAction] = useState<ReportAction>('NONE');
@@ -1399,7 +1620,7 @@ function ReportResolveModal({ row, onClose, onDone }: { row: Raw; onClose: () =>
           }
         }}
       >
-        <Field label="처리 사유 (신고자에게 공개)" required>
+        <Field label="처리 결과 (신고자와 신고 대상 모두에게 공개)" required>
           <textarea rows={3} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
         <Field label="함께 실행할 조치" helper={reportActionHelp[action]}>
@@ -1446,13 +1667,15 @@ function ReportsTab() {
   const { open, modal, pending } = useDialog(reload);
   const [detail, setDetail] = useState<number | null>(null);
   const [evidenceOf, setEvidenceOf] = useState<number | null>(null);
+  const [dealOf, setDealOf] = useState<number | null>(null);
+  const [statementsOf, setStatementsOf] = useState<number | null>(null);
   const [resolving, setResolving] = useState<Raw | null>(null);
   const update = (row: Raw, next: ReportStatus) =>
     open({
       title: next === 'INVESTIGATING' ? `신고 #${n(row, 'reportId')} 조사 시작` : `신고 #${n(row, 'reportId')} ${reportStatusNames[next]}`,
       // 조사 시작은 입력할 내용이 없어(서버가 메모를 받지 않음) 무엇이 바뀌는지만 안내한다.
       message: next === 'INVESTIGATING' ? '신고 상태를 "조사 중"으로 바꿔요. 신고자에게 조사 중으로 보이고, 조사를 마치면 처리 완료나 처리 안 함으로 닫을 수 있어요.' : undefined,
-      fields: next === 'INVESTIGATING' ? [] : [{ name: 'note', label: '처리 사유 (신고자에게 공개)', required: true, type: 'textarea', maxLength: 2000 }],
+      fields: next === 'INVESTIGATING' ? [] : [{ name: 'note', label: '처리 결과 (신고자와 신고 대상 모두에게 공개)', required: true, type: 'textarea', maxLength: 2000 }],
       submitText: next === 'INVESTIGATING' ? '조사 시작' : reportStatusNames[next],
       danger: next === 'DISMISSED',
       success: next === 'INVESTIGATING' ? '조사 중으로 바꿨어요.' : '신고 처리를 기록했어요.',
@@ -1462,7 +1685,7 @@ function ReportsTab() {
   return (
     <>
       <StatusFilter value={status} onChange={setStatus} options={Object.entries(reportStatusNames) as [ReportStatus, string][]} />
-      <ListBlock title="신고 목록" desc="처리 사유는 신고자에게 공개돼요. '처리 완료'에서 도우미 활동 제한·이용 정지·후기 숨김 같은 조치를 함께 실행할 수 있고, 조치 사유는 운영 내부에만 남아요. '증빙 보기'로 신고자가 올린 자료를 확인할 수 있어요(본인이 신고자·대상인 신고는 볼 수 없어요)." load={load} reload={reload} empty="해당 상태의 신고가 없어요.">
+      <ListBlock title="신고 목록" desc="처리 결과는 신고자와 신고 대상 모두에게 공개돼요. 조사 시작을 누르면 신고 대상에게 알림이 가고, 대상은 소명을 남길 수 있어요. '처리 완료'에서 도우미 활동 제한·이용 정지·후기 숨김 같은 조치를 함께 실행할 수 있고, 조치 사유는 운영 내부에만 남아요. '증빙 보기'로 신고자가 올린 자료를 확인할 수 있어요(본인이 신고자·대상인 신고는 볼 수 없어요)." load={load} reload={reload} empty="해당 상태의 신고가 없어요.">
         {(rows) =>
           rows.map((row) => {
             const st = s(row, 'status') as ReportStatus;
@@ -1476,7 +1699,7 @@ function ReportsTab() {
                   ['신고자 → 대상', `${member(n(row, 'reporterUserId'))} → ${member(n(row, 'reportedUserId'))}`],
                   ['관련 거래', n(row, 'requestId') ? `#${n(row, 'requestId')}` : ''],
                   ['내용', s(row, 'description')],
-                  ['처리 사유', s(row, 'resolutionNote')],
+                  ['처리 결과', s(row, 'resolutionNote')],
                   ['실행한 조치', s(row, 'actionTaken') && s(row, 'actionTaken') !== 'NONE' ? (reportActionNames[s(row, 'actionTaken') as ReportAction] ?? s(row, 'actionTaken')) : ''],
                   ['조치 사유(내부)', s(row, 'actionReason')],
                   ['접수', utcToLocal(s(row, 'createdAt'))],
@@ -1488,6 +1711,14 @@ function ReportsTab() {
                 </button>
                 <button type="button" className="btn secondary" onClick={() => setEvidenceOf(n(row, 'reportId')!)}>
                   증빙 보기
+                </button>
+                {n(row, 'requestId') != null && (
+                  <button type="button" className="btn secondary" onClick={() => setDealOf(n(row, 'reportId')!)}>
+                    거래 조건·이력 보기
+                  </button>
+                )}
+                <button type="button" className="btn secondary" onClick={() => setStatementsOf(n(row, 'reportId')!)}>
+                  소명 보기
                 </button>
                 {st === 'OPEN' && (
                   <button type="button" className="btn secondary" disabled={pending} onClick={() => update(row, 'INVESTIGATING')}>
@@ -1513,7 +1744,161 @@ function ReportsTab() {
       {resolving && <ReportResolveModal row={resolving} onClose={() => setResolving(null)} onDone={reload} />}
       {detail !== null && <DetailModal title={`신고 #${detail}`} fetcher={() => unwrap(api.GET('/api/admin/reports/{reportId}', { params: { path: { reportId: detail } } }))} onClose={() => setDetail(null)} />}
       {evidenceOf !== null && <ReportEvidenceModal reportId={evidenceOf} onClose={() => setEvidenceOf(null)} />}
+      {dealOf !== null && <ReportDealModal reportId={dealOf} onClose={() => setDealOf(null)} />}
+      {statementsOf !== null && <ReportStatementsModal reportId={statementsOf} onClose={() => setStatementsOf(null)} />}
     </>
+  );
+}
+
+const agreementStatusNames: Record<string, string> = { PROPOSED: '제안', FINALIZED: '확정' };
+const partyNames: Record<string, string> = { REQUESTER: '이용자', AGENT: '도우미' };
+const requestStatusNames: Record<string, string> = { PENDING: '응답 대기', MATCHED: '매칭됨', MATCHING_COMPLETED: '직접 거래 매칭 완료', IN_PROGRESS: '진행 중', DISPUTED: '분쟁', COMPLETED: '완료', CANCELLED: '취소', REJECTED: '거절', EXPIRED: '만료' };
+const reportDealError = (e: unknown) =>
+  e instanceof ApiError && e.status === 404 ? '이 신고에 연결된 거래가 없어요.' : e instanceof ApiError && e.status === 403 ? '본인이 당사자인 신고·거래는 볼 수 없어요.' : errorText(e);
+
+/** 신고에 연결된 거래의 요청 내용, 조건 버전별 내용, 조건 수정 요청, 상태 이력(GET /api/admin/reports/{id}/deal) */
+function ReportDealModal({ reportId, onClose }: { reportId: number; onClose: () => void }) {
+  const member = useMemberName();
+  const [load] = useLoad<Raw>(
+    () =>
+      unwrap<unknown>(api.GET('/api/admin/reports/{reportId}/deal', { params: { path: { reportId } } })).then(
+        (d) => (d ?? {}) as Raw,
+        (e) => Promise.reject(new Error(reportDealError(e))),
+      ),
+    [reportId],
+  );
+  const party = (id: number | undefined) => (id == null ? '' : member(id));
+  const time = (raw: unknown, key: string) => utcToLocal(s(raw, key));
+  return (
+    <Modal title={`신고 #${reportId} 거래 조건·이력`} onClose={onClose} wide>
+      {load.status === 'loading' ? (
+        <p className="prose">불러오는 중이에요.</p>
+      ) : load.status === 'error' ? (
+        <Notice tone="error">{load.message}</Notice>
+      ) : (
+        (() => {
+          const request = (pick(load.data, 'request') ?? {}) as Raw;
+          const agreements = list(pick(load.data, 'agreements'));
+          const changes = list(pick(load.data, 'changeRequests'));
+          const history = list(pick(load.data, 'history'));
+          return (
+            <>
+              <h3>요청 요약</h3>
+              <Item
+                raw={request}
+                title={`#${n(request, 'requestId', 'id') ?? ''} ${s(request, 'submittedTargetName', 'targetName')}`}
+                rows={[
+                  ['이용자 → 도우미', `${s(request, 'requesterName') || party(n(request, 'requesterUserId'))} → ${s(request, 'agentName') || party(n(request, 'agentUserId'))}`],
+                  ['상태', requestStatusNames[s(request, 'status')] ?? s(request, 'status')],
+                  ['티켓 오픈 시각', time(request, 'opensAt')],
+                  ['이용 예정 시각', time(request, 'useAt')],
+                  ...requestRows(toRequest(request)),
+                ]}
+              />
+              <h3>조건 버전</h3>
+              {agreements.length === 0 && <p className="record-note">제안된 조건이 없어요.</p>}
+              {agreements.map((a, i) => (
+                <Item
+                  key={i}
+                  raw={a}
+                  title={`${n(a, 'version') ?? i + 1}차 · ${agreementStatusNames[s(a, 'status')] ?? s(a, 'status')} · ${partyNames[s(a, 'proposedByRole')] ?? s(a, 'proposedByRole')} 제안`}
+                  rows={[
+                    ['착수비', won(n(a, 'upfrontFeeKrw'))],
+                    ['수고비', won(n(a, 'successFeeKrw'))],
+                    ['성공 조건', s(a, 'successConditions')],
+                    ['시도 규칙', s(a, 'attemptRule')],
+                    ['실패·환불 처리', s(a, 'refundRule')],
+                    ['희망 좌석·요청 내용', s(a, 'requirements')],
+                    ['결과 연락 기한', s(a, 'contactDeadlineRule')],
+                    ['수정 사유', s(a, 'reason')],
+                    ['기타 사항', s(a, 'additionalNote')],
+                    ['이용자 동의', time(a, 'requesterAcceptedAt')],
+                    ['도우미 동의', time(a, 'agentAcceptedAt')],
+                    ['확정 시각', time(a, 'finalizedAt')],
+                    ['제안 시각', time(a, 'createdAt')],
+                  ]}
+                />
+              ))}
+              <h3>수정 요청</h3>
+              {changes.length === 0 && <p className="record-note">수정 요청이 없어요.</p>}
+              {changes.map((c, i) => (
+                <Item
+                  key={i}
+                  raw={c}
+                  title={`조건 #${n(c, 'agreementId') ?? ''} 수정 요청`}
+                  rows={[
+                    ['요청한 회원', party(n(c, 'requestedByUserId'))],
+                    ['사유', s(c, 'reason')],
+                    ['요청 시각', time(c, 'requestedAt')],
+                    ['해결 시각', time(c, 'resolvedAt') || '미해결'],
+                  ]}
+                />
+              ))}
+              <h3>상태 이력</h3>
+              {history.length === 0 && <p className="record-note">상태 이력이 없어요.</p>}
+              {history.map((h, i) => (
+                <Item
+                  key={i}
+                  raw={h}
+                  title={`${requestStatusNames[s(h, 'fromStatus')] ?? (s(h, 'fromStatus') || '시작')} → ${requestStatusNames[s(h, 'toStatus')] ?? s(h, 'toStatus')}`}
+                  rows={[
+                    ['바꾼 회원', party(n(h, 'changedByUserId'))],
+                    ['사유', s(h, 'reason')],
+                    ['시각', time(h, 'changedAt')],
+                  ]}
+                />
+              ))}
+            </>
+          );
+        })()
+      )}
+      <div className="modal-actions">
+        <button type="button" className="btn secondary" onClick={onClose}>
+          닫기
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/** 신고 대상 회원이 남긴 소명(오래된 순, GET /api/admin/reports/{id}/statements) */
+function ReportStatementsModal({ reportId, onClose }: { reportId: number; onClose: () => void }) {
+  const member = useMemberName();
+  const [load] = useLoad<Raw[]>(
+    () =>
+      unwrap<unknown>(api.GET('/api/admin/reports/{reportId}/statements', { params: { path: { reportId } } })).then(list, (e) =>
+        Promise.reject(new Error(e instanceof ApiError && e.status === 403 ? '본인이 신고자이거나 신고 대상인 신고의 소명은 볼 수 없어요.' : errorText(e))),
+      ),
+    [reportId],
+  );
+  return (
+    <Modal title={`신고 #${reportId} 소명`} onClose={onClose}>
+      {load.status === 'loading' ? (
+        <p className="prose">불러오는 중이에요.</p>
+      ) : load.status === 'error' ? (
+        <Notice tone="error">{load.message}</Notice>
+      ) : load.data.length ? (
+        <div className="tx-file-list">
+          {load.data.map((st, i) => (
+            <div key={String(n(st, 'statementId') ?? i)} className="tx-file-view">
+              <div>
+                <strong>
+                  {member(n(st, 'authorUserId'))} · {utcToLocal(s(st, 'createdAt'))}
+                </strong>
+                <small style={{ whiteSpace: 'pre-wrap' }}>{s(st, 'content')}</small>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="record-note">신고 대상이 남긴 소명이 없어요.</p>
+      )}
+      <div className="modal-actions">
+        <button type="button" className="btn secondary" onClick={onClose}>
+          닫기
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -1624,11 +2009,11 @@ function ReviewsTab() {
                     onClick={() =>
                       open({
                         title: '후기를 숨길까요? 다시 공개할 수 없어요.',
-                        fields: [],
+                        fields: [{ name: 'reason', label: '숨김 사유 (작성자에게 보여요, 선택)', type: 'textarea', maxLength: 500 }],
                         submitText: '숨기기',
                         danger: true,
                         success: '후기를 숨겼어요.',
-                        action: () => unwrap(api.POST('/api/admin/reviews/{requestId}/hide', { params: { path: { requestId: n(row, 'requestId')! } } })),
+                        action: (v) => unwrap(api.POST('/api/admin/reviews/{requestId}/hide', { params: { path: { requestId: n(row, 'requestId')! } }, body: { reason: v.reason || undefined } })),
                       })
                     }
                   >
@@ -1653,7 +2038,12 @@ function UsersTab() {
   const restrict = (row: Raw, kind: 'user' | 'agent', suspended: boolean) =>
     open({
       title: `${kind === 'user' ? '이용' : '도우미 활동'} ${suspended ? '정지' : '정지 해제'}`,
-      fields: [noteField('사유', 500)],
+      // 정지 사유는 회원에게 보인다(이용 정지: 로그인 안내와 알림, 도우미 활동 정지: 알림). 해제할 때는 해제 사실만 알린다.
+      fields: [
+        suspended
+          ? { ...noteField('사유 (회원에게 보여요)', 500), helper: `${kind === 'user' ? '로그인 화면과 알림' : '알림'}으로 회원에게 안내돼요. 내부 메모는 적지 마세요.` }
+          : { ...noteField('해제 사유', 500), helper: '회원에게는 해제됐다는 사실만 알려요.' },
+      ],
       submitText: suspended ? '정지' : '해제',
       danger: suspended,
       success: suspended ? '정지했어요.' : '해제했어요.',
@@ -1677,6 +2067,7 @@ function UsersTab() {
                 rows={[
                   ['이메일', s(row, 'email')],
                   ['상태', s(row, 'status')],
+                  ['도우미 활동 정지 사유', s(row, 'agentSuspensionReason')],
                   ['본인인증', s(row, 'identityStatus')],
                   ['관리자', pick(row, 'isAdmin', 'admin') ? '예' : ''],
                   ['가입', utcToLocal(s(row, 'createdAt'))],
@@ -1953,7 +2344,13 @@ function PassRestorationTab() {
 }
 
 export function AdminPage() {
-  const [tab, setTab] = useState<Tab>('policy');
+  // ?tab=으로 처음 탭을 고르고(알림에서 /admin?tab=payments 등으로 들어온다), 탭을 바꾸면 주소의 tab도 바꾼다.
+  // 매칭권 구매 탭은 ?q=로 검색어를 받는다(결제 확인의 '구매 건 보기').
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('tab');
+  const tab: Tab = tabs.find(([key]) => key === requested)?.[0] ?? 'policy';
+  const purchaseQuery = params.get('q') ?? '';
+  const setTab = (key: Tab) => setParams({ tab: key }, { replace: true });
   return (
     <>
       <PageTitle title="관리자" />
@@ -1974,7 +2371,8 @@ export function AdminPage() {
       {tab === 'settlements' && <SettlementsTab />}
       {tab === 'requests' && <RequestsTab />}
       {tab === 'resolved' && <ResolvedTab />}
-      {tab === 'payments' && <PaymentsTab />}
+      {tab === 'payments' && <PaymentsTab onOpenPurchase={(q) => setParams({ tab: 'pass-purchases', q })} />}
+      {tab === 'pass-purchases' && <PassPurchasesTab key={purchaseQuery} initialQuery={purchaseQuery} />}
       {tab === 'reports' && <ReportsTab />}
       {tab === 'reviews' && <ReviewsTab />}
       {tab === 'users' && <UsersTab />}

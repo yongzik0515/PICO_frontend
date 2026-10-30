@@ -189,6 +189,8 @@ export interface CareerCase {
   status: string;
   /** clean · pending · blocked · unknown(응답에 검사 상태 없음) */
   scan: 'clean' | 'pending' | 'blocked' | 'unknown';
+  /** 차단된 첨부에 관리자가 쓴 차단 사유(값이 있는 것만) */
+  blockedReasons: string[];
 }
 export function careerCaseStates(evidence: Raw[]): CareerCase[] {
   const latest = new Map<number, Raw>();
@@ -202,7 +204,8 @@ export function careerCaseStates(evidence: Raw[]): CareerCase[] {
       const files = list(pick(e, 'attachments'));
       const states = files.length ? files.map((f) => str(f.scanStatus) ?? '') : [str(pick(e, 'scanStatus')) ?? ''];
       const scan: CareerCase['scan'] = states.some((x) => x === 'BLOCKED') ? 'blocked' : states.every((x) => x === 'CLEAN') ? 'clean' : states.every((x) => !x) ? 'unknown' : 'pending';
-      return { caseNumber, status: str(e.status) ?? 'SUBMITTED', scan };
+      const blockedReasons = files.filter((f) => str(f.scanStatus) === 'BLOCKED').map((f) => str(f.blockedReason)?.trim() ?? '').filter(Boolean);
+      return { caseNumber, status: str(e.status) ?? 'SUBMITTED', scan, blockedReasons };
     })
     .filter((c) => ['SUBMITTED', 'APPROVED'].includes(c.status))
     .sort((a, b) => a.caseNumber - b.caseNumber);

@@ -9,7 +9,7 @@ import { Avatar, Badges, FavoriteButton } from '../discovery/AgentCard';
 import { Icon } from '../ui/Icon';
 import { ImagePreview } from '../ui/ImagePreview';
 import { PageTitle } from '../ui/PageTitle';
-import { money, responseTime, successRate } from '../ui/format';
+import { money, responseTime, successRate, successRateBasis } from '../ui/format';
 import { useToast } from '../ui/Toast';
 import './profile-aside.css';
 
@@ -202,13 +202,14 @@ export function ProfilePage() {
             </div>
             <div className="profile-stats">
               {[
-                ['성공률', successRate(a.success)],
+                ['성공률', successRate(a.success), successRateBasis(a.success, a.successReviews)],
                 ['거래 횟수', a.trades + '회'],
                 ['평균 응답', responseTime(a.reply)],
-              ].map(([k, v]) => (
+              ].map(([k, v, basis]) => (
                 <div key={k} className="info-tile">
                   <span>{k}</span>
                   <strong>{v}</strong>
+                  {basis && <small className="muted">{basis}</small>}
                 </div>
               ))}
             </div>
@@ -290,9 +291,12 @@ export function ProfilePage() {
               도우미가 최종 조건으로 제안해요.
             </p>
             {mode === 'user' ? (
-              <button type="button" className="btn primary full" onClick={() => navigate(`/quote/${a.id}`)}>
-                이 도우미에게 요청하기
-              </button>
+              <>
+                <button type="button" className="btn primary full" disabled={!a.acceptsRequests} onClick={() => navigate(`/quote/${a.id}`)}>
+                  이 도우미에게 요청하기
+                </button>
+                {!a.acceptsRequests && <p className="record-note">지금은 새 요청을 받지 않아요</p>}
+              </>
             ) : (
               <button className="btn secondary full" onClick={() => setState((s) => ({ ...s, mode: 'user' }))}>
                 이용자로 전환해 요청하기
@@ -317,9 +321,12 @@ export function ProfilePage() {
           <strong>{money(a.fee)}원부터</strong>
         </div>
         {mode === 'user' ? (
-          <button type="button" className="btn primary" onClick={() => navigate(`/quote/${a.id}`)}>
-            이 도우미에게 요청하기
-          </button>
+          <>
+            {!a.acceptsRequests && <p className="record-note">지금은 새 요청을 받지 않아요</p>}
+            <button type="button" className="btn primary" disabled={!a.acceptsRequests} onClick={() => navigate(`/quote/${a.id}`)}>
+              이 도우미에게 요청하기
+            </button>
+          </>
         ) : (
           <button type="button" className="btn secondary" onClick={() => setState((s) => ({ ...s, mode: 'user' }))}>
             이용자로 전환해 요청하기

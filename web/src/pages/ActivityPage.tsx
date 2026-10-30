@@ -13,11 +13,14 @@ import { PageTitle } from '../ui/PageTitle';
 // 목록은 GET /api/requests?role=REQUESTER|AGENT. 목록에는 합의·결제 정보가 없어 요청 상태(RequestStatus)로만 나눈다.
 const closed = ['MATCHING_COMPLETED', 'COMPLETED', 'REJECTED', 'EXPIRED', 'CANCELLED'];
 const closedNames: Record<string, string> = { MATCHING_COMPLETED: '직접 거래 매칭 완료', COMPLETED: '거래 완료', REJECTED: '요청 거절', EXPIRED: '요청 만료', CANCELLED: '요청 취소' };
+/** 이용 예정 시각 전의 직접 거래 매칭 완료(BOOKING_UPCOMING)는 진행중으로 본다. */
+const upcoming = (r: TxRequest) => roughStage(r) === 'booking_upcoming';
+const isEnded = (r: TxRequest) => closed.includes(r.status) && !upcoming(r);
 
 function Ticket({ r, agent }: { r: TxRequest; agent: boolean }) {
   const person = agent ? r.requesterName : r.agentName;
   const waiting = r.status === 'PENDING';
-  const ended = closed.includes(r.status);
+  const ended = isEnded(r);
   // 서버 stage가 있으면 지금 누구 차례인지 그대로 보여 준다(가이드 6-5).
   const stage = roughStage(r);
   const label = ended
@@ -106,7 +109,7 @@ export function UserActivityPage() {
   const [tab, setTab] = useState('all');
   const [load, reload] = useLoad(() => fetchRequests('REQUESTER'), [], { refreshOnFocus: true });
   const all = load.status === 'done' ? load.data : [];
-  const shown = all.filter((r) => tab === 'all' || (tab === 'request' ? r.status === 'PENDING' : tab === 'progress' ? !closed.includes(r.status) && r.status !== 'PENDING' : closed.includes(r.status)));
+  const shown = all.filter((r) => tab === 'all' || (tab === 'request' ? r.status === 'PENDING' : tab === 'progress' ? !isEnded(r) && r.status !== 'PENDING' : isEnded(r)));
   return (
     <>
       <PageTitle title="내 활동" />
@@ -195,7 +198,7 @@ export function AgentActivityPage({ kind }: { kind: 'leads' | 'matches' }) {
       ? tab === 'closed'
         ? r.status !== 'PENDING'
         : r.status === 'PENDING'
-      : tab === 'all' || (tab === 'progress' ? ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status) : closed.includes(r.status)),
+      : tab === 'all' || (tab === 'progress' ? ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status) || upcoming(r) : isEnded(r)),
   );
   const tabs: [string, string][] = received
     ? [
@@ -230,7 +233,7 @@ export function AgentActivityPage({ kind }: { kind: 'leads' | 'matches' }) {
         <div>
           <small>{received ? '답변할 요청' : '진행 중인 거래'}</small>
           <strong>
-            {received ? all.filter((r) => r.status === 'PENDING').length : all.filter((r) => ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status)).length}
+            {received ? all.filter((r) => r.status === 'PENDING').length : all.filter((r) => ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status) || upcoming(r)).length}
             <span>건</span>
           </strong>
         </div>

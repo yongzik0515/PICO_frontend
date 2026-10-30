@@ -54,8 +54,8 @@ export function StatusBadge({ stage }: { stage: Stage }) {
 }
 
 const nextCopy: Record<Stage, [string, string, string?]> = {
-  policy_review: ['운영팀이 요청을 확인하고 있어요', '대리 신청 정책 검토가 끝나면 도우미가 수락할 수 있어요.', '운영팀의 정책 검토가 끝나면 수락할 수 있어요.'],
-  policy_blocked: ['운영 정책상 진행할 수 없는 요청이에요', '해당 공연·예매처는 대리 신청이 허용되지 않아요. 요청을 취소하거나 내용을 수정해 주세요.', '운영 정책상 수락할 수 없는 요청이에요.'],
+  policy_review: ['운영팀이 요청 내용을 확인하고 있어요', '확인이 끝나면 도우미에게 전달해요.', '운영팀의 정책 검토가 끝나면 수락할 수 있어요.'],
+  policy_blocked: ['요청을 도우미에게 보낼 수 없어요', '아래 사유를 확인하고 요청을 고치거나 취소해 주세요.', '운영 정책상 수락할 수 없는 요청이에요.'],
   pending: ['도우미가 요청을 확인할 차례예요', '수락 전에는 요청 내용을 수정하거나 취소할 수 있어요.', '요청을 확인하고 수락하거나 거절해 주세요.'],
   terms_needed: ['도우미가 첫 최종 조건을 작성할 차례예요', '도우미의 첫 제안이 도착하면 확정하거나 조건과 사유를 함께 수정 제안할 수 있어요.', '비용과 진행 조건을 정해 첫 제안을 보내 주세요.'],
   // 도우미가 보낸 조건 기준. 이용자가 보낸 조건이면 NextStep에서 확인하는 쪽을 도우미로 바꾼다.
@@ -66,6 +66,8 @@ const nextCopy: Record<Stage, [string, string, string?]> = {
   in_progress: ['도우미가 예매 결과를 등록할 차례예요', '도우미가 올린 시도 증빙을 확인하며 결과를 기다려 주세요.', '시도 증빙을 올리고, 예매가 끝나면 결과 증빙을 올려 주세요. 운영팀 파일 검토 후 결과를 제출할 수 있어요.'],
   result_submitted: ['이용자가 예매 결과를 확인할 차례예요', '확정 조건과 등록된 결과를 함께 확인해 주세요.', '이용자가 결과를 확인하고 있어요.'],
   disputed: ['양쪽 결과가 달라 운영팀이 확인하고 있어요', '운영팀이 증빙을 검토해 결과를 확정해요.'],
+  opening_passed: ['티켓 오픈 시각이 지나 조건을 확정할 수 없어요', '거래를 취소해 주세요.'],
+  booking_upcoming: ['직접 거래 매칭이 완료됐어요', '이용 예정일까지는 진행 중으로 보여요. 착수·결과 등록 없이 당사자끼리 진행해요.', '이용 예정일까지는 진행 중으로 보여요. 착수·결과 등록 없이 이용자와 직접 진행해 주세요.'],
   matching_completed: ['직접 거래 매칭을 마쳤어요', '착수·결과 등록 없이 당사자끼리 진행해요. 이용자는 거래 경험과 예매 결과를 후기로 남길 수 있어요.', '착수·결과 등록 없이 이용자와 직접 진행해 주세요.'],
   completed: ['결과 확인을 마쳤어요', '안전거래라면 정산·환불은 확정된 결과와 합의 조건에 따라 처리돼요. 직접 거래는 당사자끼리 정산해요.'],
   cancelled: ['이 요청은 취소되었어요', '새 요청은 도우미 프로필에서 보낼 수 있어요.'],
@@ -102,7 +104,7 @@ export function NextStep({ stage, role, proposedBy, myName }: { stage: Stage; ro
 
 const steps: [string, Stage[]][] = [
   ['요청 보내기', ['policy_review', 'policy_blocked', 'pending']],
-  ['요청 수락 · 조건 작성', ['terms_needed', 'revision_requested']],
+  ['요청 수락 · 조건 작성', ['terms_needed', 'revision_requested', 'opening_passed']],
   ['이용자 조건 확인', ['terms_sent']],
   ['안전거래 결제', ['payment']],
   ['착수 · 예매 · 결과 등록', ['ready', 'in_progress']],
@@ -113,7 +115,7 @@ const steps: [string, Stage[]][] = [
 export function Progress({ stage, direct = false, proposedBy }: { stage: Stage; direct?: boolean; proposedBy?: 'REQUESTER' | 'AGENT' }) {
   const named = steps.map(([label, s]): [string, Stage[]] => [s.includes('terms_sent') ? `${proposedBy === 'REQUESTER' ? '도우미' : '이용자'} 조건 확인` : label, s]);
   const shown: [string, Stage[]][] = direct
-    ? [...named.slice(0, 3), ['매칭 완료 · 후기', ['matching_completed', 'completed']]]
+    ? [...named.slice(0, 3), ['매칭 완료 · 후기', ['booking_upcoming', 'matching_completed', 'completed']]]
     : named;
   const active = shown.findIndex(([, s]) => s.includes(stage));
   return (
