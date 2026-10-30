@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 const legalDocuments = JSON.parse(await readFile(new URL('../src/legal/legalDocuments.json', import.meta.url), 'utf8'));
 
 // Published bytes are immutable. Change the version when changing a published document.
-const version = '2026-10-30.3';
-const effectiveAt = '2026-10-30T12:44:37';
+const version = '2026-10-30.4';
+const effectiveAt = '2026-10-30T13:00:10';
 const effectiveDate = '2026년 10월 30일';
 const privacyUrl = `/legal/${version}/privacy.html`;
 const termsUrl = `/legal/${version}/terms.html`;
@@ -18,9 +18,9 @@ const directory = new URL(`../public/legal/${version}/`, import.meta.url);
 await mkdir(directory, { recursive: true });
 const manifest = [];
 for (const [type, filename, documents, previousUrl] of [
-  ['PRIVACY', 'privacy', [legalDocuments.signupPrivacy, legalDocuments.privacy], '/legal/2026-10-31.2/privacy.html'],
-  ['TERMS', 'terms', [legalDocuments.terms], '/legal/2026-10-30.2/terms.html'],
-  ['CONTACT_SHARING', 'contact-sharing', [legalDocuments.contactSharing], '/legal/2026-10-31/contact-sharing.html'],
+  ['PRIVACY', 'privacy', [legalDocuments.signupPrivacy, legalDocuments.privacy], '/legal/2026-10-30.3/privacy.html'],
+  ['TERMS', 'terms', [legalDocuments.terms], '/legal/2026-10-30.3/terms.html'],
+  ['CONTACT_SHARING', 'contact-sharing', [legalDocuments.contactSharing], '/legal/2026-10-30.3/contact-sharing.html'],
 ]) {
   const html = `<!doctype html>\n<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(documents[0].title)} · PICO</title><style>body{max-width:880px;margin:0 auto;padding:24px 20px;color:#202632;font:16px/1.8 system-ui,sans-serif;word-break:keep-all;overflow-wrap:anywhere}nav{display:flex;flex-wrap:wrap;gap:16px;font-size:14px}a{color:#5144bd}h1{font-size:28px}h2{font-size:20px;margin-top:36px}article+article{border-top:1px solid #ddd;margin-top:48px;padding-top:24px}.table{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border:1px solid #ddd;padding:12px;text-align:left;vertical-align:top}thead{background:#f5f6fa}tbody th{min-width:80px}@media(max-width:480px){body{font-size:14px;padding:20px 16px}h1{font-size:24px}table{font-size:12px}th,td{padding:8px}}</style></head><body><nav><a href="/">PICO 홈</a><a href="${termsUrl}">이용약관</a><a href="${privacyUrl}">개인정보 수집·이용 및 처리방침</a><a href="${contactUrl}">연락처 제공 동의</a></nav><p>시행일: ${effectiveDate} · 버전 ${version}</p><p><a href="${previousUrl}">이전 버전 문서 보기</a></p>${documents.map(article).join('')}</body></html>\n`;
   const target = new URL(`${filename}.html`, directory);
