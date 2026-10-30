@@ -113,8 +113,10 @@ export function HomePage() {
     return () => { controller.abort(); window.clearInterval(timer); };
   }, []);
 
+  // query는 검색에 쓰는 확정 검색어다. 입력란 글자(input)는 Enter·돋보기·인기 검색 칩으로 확정할 때만 query가 된다.
   const { query, sort, filters } = state;
-  // Enter·검색 버튼으로 확정한 검색어를 AI가 고친 결과. 입력을 바꾸면(query가 달라지면) 더 쓰지 않는다.
+  const [input, setInput] = useState(query);
+  // Enter·검색 버튼으로 확정한 검색어를 AI가 고친 결과. 다른 검색어를 확정하면(query가 달라지면) 더 쓰지 않는다.
   const [aiAlias, setAiAlias] = useState<{ query: string; keyword: string } | null>(null);
   const alias = aiAlias && aiAlias.query === query.trim() ? aiAlias.keyword : undefined;
   const result = useAgentSearch(query, sort, filters, reload, alias);
@@ -123,9 +125,13 @@ export function HomePage() {
   const labels = filterLabels(filters);
   const search = !!query || labels.length > 0;
   const setFilters = (f: Filters) => setState((s) => ({ ...s, filters: f }));
-  const reset = () => setState((s) => ({ ...s, query: '', filters: emptyFilters() }));
+  const reset = () => {
+    setInput('');
+    setState((s) => ({ ...s, query: '', filters: emptyFilters() }));
+  };
   /** ai=false: 인기 검색어 칩처럼 이미 정리된 이름은 AI를 부르지 않는다. */
-  function submitSearch(keyword = query, ai = true) {
+  function submitSearch(keyword = input, ai = true) {
+    setInput(keyword);
     setState((s) => ({ ...s, query: keyword }));
     setReload((n) => n + 1);
     void recordSearch(keyword);
@@ -155,13 +161,14 @@ export function HomePage() {
           <input
             id="search"
             type="search"
-            value={query}
+            value={input}
             placeholder="공연명, 도우미 이름, 예매처를 검색해 보세요"
             aria-label="도우미 검색"
-            onChange={(e) => setState((s) => ({ ...s, query: e.target.value }))}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitSearch(); }}
+            onChange={(e) => setInput(e.target.value)}
+            // 한글 조합 중의 Enter는 건너뛴다. 조합이 끝난 마지막 글자까지 들어가도록 입력란의 현재 값으로 검색한다.
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitSearch(e.currentTarget.value); }}
           />
-          {/* 돋보기를 입력란 오른쪽 끝의 누를 수 있는 칩으로 둔다. 목록은 입력하는 대로 갱신되고, 이 버튼은 다시 불러온다. */}
+          {/* 돋보기를 입력란 오른쪽 끝의 누를 수 있는 칩으로 둔다. 목록은 Enter나 이 버튼을 눌러야 검색어로 갱신된다. */}
           <button type="button" className="search-chip" aria-label="검색" onClick={() => submitSearch()}>
             <Icon name="search" size={20} />
           </button>
