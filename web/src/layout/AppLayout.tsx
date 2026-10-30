@@ -18,8 +18,7 @@ const BIZ = {
   hosting: 'Amazon Web Services (AWS)', // 호스팅 서비스 제공자 (예: Amazon Web Services)
   cpo: '박진영', // 개인정보보호책임자 성명
   cpoEmail: '', // 개인정보보호책임자 연락처
-  tel: '070-8984-4636', // 고객센터 전화번호 (예: 02-0000-0000 (평일 10:00~18:00))
-  email: '', // 고객 문의 이메일
+  email: 'support@pico-kr.app', // 고객 문의 이메일
 };
 
 type BizItem = { label: string; value: string };
@@ -41,8 +40,7 @@ function bizLines(): BizItem[][] {
       { label: '호스팅제공자', value: BIZ.hosting },
     ],
     [
-      { label: '고객센터', value: BIZ.tel },
-      { label: '이메일', value: BIZ.email },
+      { label: '고객센터 이메일', value: BIZ.email },
     ],
   ];
   return lines.map((l) => l.filter((i) => i.value)).filter((l) => l.length);
