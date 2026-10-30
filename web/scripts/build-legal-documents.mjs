@@ -5,7 +5,7 @@ const legalDocuments = JSON.parse(await readFile(new URL('../src/legal/legalDocu
 
 // Published bytes are immutable. Change the version when changing a published document.
 const privacyUrl = '/legal/2026-10-31.1/privacy.html';
-const termsUrl = '/legal/2026-11-06/terms.html';
+const termsUrl = '/legal/2026-10-30.1/terms.html';
 const contactUrl = '/legal/2026-10-31/contact-sharing.html';
 const escape = (value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 function article(document) {
@@ -13,7 +13,7 @@ function article(document) {
 }
 for (const [type, filename, documents, version, effectiveAt, effectiveDate, previousUrl] of [
   ['PRIVACY', 'privacy', [legalDocuments.signupPrivacy, legalDocuments.privacy], '2026-10-31.1', '2026-10-30T15:00:00', '2026년 10월 31일', '/legal/2026-10-31/privacy.html'],
-  ['TERMS', 'terms', [legalDocuments.terms], '2026-11-06', '2026-11-05T15:00:00', '2026년 11월 6일', '/legal/2026-10-29.1/terms.html'],
+  ['TERMS', 'terms', [legalDocuments.terms], '2026-10-30.1', '2026-10-30T12:21:06', '2026년 10월 30일', '/legal/2026-10-29.1/terms.html'],
 ]) {
   const directory = new URL(`../public/legal/${version}/`, import.meta.url);
   await mkdir(directory, { recursive: true });

@@ -22,7 +22,7 @@ const BIZ = {
   email: '', // 고객 문의 이메일
 };
 
-const AI_POLICY_NOTICE_ACTIVE = Date.now() < Date.parse('2026-11-05T15:00:00Z');
+const AI_POLICY_NOTICE_ACTIVE = Date.now() < Date.parse('2026-11-06T15:00:00Z');
 
 type BizItem = { label: string; value: string };
 
@@ -282,7 +282,7 @@ export function AppLayout() {
       </header>
       <main id="main" className={`page ${route}`} tabIndex={-1}>
         {AI_POLICY_NOTICE_ACTIVE && <aside className="content-card" aria-label="약관 개정 안내">
-          <p className="prose">AI 이용 안내를 담은 <Link to="/terms">이용약관</Link>은 11월 6일, <Link to="/privacy">개인정보처리방침</Link>은 10월 31일부터 적용돼요. 변경 내용과 이전 문서를 확인해 주세요.</p>
+          <p className="prose">AI 이용 안내를 담은 <Link to="/terms">이용약관</Link>은 10월 30일, <Link to="/privacy">개인정보처리방침</Link>은 10월 31일부터 적용돼요. 변경 내용과 이전 문서를 확인해 주세요.</p>
         </aside>}
         <Outlet />
       </main>
