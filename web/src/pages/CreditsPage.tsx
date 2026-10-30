@@ -5,6 +5,8 @@ import { list, num, pick, str, type Raw } from '../api/pick';
 import { useLoad } from '../transactions/model';
 import { Notice, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
 import { PageTitle } from '../ui/PageTitle';
+import { PassPurchaseStatus, PassPurchaseRefundSummary } from '../transactions/PassPurchaseSummary';
+import { passPaymentNames } from '../transactions/passPaymentNames';
 import { useToast } from '../ui/Toast';
 
 // 도우미가 요청을 수락할 때 매칭권 1장이 차감된다. 판매 상품은 그로블 결제창의 10장 5,000원 하나다.
@@ -32,9 +34,7 @@ const loadPending = (): Pending | null => {
   }
 };
 
-const STATUS_NAMES: Record<string, string> = { FAILED: '결제 실패', EXPIRED: '결제 만료', CANCELLED: '결제 취소', PROCESSING: '결제 확인 중', REFUNDED: '환불 완료', PARTIALLY_REFUNDED: '부분 환불' };
-// 충전 내역에 함께 보여 주는 최근 결제 상태(payment.status)
-const PAYMENT_NAMES: Record<string, string> = { ...STATUS_NAMES, PENDING: '결제 대기', PAID: '결제 완료', CANCEL_REQUESTED: '취소 진행 중' };
+
 
 export function CreditsPage() {
   const [load, reload] = useLoad(async () => {
@@ -127,7 +127,7 @@ export function CreditsPage() {
               매칭권 {PRODUCT.units}장 {won(PRODUCT.price)}(1장당 500원) · 결제 완료 확인 후 지급일부터 330일간 사용 · 요청을 수락할 때 1장씩 사용해요. 수락에 쓴 매칭권은 거래가 취소돼도 돌아오지 않고, 공식 공연·예매 취소나 예매처·PICO 장애일 때만 <Link to="/inquiries?type=PASS_RESTORATION">매칭권 복원 요청</Link>을 받아 운영팀이 확인한 뒤 복원해요.
             </p>
             <p className="record-note">
-              사용하지 않은 매칭권은 유효기간 안에 남은 장수 × 500원으로 환불돼요. 구매 후 7일 안에는 그로블 주문조회에서 취소를 요청하고, 그 뒤에는 <Link to="/inquiries?type=PASS_REFUND">매칭권 환불 요청</Link>으로 요청해 주세요.
+              사용하지 않은 매칭권은 유효기간 안에 구매 당시 장당 가격을 기준으로 환불돼요. 구매 후 7일 안에는 그로블 주문조회에서 취소를 요청하고, 그 뒤에는 <Link to="/inquiries?type=PASS_REFUND">매칭권 환불 요청</Link>으로 요청해 주세요.
             </p>
             {charged !== null && (
               <Notice tone="success">
@@ -149,16 +149,15 @@ export function CreditsPage() {
                 {load.data.purchases.map((p) => (
                   <article key={String(p.purchaseId)} className="content-card">
                     <div>
-                      <span className={`tx-status ${p.grantedAt ? 'blue' : 'amber'}`}>
-                        {STATUS_NAMES[str(pick(p, 'payment.status')) ?? ''] ?? (p.grantedAt ? '충전 완료' : '결제 대기')}
-                      </span>
+                      <PassPurchaseStatus purchase={p} />
                       <h3>매칭권 {num(p.purchasedUnits)}장</h3>
                       <p>{utcToLocal(str(p.createdAt) ?? '')}</p>
+                      <PassPurchaseRefundSummary purchase={p} />
                       {(str(pick(p, 'payment.orderNumber')) || str(pick(p, 'payment.status'))) && (
                         <small>
                           {[
                             str(pick(p, 'payment.orderNumber')) && `주문번호 ${str(pick(p, 'payment.orderNumber'))}`,
-                            str(pick(p, 'payment.status')) && `결제 상태: ${PAYMENT_NAMES[str(pick(p, 'payment.status')) ?? ''] ?? str(pick(p, 'payment.status'))}`,
+                            str(pick(p, 'payment.status')) && `결제 상태: ${passPaymentNames[str(pick(p, 'payment.status')) ?? ''] ?? str(pick(p, 'payment.status'))}`,
                           ]
                             .filter(Boolean)
                             .join(' · ')}

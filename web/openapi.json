@@ -14142,6 +14142,17 @@
         "operationId": "users",
         "parameters": [
           {
+            "name": "q",
+            "in": "query",
+            "description": "회원 번호 정확 일치 또는 닉네임·LOCAL 로그인 이메일 부분 일치. 공백 제거, 최대 100자",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "minLength": 0
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -14251,6 +14262,17 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/ReviewStatus"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "거래·작성자·도우미 번호 정확 일치 또는 참여자 닉네임·후기 내용 부분 일치. 최대 100자",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "minLength": 0
             }
           },
           {
@@ -15165,6 +15187,17 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/ReportStatus"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "신고·거래·회원 번호 정확 일치 또는 신고자·대상자 닉네임·신고 내용 부분 일치. 최대 100자",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "minLength": 0
             }
           },
           {
@@ -20105,13 +20138,33 @@
                 "type": "null"
               }
             ]
+          },
+          "unitPriceKrw": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "구매 당시 총액/수량으로 계산한 장당 가격(원). 정수 단가가 아니면 null"
+          },
+          "refundedUnits": {
+            "type": "integer",
+            "format": "int64",
+            "description": "이 구매의 SUCCEEDED 환불 기록으로 회수된 매칭권 수. 진행 중·실패 환불 제외"
+          },
+          "refundedAmountKrw": {
+            "type": "integer",
+            "format": "int64",
+            "description": "이 구매의 SUCCEEDED 환불 기록 금액 합계(원). 진행 중·실패 환불 제외"
           }
         },
         "required": [
           "createdAt",
           "priceKrw",
           "purchaseId",
-          "purchasedUnits"
+          "purchasedUnits",
+          "refundedAmountKrw",
+          "refundedUnits"
         ]
       },
       "ApiResponseGrobleCheckoutResponse": {

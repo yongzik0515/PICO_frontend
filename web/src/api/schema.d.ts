@@ -4830,6 +4830,21 @@ export interface components {
             createdAt: string;
             /** @description payments.pass_purchase_id로 연결된 최신 결제 시도(created_at DESC, id DESC); 결제 시도가 없으면 null */
             payment?: components["schemas"]["PaymentResponse"] | null;
+            /**
+             * Format: int64
+             * @description 구매 당시 총액/수량으로 계산한 장당 가격(원). 정수 단가가 아니면 null
+             */
+            unitPriceKrw?: number | null;
+            /**
+             * Format: int64
+             * @description 이 구매의 SUCCEEDED 환불 기록으로 회수된 매칭권 수. 진행 중·실패 환불 제외
+             */
+            refundedUnits: number;
+            /**
+             * Format: int64
+             * @description 이 구매의 SUCCEEDED 환불 기록 금액 합계(원). 진행 중·실패 환불 제외
+             */
+            refundedAmountKrw: number;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseGrobleCheckoutResponse: {
@@ -17403,6 +17418,8 @@ export interface operations {
     users: {
         parameters: {
             query?: {
+                /** @description 회원 번호 정확 일치 또는 닉네임·LOCAL 로그인 이메일 부분 일치. 공백 제거, 최대 100자 */
+                q?: string;
                 page?: number;
                 size?: number;
             };
@@ -17481,6 +17498,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: components["schemas"]["ReviewStatus"];
+                /** @description 거래·작성자·도우미 번호 정확 일치 또는 참여자 닉네임·후기 내용 부분 일치. 최대 100자 */
+                q?: string;
                 page?: number;
                 size?: number;
             };
@@ -18168,6 +18187,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: components["schemas"]["ReportStatus"];
+                /** @description 신고·거래·회원 번호 정확 일치 또는 신고자·대상자 닉네임·신고 내용 부분 일치. 최대 100자 */
+                q?: string;
                 page?: number;
                 size?: number;
             };

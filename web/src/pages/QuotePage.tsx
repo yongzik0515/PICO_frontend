@@ -98,7 +98,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
   const [saveFailed, setSaveFailed] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const toast = useToast();
-  const [identity] = useLoad(() => unwrap(api.GET('/api/me/identity')), [], { refreshOnFocus: true });
+  const [identity, reloadIdentity] = useLoad(() => unwrap(api.GET('/api/me/identity')), [], { refreshOnFocus: true });
   const [load] = useLoad(async () => {
     const [agent, contacts, edit] = await Promise.all([
       unwrap<Raw>(api.GET('/api/agents/{agentId}', { params: { path: { agentId } } })).then((raw) => ({ ...toAgent(raw), id: agentId, raw })),
@@ -240,6 +240,10 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (identity.status !== 'done' || !identity.data.verified) {
+      setError('계정 화면에서 본인인증을 완료한 뒤 요청을 보내 주세요.');
+      return;
+    }
     const form = e.currentTarget;
     // 브라우저 기본 풍선 대신, 비었거나 형식이 틀린 칸을 모아 각 칸 아래에 이유를 적는다.
     const found: Record<string, string> = {};
@@ -312,6 +316,11 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
   return (
     <>
       <PageTitle title={edit ? '요청 내용 수정' : '요청 보내기'} crumbs={edit ? [{ label: '요청 상세', to: `/requests/${edit.id}` }] : [{ label: '도우미 프로필', to: `/agents/${agentId}` }]} />
+      {identity.status === 'loading' ? <Notice>본인인증 상태를 확인하고 있어요.</Notice> : identity.status === 'error' ? (
+        <Notice tone="error">본인인증 상태를 확인하지 못했어요. <button type="button" className="text-link" onClick={reloadIdentity}>다시 확인하기</button></Notice>
+      ) : !identity.data.verified ? (
+        <Notice>요청을 보내려면 본인인증이 필요해요. 작성한 내용은 임시저장할 수 있어요. <Link to="/account" onClick={() => saveDraft(false)}>계정에서 본인인증하기</Link></Notice>
+      ) : null}
       <form id="tx-quote-form" ref={formRef} className="detail-layout tx-layout" noValidate onSubmit={submit} onChange={(e) => {
         const name = (e.target as HTMLElement).getAttribute('name');
         if (DRAFT_FIELDS.some((field) => field === name)) saveDraft(false, name === 'platform' && e.target instanceof HTMLSelectElement ? e.target.value : platform);
@@ -441,7 +450,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
                 <strong>최종 조건에서 확정</strong>
               </div>
             </div>
-            <Notice>{identity.status === 'done' && !identity.data.verified && <>요청을 보내려면 먼저 마이페이지에서 본인인증을 완료해 주세요. </>}PICO에서는 결제하지 않아요. 도우미가 보낸 최종 조건을 확정하면 매칭이 완료되고, 비용은 도우미와 직접 정산해요.</Notice>
+            <Notice>PICO에서는 결제하지 않아요. 도우미가 보낸 최종 조건을 확정하면 매칭이 완료되고, 비용은 도우미와 직접 정산해요.</Notice>
             <div className="quote-agreements">
               <label className="check-row quote-agree-all">
                 <input type="checkbox" checked={allAgreed} onChange={(e) => setAgreed({ terms: e.target.checked, privacy: e.target.checked, contact: e.target.checked })} />
@@ -469,7 +478,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
             <div className="account-form-error" aria-live="polite">
               {error}
             </div>
-            <button type="submit" className="btn primary full" disabled={!allAgreed || pending}>
+            <button type="submit" className="btn primary full" disabled={!allAgreed || pending || identity.status !== 'done' || !identity.data.verified}>
               {pending ? '보내는 중…' : edit ? '수정 내용 저장' : '요청 보내기'}
             </button>
           </section>

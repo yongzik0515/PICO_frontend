@@ -1654,15 +1654,45 @@ function ReportResolveModal({ row, onClose, onDone }: { row: Raw; onClose: () =>
   );
 }
 
+const ADMIN_PAGE_SIZE = 20;
+
+function AdminSearchForm({ hint, onSearch }: { hint: string; onSearch: (query: string) => void }) {
+  const [input, setInput] = useState('');
+  return (
+    <form className="content-card" onSubmit={(e) => { e.preventDefault(); onSearch(input.trim()); }}>
+      <Field label="검색" helper={hint}>
+        <input type="search" maxLength={100} value={input} onChange={(e) => setInput(e.target.value)} placeholder="검색어를 입력해 주세요" />
+      </Field>
+      <div className="modal-actions">
+        <button type="button" className="btn ghost" onClick={() => { setInput(''); onSearch(''); }}>검색 초기화</button>
+        <button type="submit" className="btn primary">검색</button>
+      </div>
+    </form>
+  );
+}
+
+function AdminPagination({ page, setPage, load }: { page: number; setPage: (page: number) => void; load: ReturnType<typeof useLoad<Raw[]>>[0] }) {
+  return (
+    <nav className="modal-actions" aria-label="목록 페이지 이동">
+      <button type="button" className="btn ghost" disabled={page === 0 || load.status === 'loading'} onClick={() => setPage(page - 1)}>이전</button>
+      <span aria-live="polite">{page + 1}페이지</span>
+      <button type="button" className="btn ghost" disabled={load.status !== 'done' || load.data.length < ADMIN_PAGE_SIZE} onClick={() => setPage(page + 1)}>다음</button>
+    </nav>
+  );
+}
+
 function ReportsTab() {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
   const [status, setStatus] = useState<ReportStatus | ''>('OPEN');
   const member = useMemberName();
   const [load, reload] = useLoad<Raw[]>(
     () =>
-      unwrap(api.GET('/api/admin/reports', { params: { query: { status: status || undefined, page: 0, size: 100 } } })).then(list, (e) => {
+      unwrap(api.GET('/api/admin/reports', { params: { query: { status: status || undefined, q: query || undefined, page, size: ADMIN_PAGE_SIZE } } })).then(list, (e) => {
         throw new Error(errorText(e));
       }),
-    [status],
+    [status, query, page],
+    { resetOnLoad: true },
   );
   const { open, modal, pending } = useDialog(reload);
   const [detail, setDetail] = useState<number | null>(null);
@@ -1684,7 +1714,8 @@ function ReportsTab() {
     });
   return (
     <>
-      <StatusFilter value={status} onChange={setStatus} options={Object.entries(reportStatusNames) as [ReportStatus, string][]} />
+      <AdminSearchForm hint="신고·거래·회원 번호, 신고자·신고 대상 닉네임 또는 신고 내용으로 검색해요." onSearch={(value) => { setQuery(value); setPage(0); }} />
+      <StatusFilter value={status} onChange={(value) => { setStatus(value); setPage(0); }} options={Object.entries(reportStatusNames) as [ReportStatus, string][]} />
       <ListBlock title="신고 목록" desc="처리 결과는 신고자와 신고 대상 모두에게 공개돼요. 조사 시작을 누르면 신고 대상에게 알림이 가고, 대상은 소명을 남길 수 있어요. '처리 완료'에서 도우미 활동 제한·이용 정지·후기 숨김 같은 조치를 함께 실행할 수 있고, 조치 사유는 운영 내부에만 남아요. '증빙 보기'로 신고자가 올린 자료를 확인할 수 있어요(본인이 신고자·대상인 신고는 볼 수 없어요)." load={load} reload={reload} empty="해당 상태의 신고가 없어요.">
         {(rows) =>
           rows.map((row) => {
@@ -1740,6 +1771,7 @@ function ReportsTab() {
           })
         }
       </ListBlock>
+      <AdminPagination page={page} setPage={setPage} load={load} />
       {modal}
       {resolving && <ReportResolveModal row={resolving} onClose={() => setResolving(null)} onDone={reload} />}
       {detail !== null && <DetailModal title={`신고 #${detail}`} fetcher={() => unwrap(api.GET('/api/admin/reports/{reportId}', { params: { path: { reportId: detail } } }))} onClose={() => setDetail(null)} />}
@@ -1961,20 +1993,24 @@ const reviewStatusNames: [ReviewStatus, string][] = [
 ];
 
 function ReviewsTab() {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
   const [status, setStatus] = useState<ReviewStatus | ''>('VISIBLE');
   const member = useMemberName();
   const [load, reload] = useLoad<Raw[]>(
     () =>
-      unwrap(api.GET('/api/admin/reviews', { params: { query: { status: status || undefined, page: 0, size: 100 } } })).then(list, (e) => {
+      unwrap(api.GET('/api/admin/reviews', { params: { query: { status: status || undefined, q: query || undefined, page, size: ADMIN_PAGE_SIZE } } })).then(list, (e) => {
         throw new Error(errorText(e));
       }),
-    [status],
+    [status, query, page],
+    { resetOnLoad: true },
   );
   const { open, modal, pending } = useDialog(reload);
   const [detail, setDetail] = useState<number | null>(null);
   return (
     <>
-      <StatusFilter value={status} onChange={setStatus} options={reviewStatusNames} />
+      <AdminSearchForm hint="거래·회원 번호, 작성자·도우미 닉네임 또는 후기 내용으로 검색해요." onSearch={(value) => { setQuery(value); setPage(0); }} />
+      <StatusFilter value={status} onChange={(value) => { setStatus(value); setPage(0); }} options={reviewStatusNames} />
       <ListBlock title="후기 목록" desc="숨긴 후기는 공개 목록과 평점에서 빠지고 사진도 지워져요. 다시 공개할 수 없어요. 작성자가 삭제한 후기는 보이지 않아요." load={load} reload={reload} empty="해당 상태의 후기가 없어요.">
         {(rows) =>
           rows.map((row) => {
@@ -2025,6 +2061,7 @@ function ReviewsTab() {
           })
         }
       </ListBlock>
+      <AdminPagination page={page} setPage={setPage} load={load} />
       {modal}
       {detail !== null && <DetailModal title={`거래 #${detail} 후기`} fetcher={() => unwrap(api.GET('/api/admin/reviews/{requestId}', { params: { path: { requestId: detail } } }))} onClose={() => setDetail(null)} />}
     </>
@@ -2033,7 +2070,9 @@ function ReviewsTab() {
 
 // ── 회원 제재 ─────────────────────────────────────────────
 function UsersTab() {
-  const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/users', { params: { query: { page: 0, size: 100 } } })));
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [load, reload] = useLoad<Raw[]>(() => unwrap(api.GET('/api/admin/users', { params: { query: { q: query || undefined, page, size: ADMIN_PAGE_SIZE } } })).then(list, (e) => { throw new Error(errorText(e)); }), [query, page], { resetOnLoad: true });
   const { open, modal, pending } = useDialog(reload);
   const restrict = (row: Raw, kind: 'user' | 'agent', suspended: boolean) =>
     open({
@@ -2054,6 +2093,7 @@ function UsersTab() {
     });
   return (
     <>
+      <AdminSearchForm hint="회원 번호, 닉네임 또는 로그인 이메일로 검색해요." onSearch={(value) => { setQuery(value); setPage(0); }} />
       <ListBlock title="회원 목록" desc="이용 정지는 로그인과 모든 이용을, 도우미 활동 정지는 요청 수신·수락·착수를 막아요. 정지하면 그 회원의 모든 세션이 끊겨요." load={load} reload={reload} empty="회원이 없어요.">
         {(rows) =>
           rows.map((row) => {
@@ -2084,6 +2124,7 @@ function UsersTab() {
           })
         }
       </ListBlock>
+      <AdminPagination page={page} setPage={setPage} load={load} />
       {modal}
     </>
   );

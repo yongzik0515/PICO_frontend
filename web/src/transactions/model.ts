@@ -470,7 +470,7 @@ export type Load<T> = { status: 'loading' } | { status: 'error'; code: number; m
  * refreshOnFocus: 창으로 돌아올 때 다시 불러온다. 백엔드는 요청 상태 변경 알림을 아직 보내지 않아서(가이드 12-3),
  * 상대방이 진행한 내용을 보려면 화면을 다시 불러와야 한다.
  */
-export function useLoad<T>(load: () => Promise<T>, deps: unknown[], { refreshOnFocus = false } = {}): [Load<T>, () => void] {
+export function useLoad<T>(load: () => Promise<T>, deps: unknown[], { refreshOnFocus = false, resetOnLoad = false } = {}): [Load<T>, () => void] {
   const [state, setState] = useState<Load<T>>({ status: 'loading' });
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -481,6 +481,7 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[], { refreshOnF
   }, [refreshOnFocus]);
   useEffect(() => {
     let alive = true;
+    if (resetOnLoad) setState({ status: 'loading' });
     load().then(
       (data) => alive && setState({ status: 'done', data }),
       (e) => alive && setState({ status: 'error', code: e?.status ?? 0, message: e instanceof Error ? e.message : '불러오지 못했어요.' }),

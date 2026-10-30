@@ -15,6 +15,7 @@ import { Icon } from '../ui/Icon';
 import { ImagePreview } from '../ui/ImagePreview';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
+import { PassPurchaseStatus, PassPurchaseRefundSummary } from '../transactions/PassPurchaseSummary';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 account.js의 my()/userProfile()/contacts()/account()와 transactions.js의 historyPage()
@@ -683,9 +684,10 @@ function AgentHistory() {
               {tab === 'purchases' ? (
                 <>
                   <div>
-                    <span className={`tx-status ${r.grantedAt ? 'blue' : 'amber'}`}>{r.grantedAt ? '충전 완료' : '결제 대기'}</span>
+                    <PassPurchaseStatus purchase={r} />
                     <h3>매칭권 {num(r.purchasedUnits)}장</h3>
                     <p>{utcToLocal(str(r.createdAt) ?? '')}</p>
+                    <PassPurchaseRefundSummary purchase={r} />
                   </div>
                   <div>
                     <strong>{won(num(r.priceKrw))}</strong>
