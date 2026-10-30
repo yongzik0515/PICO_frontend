@@ -22,6 +22,8 @@ const BIZ = {
   email: '', // 고객 문의 이메일
 };
 
+const AI_POLICY_NOTICE_ACTIVE = Date.now() < Date.parse('2026-11-05T15:00:00Z');
+
 type BizItem = { label: string; value: string };
 
 // 값이 빈 항목은 줄에서 빼고, 줄 전체가 비면 그 줄도 그리지 않는다.
@@ -279,6 +281,9 @@ export function AppLayout() {
         </div>
       </header>
       <main id="main" className={`page ${route}`} tabIndex={-1}>
+        {AI_POLICY_NOTICE_ACTIVE && <aside className="content-card" aria-label="약관 개정 안내">
+          <p className="prose">AI 이용 안내를 담은 <Link to="/terms">이용약관</Link>은 11월 6일, <Link to="/privacy">개인정보처리방침</Link>은 10월 31일부터 적용돼요. 변경 내용과 이전 문서를 확인해 주세요.</p>
+        </aside>}
         <Outlet />
       </main>
       {/* 휴대폰(767px 이하) 하단 탭바. 헤더의 메뉴·이용자/도우미 전환·프로필 버튼이 숨겨지는 폭이라
