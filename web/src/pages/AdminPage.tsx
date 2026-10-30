@@ -5,6 +5,7 @@ import { api, unwrap, ApiError } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import type { components } from '../api/schema';
 import { toRequest, useLoad } from '../transactions/model';
+import { inquiryTypeNames, privacyActionNames, restorableStatusNames, restorationReasonNames, type InquiryType, type PrivacyAction, type RestorationReason } from '../transactions/inquiry';
 import { requestRows } from '../transactions/requestRows';
 import { EvidenceFileNames, Field, MoneyInput, Notice, useAction, utcToLocal, won } from '../transactions/ui';
 import { Modal } from '../ui/Modal';
@@ -366,21 +367,96 @@ function ProfileCorrectionModal({ profileId, onClose, onDone }: { profileId: num
   </Modal>;
 }
 
+const passPaymentNames: Record<string, string> = { PENDING: '결제 대기', PROCESSING: '확인 중', PAID: '결제 완료', CANCEL_REQUESTED: '취소 진행 중', PARTIALLY_REFUNDED: '일부 환불', REFUNDED: '전액 환불', FAILED: '결제 실패', CANCELLED: '결제 취소', EXPIRED: '결제 만료' };
+const inquiryRequestNames: Record<string, string> = { ...restorableStatusNames, MATCHED: '진행 중(매칭됨)' };
+// 개인정보 열람·정정·삭제·처리정지 요청은 받은 날부터 10일 안에 처리해야 한다(개인정보 보호법 시행령). 운영팀 확인용 표시.
+const privacyDue = (createdAt: string) => {
+  const t = Date.parse(/[zZ]$/.test(createdAt) ? createdAt : createdAt + 'Z');
+  return isNaN(t) ? '' : utcToLocal(new Date(t + 10 * 86400e3).toISOString());
+};
+
+function inquiryRows(row: Raw, member: (id: number | undefined) => string): [string, ReactNode][] {
+  const type = s(row, 'type') as InquiryType;
+  const rows: [string, ReactNode][] = [['작성자', member(n(row, 'userId'))], ['접수 시각', utcToLocal(s(row, 'createdAt'))]];
+  if (type === 'PASS_RESTORATION') {
+    const restoredAt = s(row, 'passRestoredAt');
+    rows.push(
+      ['대상 거래', `#${n(row, 'requestId')} ${s(row, 'targetName')}`],
+      ['거래 상태', inquiryRequestNames[s(row, 'requestStatus')] ?? s(row, 'requestStatus')],
+      ['신청 사유', restorationReasonNames[s(row, 'restorationReason') as RestorationReason] ?? s(row, 'restorationReason')],
+      ['매칭권', restoredAt ? `복원됨 (${utcToLocal(restoredAt)})` : '아직 복원하지 않음'],
+    );
+  }
+  if (type === 'PASS_REFUND') {
+    rows.push(
+      ['대상 구매', `#${n(row, 'passPurchaseId')} · ${n(row, 'purchasedUnits') ?? '-'}장 · ${won(n(row, 'priceKrw'))}`],
+      ['결제', [n(row, 'paymentId') != null ? `#${n(row, 'paymentId')}` : '', s(row, 'checkoutProvider') === 'GROBLE' ? '그로블' : s(row, 'checkoutProvider'), passPaymentNames[s(row, 'paymentStatus')] ?? s(row, 'paymentStatus')].filter(Boolean).join(' · ')],
+      ['주문번호', s(row, 'orderNumber')],
+    );
+  }
+  if (type === 'PRIVACY') {
+    rows.push(['요청 종류', privacyActionNames[s(row, 'privacyAction') as PrivacyAction] ?? s(row, 'privacyAction')]);
+    if (s(row, 'status') === 'OPEN') rows.push(['처리 기한', `${privacyDue(s(row, 'createdAt'))}까지 (접수 후 10일)`]);
+  }
+  rows.push(['문의 내용', <span key="message" style={{ whiteSpace: 'pre-wrap' }}>{s(row, 'message')}</span>], ['답변', <span key="reply" style={{ whiteSpace: 'pre-wrap' }}>{s(row, 'reply')}</span>]);
+  return rows;
+}
+
+/** 복원 요청 문의: 매칭권 복원(POST …/matching-pass-restoration) 후 같은 화면에서 답변까지 등록한다. */
+function InquiryRestoreModal({ row, onClose, onDone }: { row: Raw; onClose: () => void; onDone: () => void }) {
+  const requestId = n(row, 'requestId')!;
+  const [reason, setReason] = useState<RestorationReason>((s(row, 'restorationReason') || 'EVENT_CANCELLED') as RestorationReason);
+  const [note, setNote] = useState('');
+  const [verified, setVerified] = useState(false);
+  const [reply, setReply] = useState('요청하신 거래의 매칭권 1회를 복원했어요. 매칭권 화면에서 보유 장수를 확인해 주세요.');
+  const { pending, run } = useAction();
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const ok = await run(async () => {
+      // 복원은 같은 요청에 다시 호출해도 최초 기록을 돌려준다. 답변 등록이 실패하면 다시 눌러도 중복 지급되지 않는다.
+      await unwrap(api.POST('/api/admin/requests/{requestId}/matching-pass-restoration', { params: { path: { requestId } }, body: { reason, decisionNote: `문의 #${n(row, 'id')}: ${note.trim()}`, evidenceVerified: verified } }));
+      await unwrap(api.POST('/api/admin/inquiries/{inquiryId}/reply', { params: { path: { inquiryId: n(row, 'id')! } }, body: { reply: reply.trim() } }));
+    }, '매칭권을 복원하고 답변을 등록했어요.');
+    if (ok) onDone();
+  }
+  return <Modal title={`요청 #${requestId} 매칭권 1회 복원`} onClose={() => { if (!pending) onClose(); }}>
+    <form onSubmit={submit}>
+      <p className="prose">{s(row, 'targetName')}의 도우미에게 매칭권 1회를 복원하고 문의에 답변해요. 이미 복원한 요청은 추가 지급하거나 만료일을 연장하지 않아요. 복원하지 않을 때는 이 창을 닫고 답변 작성으로 거절 사유를 알려 주세요.</p>
+      <Field label="확인한 사유" required><select value={reason} onChange={(e) => setReason(e.target.value as RestorationReason)}>{(Object.keys(restorationReasonNames) as RestorationReason[]).map((r) => <option key={r} value={r}>{restorationReasonNames[r]}</option>)}</select></Field>
+      <Field label="확인 근거(내부 기록)" required helper="공식 공지·장애 공지 등 판단 근거를 적어 주세요. 문의 번호는 자동으로 붙고, 문의자에게는 보이지 않아요."><textarea required maxLength={470} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+      <label className="check-row"><input type="checkbox" required checked={verified} onChange={(e) => setVerified(e.target.checked)} />공식 공지 등으로 사유와 거래에 미친 영향을 확인했습니다.</label>
+      <Field label="답변 내용" required><textarea required rows={3} maxLength={3000} value={reply} onChange={(e) => setReply(e.target.value)} /></Field>
+      <div className="modal-actions"><button type="button" className="btn secondary" disabled={pending} onClick={onClose}>돌아가기</button><button type="submit" className="btn primary" disabled={pending || !verified || !note.trim() || !reply.trim()}>{pending ? '처리 중…' : '복원하고 답변 등록'}</button></div>
+    </form>
+  </Modal>;
+}
+
 function InquiriesTab() {
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState('OPEN');
-  const [load, reload] = useLoad<Raw[]>(() => unwrap<unknown>(api.GET('/api/admin/inquiries', { params: { query: { page, size: 20, status: status || undefined } } })).then(list), [page, status]);
+  const [type, setType] = useState<InquiryType | ''>('');
+  const [restoring, setRestoring] = useState<Raw | null>(null);
+  const member = useMemberName();
+  const [load, reload] = useLoad<Raw[]>(() => unwrap<unknown>(api.GET('/api/admin/inquiries', { params: { query: { page, size: 20, status: status || undefined, type: type || undefined } } })).then(list), [page, status, type]);
   const { open, modal, pending } = useDialog(reload);
   return <>
     <Field label="문의 상태"><select value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }}><option value="OPEN">답변 대기</option><option value="ANSWERED">답변 완료</option><option value="">전체</option></select></Field>
-    <ListBlock title="문의 답변" load={load} reload={reload} empty="문의가 없어요.">{(rows) => rows.map((row) => <Item key={n(row, 'id')} title={s(row, 'subject')} raw={row} rows={[
-      ['접수 시각', utcToLocal(s(row, 'createdAt'))], ['문의 내용', <span key="message" style={{ whiteSpace: 'pre-wrap' }}>{s(row, 'message')}</span>], ['답변', <span key="reply" style={{ whiteSpace: 'pre-wrap' }}>{s(row, 'reply')}</span>],
-    ]}>{s(row, 'status') === 'OPEN' && <button type="button" className="btn primary" disabled={pending} onClick={() => open({
-      title: '문의 답변', message: s(row, 'subject'), fields: [noteField('답변 내용', 3000)], submitText: '답변 등록', success: '답변을 등록했어요.',
-      action: (v) => unwrap(api.POST('/api/admin/inquiries/{inquiryId}/reply', { params: { path: { inquiryId: n(row, 'id')! } }, body: { reply: v.note } })),
-    })}>답변 작성</button>}</Item>)}</ListBlock>
+    <Field label="문의 유형"><select value={type} onChange={(e) => { setType(e.target.value as InquiryType | ''); setPage(0); }}><option value="">전체</option>{(Object.keys(inquiryTypeNames) as InquiryType[]).map((t) => <option key={t} value={t}>{inquiryTypeNames[t]}</option>)}</select></Field>
+    <ListBlock title="문의 답변" desc="매칭권 복원 요청은 대상 거래가 함께 표시돼 여기서 바로 복원할 수 있어요. 환불 요청은 주문번호로 그로블 판매 관리에서 결제를 취소한 뒤 답변해 주세요." load={load} reload={reload} empty="문의가 없어요.">{(rows) => rows.map((row) => {
+      const kind = s(row, 'type') as InquiryType;
+      const openInquiry = s(row, 'status') === 'OPEN';
+      const typeName = inquiryTypeNames[kind] ?? kind;
+      return <Item key={n(row, 'id')} title={s(row, 'subject') === typeName ? `[${typeName}]` : `[${typeName}] ${s(row, 'subject')}`} raw={row} rows={inquiryRows(row, member)}>
+        {openInquiry && kind === 'PASS_RESTORATION' && !s(row, 'passRestoredAt') && <button type="button" className="btn primary" disabled={pending} onClick={() => setRestoring(row)}>매칭권 복원</button>}
+        {openInquiry && <button type="button" className={`btn ${kind === 'PASS_RESTORATION' && !s(row, 'passRestoredAt') ? 'secondary' : 'primary'}`} disabled={pending} onClick={() => open({
+          title: '문의 답변', message: s(row, 'subject'), fields: [noteField('답변 내용', 3000)], submitText: '답변 등록', success: '답변을 등록했어요.',
+          action: (v) => unwrap(api.POST('/api/admin/inquiries/{inquiryId}/reply', { params: { path: { inquiryId: n(row, 'id')! } }, body: { reply: v.note } })),
+        })}>답변 작성</button>}
+      </Item>;
+    })}</ListBlock>
     <div className="modal-actions"><button type="button" className="btn ghost" disabled={page === 0 || load.status !== 'done'} onClick={() => setPage(page - 1)}>이전</button><span>{page + 1}페이지</span><button type="button" className="btn ghost" disabled={load.status !== 'done' || load.data.length < 20} onClick={() => setPage(page + 1)}>다음</button></div>
     {modal}
+    {restoring && <InquiryRestoreModal row={restoring} onClose={() => setRestoring(null)} onDone={() => { setRestoring(null); reload(); }} />}
   </>;
 }
 
@@ -1846,8 +1922,7 @@ function PassRestorationTab() {
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<Raw | null>(null);
   const { pending, run } = useAction();
-  // 질병·사고 등 개인 사유는 복원 사유가 아니다(서버도 거부). 객관적으로 확인되는 사유만 고른다.
-  const reasons: [Reason, string][] = [['EVENT_CANCELLED', '공식 공연·예매 취소'], ['BOOKING_SITE_FAILURE', '예매처 장애'], ['PLATFORM_FAILURE', '플랫폼 장애']];
+  const reasons = Object.entries(restorationReasonNames) as [Reason, string][];
   async function approve() {
     const ok = await run(async () => {
       const response = await unwrap<Raw>(api.POST('/api/admin/requests/{requestId}/matching-pass-restoration', {
@@ -1860,6 +1935,7 @@ function PassRestorationTab() {
   }
   return <section className="content-card">
     <h2>도우미 매칭권 예외 복원</h2>
+    <p className="record-note">도우미가 문의로 보낸 복원 요청은 문의 답변 탭에서 대상 거래와 함께 보고 바로 처리할 수 있어요. 이 화면은 요청 번호를 이미 알고 있을 때 사용해 주세요.</p>
     <p className="prose">매칭권은 수락할 때 사용이 확정돼 취소해도 자동으로 돌아가지 않아요. 공식 공연·예매 취소나 예매처·플랫폼 장애로 거래를 진행할 수 없었던 경우에만 사용해 주세요. 이용자·도우미 누가 취소한 거래든, 직접 거래 매칭이 완료된 거래든 복원할 수 있어요. 질병·사고, 단순 변심 같은 개인 사유는 대상이 아니며, 이 작업은 현금 환불을 처리하지 않아요.</p>
     <form onSubmit={(e) => { e.preventDefault(); setResult(null); setConfirming(true); }}>
       <Field label="요청 번호" required><input type="number" min="1" step="1" required value={requestId} onChange={(e) => setRequestId(e.target.value)} /></Field>

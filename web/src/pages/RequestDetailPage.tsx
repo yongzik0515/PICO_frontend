@@ -511,7 +511,11 @@ export function RequestDetailPage() {
         );
       case 'matching_completed':
       case 'completed':
-        if (agent || d.review) return <Notice tone="success">{d.review ? '이용자가 거래 후기를 남겼어요.' : stage === 'matching_completed' ? '직접 거래 매칭을 완료했어요. 착수·결과 등록 없이 당사자끼리 진행해 주세요.' : '거래 결과 확인을 완료했어요.'}</Notice>;
+        if (agent || d.review) return <>
+          <Notice tone="success">{d.review ? '이용자가 거래 후기를 남겼어요.' : stage === 'matching_completed' ? '직접 거래 매칭을 완료했어요. 착수·결과 등록 없이 당사자끼리 진행해 주세요.' : '거래 결과 확인을 완료했어요.'}</Notice>
+          {/* 직접 거래 매칭 완료 거래는 수락 때 매칭권을 썼으므로, 진행하지 못하게 된 경우 이 거래를 골라 둔 채 복원 요청 문의로 보낸다. */}
+          {agent && stage === 'matching_completed' && <p className="record-note">공식 공연·예매 취소나 예매처·PICO 장애로 진행하지 못하게 되면 <Link to={`/inquiries?type=PASS_RESTORATION&requestId=${r.id}`}>매칭권 복원 요청</Link>을 보내 주세요.</p>}
+        </>;
         // 가이드 12-1: 거래당 후기 1개, 삭제·숨김 후에도 다시 쓸 수 없다(서버 409). 상세 응답의 reviewWritten으로 가린다.
         if (r.reviewWritten || usedReviews.has(r.id)) return <Notice>이 거래의 후기는 이미 작성했어요(삭제·숨김 포함). 거래당 후기는 한 번만 쓸 수 있어 다시 작성할 수 없어요.</Notice>;
         return go(`/requests/${r.id}/review`, '후기 작성');
@@ -866,7 +870,9 @@ export function RequestDetailPage() {
           <p className="prose">
             취소하면 되돌릴 수 없어요.
             {r.status === 'MATCHED' && (agent ? ' 수락할 때 사용한 매칭권은 돌려받지 않아요.' : ' 도우미가 수락할 때 사용한 매칭권은 돌아가지 않아요.')}
-            {r.status === 'MATCHED' && ' 공식 공연·예매 취소나 예매처·플랫폼 장애는 고객센터로 알려 주시면 운영팀이 확인한 뒤 복원해요. 질병 등 개인 사정은 해당하지 않아요.'}
+            {r.status === 'MATCHED' && (agent
+              ? ' 공식 공연·예매 취소나 예매처·PICO 장애 때문이라면 취소한 뒤 문의에서 매칭권 복원 요청을 보내 주세요. 운영팀이 확인한 뒤 복원해요. 질병 등 개인 사정은 해당하지 않아요.'
+              : ' 공식 공연·예매 취소나 예매처·PICO 장애 때문이라면 도우미가 문의로 복원을 요청할 수 있어요. 질병 등 개인 사정은 해당하지 않아요.')}
           </p>
         </ReasonModal>
       )}

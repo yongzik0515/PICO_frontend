@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { useLoad } from '../transactions/model';
@@ -120,10 +120,10 @@ export function CreditsPage() {
             </div>
             {load.status === 'error' && <Notice tone="error">{load.message}</Notice>}
             <p className="record-note">
-              매칭권 {PRODUCT.units}장 {won(PRODUCT.price)}(1장당 500원) · 결제 완료 확인 후 지급일부터 330일간 사용 · 요청을 수락할 때 1장씩 사용해요. 수락에 쓴 매칭권은 거래가 취소돼도 돌아오지 않고, 공식 공연·예매 취소나 예매처·플랫폼 장애일 때만 운영팀이 확인한 뒤 복원해요.
+              매칭권 {PRODUCT.units}장 {won(PRODUCT.price)}(1장당 500원) · 결제 완료 확인 후 지급일부터 330일간 사용 · 요청을 수락할 때 1장씩 사용해요. 수락에 쓴 매칭권은 거래가 취소돼도 돌아오지 않고, 공식 공연·예매 취소나 예매처·PICO 장애일 때만 <Link to="/inquiries?type=PASS_RESTORATION">매칭권 복원 요청</Link>을 받아 운영팀이 확인한 뒤 복원해요.
             </p>
             <p className="record-note">
-              사용하지 않은 매칭권은 유효기간 안에 남은 장수 × 500원으로 환불돼요. 구매 후 7일 안에는 그로블 주문조회에서 취소를 요청하고, 그 뒤에는 고객센터로 요청해 주세요.
+              사용하지 않은 매칭권은 유효기간 안에 남은 장수 × 500원으로 환불돼요. 구매 후 7일 안에는 그로블 주문조회에서 취소를 요청하고, 그 뒤에는 <Link to="/inquiries?type=PASS_REFUND">매칭권 환불 요청</Link>으로 요청해 주세요.
             </p>
             {charged !== null && (
               <Notice tone="success">

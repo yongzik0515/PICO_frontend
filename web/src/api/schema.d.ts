@@ -1231,7 +1231,7 @@ export interface paths {
         put?: never;
         /**
          * 문의 등록
-         * @description 활성 회원 본인 명의로 등록합니다. 제목 100자, 본문 3,000자까지입니다.
+         * @description 활성 회원 본인 명의로 등록합니다. 제목 100자, 본문 3,000자까지입니다. type을 생략하면 GENERAL입니다. 각 유형은 자기 대상만 받으며 다른 유형의 대상 필드를 보내면 400입니다. PASS_RESTORATION은 requestId와 restorationReason이 필요하고, 본인이 도우미가 아니거나 없는 요청이면 404, 복원을 요청할 수 없는 거래(진행 중, 이미 복원됨, 자동 만료 등)면 409입니다. 대상 목록은 GET /api/inquiries/pass-restoration-targets입니다. PASS_REFUND는 passPurchaseId가 필요하고, 본인 구매가 아니거나 없으면 404, 최신 결제가 PAID·PARTIALLY_REFUNDED가 아니면 409입니다. PRIVACY는 privacyAction이 필요합니다. 같은 요청·구매로 답변 대기 중인 같은 유형의 문의가 있으면 409이며, 답변이 끝난 뒤(예: 복원 거절에 대한 이의)에는 다시 접수할 수 있습니다. 문의 접수는 복원·환불을 처리하지 않습니다.
          */
         post: operations["create_1"];
         delete?: never;
@@ -1859,7 +1859,7 @@ export interface paths {
         put?: never;
         /**
          * 관리자 문의 답변
-         * @description OPEN 문의에 답변을 1회 등록합니다. 이미 답변한 문의는 409이며 덮어쓰지 않습니다. 문의자에게 답변 도착 알림을 보냅니다.
+         * @description OPEN 문의에 답변을 1회 등록합니다. 이미 답변한 문의는 409이며 덮어쓰지 않습니다. 문의자에게 답변 도착 알림을 보냅니다. 매칭권 복원은 POST /api/admin/requests/{requestId}/matching-pass-restoration으로 따로 처리합니다.
          */
         post: operations["reply"];
         delete?: never;
@@ -3033,7 +3033,7 @@ export interface paths {
         };
         /**
          * 관리자 문의 목록
-         * @description 관리자 전용. status는 OPEN 또는 ANSWERED이며 생략하면 전체입니다. 최신순 페이지 조회입니다.
+         * @description 관리자 전용. status는 OPEN 또는 ANSWERED, type은 문의 유형이며 생략하면 전체입니다. 최신순 페이지 조회입니다. 항목마다 작성 회원(userId)과 대상 요청의 현재 상태·매칭권 복원 시각, 대상 구매의 최신 결제(주문번호·결제창·상태)를 함께 반환합니다.
          */
         get: operations["admin"];
         put?: never;
@@ -3273,6 +3273,26 @@ export interface paths {
          * @description 관리자 전용. 최근 심사순. 버전마다 최신 결과 1건이며 자동 게시(autoPublished) 여부와 지금 상태를 함께 보여 줍니다.
          */
         get: operations["profileReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inquiries/pass-restoration-targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 매칭권 복원 요청 가능 거래
+         * @description 본인이 도우미인 요청 중 매칭권을 사용했고 아직 복원되지 않았으며, 당사자가 취소했거나 직접 거래 매칭이 완료됐고 진행 중인 안전거래 결제가 없는 거래를 매칭권 사용 최신순으로 최대 100건 반환합니다. 관리자 복원 API가 받는 조건과 같습니다. inquiryOpen=true인 거래는 이미 답변 대기 중인 복원 요청이 있습니다.
+         */
+        get: operations["restorationTargets"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4732,8 +4752,33 @@ export interface components {
             payment: components["schemas"]["PaymentResponse"];
         };
         InquiryCreate: {
+            /**
+             * @description 생략하면 GENERAL
+             * @enum {string}
+             */
+            type?: "GENERAL" | "PASS_RESTORATION" | "PASS_REFUND" | "PRIVACY";
             subject: string;
             message: string;
+            /**
+             * Format: int64
+             * @description PASS_RESTORATION에서만. 본인이 도우미인 요청
+             */
+            requestId?: number;
+            /**
+             * Format: int64
+             * @description PASS_REFUND에서만. 본인 매칭권 구매
+             */
+            passPurchaseId?: number;
+            /**
+             * @description PASS_RESTORATION에서만. 질병·사고 등 개인 사유는 선택지가 없습니다
+             * @enum {string}
+             */
+            restorationReason?: "EVENT_CANCELLED" | "BOOKING_SITE_FAILURE" | "PLATFORM_FAILURE";
+            /**
+             * @description PRIVACY에서만
+             * @enum {string}
+             */
+            privacyAction?: "ACCESS" | "CORRECTION_OR_DELETION" | "PROCESSING_SUSPENSION" | "CONSENT_WITHDRAWAL";
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseInquiryDetail: {
@@ -4744,6 +4789,11 @@ export interface components {
         InquiryDetail: {
             /** Format: int64 */
             id?: number;
+            /**
+             * @description GENERAL 일반 문의, PASS_RESTORATION 도우미 매칭권 예외 복원 요청(requestId·restorationReason 필수), PASS_REFUND 매칭권 구매대금 환불 요청(passPurchaseId 필수), PRIVACY 개인정보 열람·정정·삭제·처리정지·동의 철회 요청(privacyAction 필수)
+             * @enum {string}
+             */
+            type?: "GENERAL" | "PASS_RESTORATION" | "PASS_REFUND" | "PRIVACY";
             subject?: string;
             message?: string;
             status?: string;
@@ -4752,6 +4802,25 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             answeredAt?: string;
+            /**
+             * Format: int64
+             * @description PASS_RESTORATION 대상 요청
+             */
+            requestId?: number | null;
+            /** @description 대상 요청의 신청 대상명 */
+            targetName?: string | null;
+            /**
+             * Format: int64
+             * @description PASS_REFUND 대상 구매
+             */
+            passPurchaseId?: number | null;
+            /** @enum {string|null} */
+            restorationReason?: "EVENT_CANCELLED" | "BOOKING_SITE_FAILURE" | "PLATFORM_FAILURE" | null;
+            /**
+             * @description ACCESS 열람, CORRECTION_OR_DELETION 정정·삭제, PROCESSING_SUSPENSION 처리정지, CONSENT_WITHDRAWAL 동의 철회
+             * @enum {string|null}
+             */
+            privacyAction?: "ACCESS" | "CORRECTION_OR_DELETION" | "PROCESSING_SUSPENSION" | "CONSENT_WITHDRAWAL" | null;
         };
         /**
          * @description 업로드 파일의 사용 목적. 목적별 소유권·MIME·후속 연결 정책에 사용
@@ -5690,6 +5759,104 @@ export interface components {
         ApiResponseListAiProfileReviewRecord: {
             success?: boolean;
             data?: components["schemas"]["AiProfileReviewRecord"][];
+            message?: string;
+        };
+        /** @description 관리자 문의 목록 항목. 문의 내용에 대상 요청·구매의 현재 상태를 붙입니다. */
+        AdminInquiryDetail: {
+            /** Format: int64 */
+            id?: number;
+            /**
+             * @description GENERAL 일반 문의, PASS_RESTORATION 도우미 매칭권 예외 복원 요청(requestId·restorationReason 필수), PASS_REFUND 매칭권 구매대금 환불 요청(passPurchaseId 필수), PRIVACY 개인정보 열람·정정·삭제·처리정지·동의 철회 요청(privacyAction 필수)
+             * @enum {string}
+             */
+            type?: "GENERAL" | "PASS_RESTORATION" | "PASS_REFUND" | "PRIVACY";
+            /** Format: int64 */
+            userId?: number;
+            subject?: string;
+            message?: string;
+            status?: string;
+            reply?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            answeredAt?: string;
+            /** Format: int64 */
+            requestId?: number | null;
+            targetName?: string | null;
+            /** @description 대상 요청의 현재 상태 */
+            requestStatus?: string | null;
+            /**
+             * Format: date-time
+             * @description 대상 요청의 매칭권이 복원된 시각(UTC). 미복원이면 null
+             */
+            passRestoredAt?: string | null;
+            /** @enum {string|null} */
+            restorationReason?: "EVENT_CANCELLED" | "BOOKING_SITE_FAILURE" | "PLATFORM_FAILURE" | null;
+            /** Format: int64 */
+            passPurchaseId?: number | null;
+            /**
+             * Format: int32
+             * @description 대상 구매의 구매 장수
+             */
+            purchasedUnits?: number | null;
+            /**
+             * Format: int64
+             * @description 대상 구매의 결제 금액(원)
+             */
+            priceKrw?: number | null;
+            /**
+             * Format: int64
+             * @description 대상 구매의 최신 결제
+             */
+            paymentId?: number | null;
+            /** @description 그로블 등 결제창에서 주문을 찾을 때 쓰는 주문번호 */
+            orderNumber?: string | null;
+            /** @description PG 또는 GROBLE */
+            checkoutProvider?: string | null;
+            /** @description 대상 구매의 최신 결제 상태 */
+            paymentStatus?: string | null;
+            /**
+             * @description ACCESS 열람, CORRECTION_OR_DELETION 정정·삭제, PROCESSING_SUSPENSION 처리정지, CONSENT_WITHDRAWAL 동의 철회
+             * @enum {string|null}
+             */
+            privacyAction?: "ACCESS" | "CORRECTION_OR_DELETION" | "PROCESSING_SUSPENSION" | "CONSENT_WITHDRAWAL" | null;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAdminInquiryDetail: {
+            success?: boolean;
+            data?: components["schemas"]["AdminInquiryDetail"];
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListPassRestorationTarget: {
+            success?: boolean;
+            data?: components["schemas"]["PassRestorationTarget"][];
+            message?: string;
+        };
+        /** @description 본인이 도우미인 요청 중 매칭권 예외 복원을 요청할 수 있는 거래 */
+        PassRestorationTarget: {
+            /** Format: int64 */
+            requestId?: number;
+            targetName?: string;
+            /**
+             * Format: date
+             * @description 관람·이용 예정일
+             */
+            scheduledUseDate?: string | null;
+            /** @description CANCELLED 또는 MATCHING_COMPLETED */
+            status?: string;
+            /**
+             * Format: date-time
+             * @description 매칭권 사용 시각(UTC)
+             */
+            usedAt?: string;
+            /** @description 같은 거래로 답변 대기 중인 복원 요청 문의가 있으면 true */
+            inquiryOpen?: boolean;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListAdminInquiryDetail: {
+            success?: boolean;
+            data?: components["schemas"]["AdminInquiryDetail"][];
             message?: string;
         };
     };
@@ -13862,7 +14029,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseInquiryDetail"];
+                    "*/*": components["schemas"]["ApiResponseAdminInquiryDetail"];
                 };
             };
             /** @description 인증 필요 (Bearer JWT) */
@@ -18037,6 +18204,7 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string;
+                type?: "GENERAL" | "PASS_RESTORATION" | "PASS_REFUND" | "PRIVACY";
                 page?: number;
                 size?: number;
             };
@@ -18052,7 +18220,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseListInquiryDetail"];
+                    "*/*": components["schemas"]["ApiResponseListAdminInquiryDetail"];
                 };
             };
             /** @description 인증 필요 (Bearer JWT) */
@@ -18781,6 +18949,53 @@ export interface operations {
             };
             /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    restorationTargets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListPassRestorationTarget"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
