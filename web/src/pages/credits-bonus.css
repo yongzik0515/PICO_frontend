@@ -1,0 +1,23 @@
+/* 매칭권 충전 화면의 '첫 구매 +5장' 대각선 리본. 카드 모서리 밖은 잘라 낸다. */
+.pass-card {
+  position: relative;
+  overflow: hidden;
+}
+.pass-ribbon {
+  position: absolute;
+  top: 20px;
+  right: -46px;
+  width: 160px;
+  padding: 4px 0;
+  transform: rotate(45deg);
+  background: linear-gradient(90deg, #fff6dc, #ffe6d8);
+  box-shadow: 0 2px 6px #82551424;
+  color: var(--ink-900);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+.pass-bonus-note b {
+  color: var(--primary-600);
+}

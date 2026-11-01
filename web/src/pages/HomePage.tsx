@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
 import { useAgentSearch } from '../discovery/agent';
 import { AgentCard } from '../discovery/AgentCard';
 import { FilterModal, QuickFilter } from '../discovery/FilterControls';
 import { emptyFilters, filterLabels, removeFilter, sortOptions, type Filters, type Sort } from '../discovery/filters';
+import { HomeNote, PromoSlot } from '../home/PromoSlot';
 import { TicketCarousel } from '../home/TicketCarousel';
 import { correctKeyword } from '../home/aiKeyword';
 import { loadPopularSearch, recordSearch, type PopularKeyword } from '../home/popularSearch';
@@ -181,15 +182,10 @@ export function HomePage() {
             </button>
           ))}
         </div>}
-        {/* 검색창 오른쪽 빈 자리를 광고 자리로 쓴다(화면 1024px 이상에서만 보인다).
-            아직 실제 광고가 없어 광고 문의 안내를 띄운다. 광고가 생기면 문구와 이동 주소만 바꾸면 된다. */}
-        <Link className="home-ad" to="/inquiries">
-          <span className="home-ad-badge">광고</span>
-          <strong>공연·굿즈 소식을 팬들에게 알려 보세요</strong>
-          <span className="home-ad-more">
-            광고 문의 <Icon name="arrow" size={14} />
-          </span>
-        </Link>
+        {/* 검색창 오른쪽 빈 자리(1024px 이상) 또는 검색창 아래(그보다 좁을 때)를 이벤트·광고 이미지 자리로 쓴다.
+            배너 이미지와 기간은 home/promos.ts, 이미지 파일은 public/banners에 있다. */}
+        <PromoSlot />
+        <HomeNote />
       </div>
       <div className="pc-discovery-header">
         <div>

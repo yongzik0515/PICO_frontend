@@ -1,0 +1,85 @@
+/* 홈 이벤트·광고 자리(PromoSlot)와 인사말 이미지(HomeNote).
+   배너는 이미지라서 크기만 맞춘다: 검색창 옆 306×114, 검색창 아래 343×60(화면 폭에 맞춰 늘어남). */
+.home-promo {
+  position: relative;
+  margin-top: 12px;
+}
+.home-promo-link {
+  display: block;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px #5478c71a;
+  animation: home-promo-in 0.5s var(--ease-out, ease-out);
+}
+.home-promo-link img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+}
+.home-promo-link:hover {
+  box-shadow: 0 8px 24px #5478c72b;
+}
+.home-promo-dots {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  display: flex;
+  gap: 2px;
+}
+/* 점은 작게 보이지만 누르는 칸은 24px로 둔다. */
+.home-promo-dots button {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.home-promo-dots button::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: #16181d33;
+}
+.home-promo-dots button.on::before {
+  background: #16181d99;
+}
+@keyframes home-promo-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-promo-link {
+    animation: none;
+  }
+}
+
+.home-note {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .home .pc-search-row > .home-promo {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    margin-top: 0;
+    align-self: start;
+  }
+  .home-promo-dots {
+    bottom: 6px;
+  }
+  /* 인사말은 배너 아래 빈 자리(제목 줄 오른쪽)에 둔다. 아래 여백만큼 음수 마진을 줘서 검색 줄 높이를 늘리지 않는다. */
+  .home .pc-search-row > .home-note {
+    display: block;
+    grid-column: 2;
+    grid-row: 3;
+    width: 100%;
+    max-width: 306px;
+    height: auto;
+    margin: 16px 0 -140px;
+    pointer-events: none;
+  }
+}
