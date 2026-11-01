@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { verifyRegistrationIdentity } from '../auth/registrationIdentity';
 import { findPolicy, usePolicies } from '../api/policies';
-import { AccountInput } from '../ui/account';
+import { AccountInput, AccountNote } from '../ui/account';
 import { Icon } from '../ui/Icon';
 import { PageTitle } from '../ui/PageTitle';
 
@@ -136,6 +136,7 @@ export function SignupPage() {
             {error}
           </div>
           <p className="prose">이미 가입하셨나요? <a className="text-link" href="/login">기존 계정으로 로그인하기</a></p>
+          <AccountNote><strong>현재 카카오 본인인증은 이용할 수 없어요.</strong> 다른 인증 수단을 이용해 주세요.</AccountNote>
           <div className="account-form-footer">
             <button className="btn primary" type="submit" disabled={pending}>
               {pending ? '본인인증·가입 진행 중…' : '본인인증하고 가입하기'}

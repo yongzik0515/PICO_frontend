@@ -75,6 +75,7 @@ export function SocialCallbackPage() {
           <a href={findPolicy(policies, type).url || (type === 'TERMS' ? '/terms' : '/signup-privacy')} target="_blank" rel="noreferrer">보기</a>
         </div>)}
         <p className="prose"><a href="/privacy" target="_blank" rel="noreferrer">개인정보처리방침</a>에서 전체 처리 내용을 확인할 수 있어요.</p>
+        <AccountNote><strong>현재 카카오 본인인증은 이용할 수 없어요.</strong> 다른 인증 수단을 이용해 주세요.</AccountNote>
         <button className="btn primary" disabled={pending}>{pending ? '본인인증·가입 진행 중…' : '본인인증하고 가입하기'}</button>
       </form>}
       {result?.status === 'REAUTHENTICATED' && <>
