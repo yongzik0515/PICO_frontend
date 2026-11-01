@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, str } from '../api/pick';
 import {
@@ -747,6 +747,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
               <Verification title="본인 계좌 확인" text="도우미 활동에 필요한 본인 명의 계좌인지 확인해요. PICO는 이 계좌로 돈을 보내지 않아요." done={state.payoutVerified} doneText={state.payoutMasked ? `확인 완료 · ${state.payoutMasked}` : undefined} />
               {!state.payoutVerified && (
                 <>
+                  <p className="prose">본인 계좌 확인을 위해 팝빌(링크허브)에 은행·계좌번호·본인인증 생년월일 6자리를 전송해요. 조회한 예금주명은 본인인증 이름과 대조하며, PICO에는 계좌번호 일부와 확인 결과만 저장해요. <Link to="/privacy" target="_blank" rel="noopener noreferrer">개인정보 처리 안내</Link></p>
                   <Field label="은행" required className={fl('payout')}>
                     <select required value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
                       {banks.map(([code, name]) => (

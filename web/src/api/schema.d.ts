@@ -2573,7 +2573,7 @@ export interface paths {
         };
         /**
          * 내 매칭권 잔여 개수 조회
-         * @description 검증된 도우미의 지급·유효기간·미복구 사용·진행 중이거나 완료된 환불 회수 예약을 구매별로 집계합니다. 만료 시각은 UTC이며 정확한 만료 시각부터 사용할 수 없습니다. 데이터 불일치는 409이고 조회는 상태를 변경하지 않습니다. 개발용 Basic만으로는 401입니다.
+         * @description 검증된 회원의 유료·무료 지급권 유효기간·미복구 사용·진행 중이거나 완료된 환불 회수 예약을 구매별로 집계합니다. 만료 시각은 UTC이며 정확한 만료 시각부터 사용할 수 없습니다. 데이터 불일치는 409이고 조회는 상태를 변경하지 않습니다. 개발용 Basic만으로는 401입니다.
          */
         get: operations["getBalance"];
         put?: never;
@@ -3495,6 +3495,26 @@ export interface paths {
          * @description 서버가 인증기관 결과와 CI를 확인합니다. FIND_ID는 가입 이메일을 반환하고 RESET_PASSWORD는 등록된 이메일로 15분 유효한 일회용 링크를 보냅니다. providers는 가입 방식이며 소셜 전용·미가입 계정에는 메일을 보내지 않습니다. 복구 세션은 한 번만 사용할 수 있고 메일은 1분 간격·하루 10회 제한입니다.
          */
         post: operations["recoveryConfirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/matching-passes/promotions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 내 이벤트 매칭권 조회
+         * @description 서버 시각과 전체 유료 구매 이력으로 첫 구매 혜택 가능 여부를 판단하고 본인 무료 지급 내역을 반환합니다. 승인 혜택과 첫 구매 혜택은 각각 같은 계정에 1회입니다. 무료권은 330일 유효하며 현금 환불되지 않습니다. 원구매 환불 진행 중에는 보너스를 사용할 수 없고 환불 성공 시 남은 보너스를 회수합니다.
+         */
+        get: operations["promotions"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6346,6 +6366,30 @@ export interface components {
             email?: string;
             providers?: string[];
             passwordResetRequested?: boolean;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponsePassPromotionsResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PassPromotionsResponse"];
+            message?: string;
+        };
+        Grant: {
+            /** Format: int64 */
+            purchaseId?: number;
+            code?: string;
+            /** Format: int32 */
+            units?: number;
+            /** Format: int64 */
+            remainingUnits?: number;
+            /** Format: date-time */
+            grantedAt?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            status?: string;
+        };
+        PassPromotionsResponse: {
+            firstPurchaseEligible?: boolean;
+            grants?: components["schemas"]["Grant"][];
         };
     };
     responses: never;
@@ -20013,6 +20057,62 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseRecoveryResult"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    promotions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 본인 이벤트 지급 내역과 첫 구매 대상 여부 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePassPromotionsResponse"];
+                };
+            };
+            /** @description 잘못된 요청 값 또는 형식 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
             /** @description 서버 오류가 발생했습니다. */

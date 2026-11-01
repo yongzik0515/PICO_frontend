@@ -4,7 +4,6 @@ import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { useLoad } from '../transactions/model';
 import { Notice, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
-import { firstPurchaseBonusOn } from '../home/promos';
 import { PageTitle } from '../ui/PageTitle';
 import './credits-bonus.css';
 import { PassPurchaseStatus, PassPurchaseRefundSummary } from '../transactions/PassPurchaseSummary';
@@ -13,6 +12,8 @@ import { useToast } from '../ui/Toast';
 
 // 도우미가 요청을 수락할 때 매칭권 1장이 차감된다. 판매 상품은 그로블 결제창의 10장 5,000원 하나다.
 // 결제는 그로블 결제창에서 하고, 서버가 그로블의 서명된 결제 완료 알림(웹훅)을 받아 매칭권을 지급한다.
+const promotionNames: Record<string, string> = { FOUNDING_HELPER: '창립 도우미 혜택', APPROVAL_TRIAL: '승인 체험권', FIRST_PURCHASE: '첫 구매 보너스' };
+const promotionStatuses: Record<string, string> = { AVAILABLE: '사용 가능', USED: '모두 사용', EXPIRED: '기간 만료', REVOKED_OR_REFUND_PENDING: '원구매 환불로 사용 불가' };
 const PRODUCT = { units: 10, price: 5000 };
 const PENDING_KEY = 'pico.pendingGroblePass';
 const CONFIRM_LIMIT_MS = 180_000;
@@ -40,11 +41,12 @@ const loadPending = (): Pending | null => {
 
 export function CreditsPage() {
   const [load, reload] = useLoad(async () => {
-    const [balance, purchases] = await Promise.all([
+    const [balance, purchases, promotions] = await Promise.all([
       unwrap(api.GET('/api/matching-passes/balance')).then((b) => num(pick(b, 'remainingUnits')) ?? 0),
       unwrap<unknown>(api.GET('/api/matching-passes/purchases', { params: { query: { page: 0, size: 20 } } })).then(list, () => [] as Raw[]),
+      unwrap<Raw>(api.GET('/api/matching-passes/promotions')),
     ]);
-    return { balance, purchases };
+    return { balance, purchases, promotions };
   }, []);
   const { pending, run } = useAction();
   const toast = useToast();
@@ -53,9 +55,8 @@ export function CreditsPage() {
   // 그로블에서 돌아온 뒤 결제 완료 알림을 기다리는 구매(이 탭에서 시작한 주문)
   const [waiting, setWaiting] = useState<Pending | null>(() => loadPending());
   const [charged, setCharged] = useState<number | null>(null);
-  // 첫 구매 보너스 안내: 이벤트 기간이고, 지금까지 결제가 확인된 구매가 없는 사람에게만 보여 준다.
-  const everPaid = load.status === 'done' && load.data.purchases.some((p) => ['PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'].includes(str(pick(p, 'payment.status')) ?? ''));
-  const bonus = load.status === 'done' && !everPaid && firstPurchaseBonusOn();
+  // 서버 시각과 전체 결제 이력으로 대상 여부를 확인한다.
+  const bonus = load.status === 'done' && load.data.promotions.firstPurchaseEligible === true;
 
   // 결제 확인을 기다리는 동안 4초마다 다시 불러온다(최대 3분). 지급되면 안내를 바꾸고, 만료·실패면 기다림을 멈춘다.
   useEffect(() => {
@@ -148,6 +149,23 @@ export function CreditsPage() {
               </Notice>
             )}
           </TxCard>
+          <TxCard title="이벤트 매칭권">
+            <p className="record-note">도우미 승인 혜택과 첫 구매 보너스는 각각 계정당 한 번만 지급돼요. 무료권은 지급일부터 330일간 사용할 수 있고 현금 환불되지 않아요. 첫 구매를 전액 또는 일부 환불하면 남은 보너스도 회수돼요. 환불 처리 중에는 보너스를 사용할 수 없어요.</p>
+            {load.status === 'done' && list(load.data.promotions.grants).length ? (
+              <div className="tx-history">
+                {list(load.data.promotions.grants).map((g) => (
+                  <article key={String(g.purchaseId)} className="content-card">
+                    <div>
+                      <h3>{promotionNames[str(g.code) ?? ''] ?? '이벤트 매칭권'} {num(g.units)}장</h3>
+                      <p>{utcToLocal(str(g.grantedAt) ?? '')} 지급 · {utcToLocal(str(g.expiresAt) ?? '')} 만료</p>
+                      <small>{promotionStatuses[str(g.status) ?? ''] ?? ''}</small>
+                    </div>
+                    <strong>남은 {num(g.remainingUnits) ?? 0}장</strong>
+                  </article>
+                ))}
+              </div>
+            ) : <p className="tx-file-empty">아직 지급된 이벤트 매칭권이 없어요.</p>}
+          </TxCard>
           <TxCard title="충전 내역">
             {load.status === 'done' && load.data.purchases.length ? (
               <div className="tx-history">
@@ -195,7 +213,7 @@ export function CreditsPage() {
             </div>
             {bonus && (
               <p className="record-note pass-bonus-note">
-                첫 구매 보너스 <b>+5장</b>은 결제 확인 후 따로 지급돼요. 현금으로 환불되지 않아요.
+                첫 구매 보너스 <b>+5장</b>은 결제 확인 후 계정당 한 번 지급돼요. 330일간 유효하며, 현금 환불되지 않아요. 구매를 환불하면 남은 보너스도 회수돼요.
               </p>
             )}
             <div className="quote-agreements">
