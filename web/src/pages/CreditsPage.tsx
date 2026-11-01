@@ -4,7 +4,9 @@ import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { useLoad } from '../transactions/model';
 import { Notice, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
+import { firstPurchaseBonusOn } from '../home/promos';
 import { PageTitle } from '../ui/PageTitle';
+import './credits-bonus.css';
 import { PassPurchaseStatus, PassPurchaseRefundSummary } from '../transactions/PassPurchaseSummary';
 import { passPaymentNames } from '../transactions/passPaymentNames';
 import { useToast } from '../ui/Toast';
@@ -51,6 +53,9 @@ export function CreditsPage() {
   // 그로블에서 돌아온 뒤 결제 완료 알림을 기다리는 구매(이 탭에서 시작한 주문)
   const [waiting, setWaiting] = useState<Pending | null>(() => loadPending());
   const [charged, setCharged] = useState<number | null>(null);
+  // 첫 구매 보너스 안내: 이벤트 기간이고, 지금까지 결제가 확인된 구매가 없는 사람에게만 보여 준다.
+  const everPaid = load.status === 'done' && load.data.purchases.some((p) => ['PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'].includes(str(pick(p, 'payment.status')) ?? ''));
+  const bonus = load.status === 'done' && !everPaid && firstPurchaseBonusOn();
 
   // 결제 확인을 기다리는 동안 4초마다 다시 불러온다(최대 3분). 지급되면 안내를 바꾸고, 만료·실패면 기다림을 멈춘다.
   useEffect(() => {
@@ -179,7 +184,8 @@ export function CreditsPage() {
           </TxCard>
         </div>
         <aside className="tx-side">
-          <section className="content-card">
+          <section className="content-card pass-card">
+            {bonus && <span className="pass-ribbon">첫 구매 +5장</span>}
             <h2>충전 금액</h2>
             <div className="total-row">
               <span>
@@ -187,6 +193,11 @@ export function CreditsPage() {
               </span>
               <strong>{won(PRODUCT.price)}</strong>
             </div>
+            {bonus && (
+              <p className="record-note pass-bonus-note">
+                첫 구매 보너스 <b>+5장</b>은 결제 확인 후 따로 지급돼요. 현금으로 환불되지 않아요.
+              </p>
+            )}
             <div className="quote-agreements">
               <label className="check-row">
                 <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
