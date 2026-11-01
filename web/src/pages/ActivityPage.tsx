@@ -113,32 +113,30 @@ export function UserActivityPage() {
   return (
     <>
       <PageTitle title="내 활동" />
-      <div className="activity-layout">
-        <section>
-          <Tabs
-            label="내 활동 분류"
-            value={tab}
-            onChange={setTab}
-            tabs={[
-              ['all', '전체'],
-              ['request', '응답 대기중'],
-              ['progress', '진행중'],
-              ['closed', '지난 내역'],
-            ]}
-          />
-          <div className="activity-tickets">
-            {load.status !== 'done' ? (
-              <Loading state={load} retry={reload} />
-            ) : shown.length ? (
-              shown.map((r) => <Ticket key={r.id} r={r} agent={false} />)
-            ) : (
-              <Empty>
-                <button className="btn secondary" onClick={() => navigate('/')}>
-                  도우미 찾기
-                </button>
-              </Empty>
-            )}
-          </div>
+      <div className="activity-layout activity-layout-guided">
+        <Tabs
+          label="내 활동 분류"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            ['all', '전체'],
+            ['request', '응답 대기중'],
+            ['progress', '진행중'],
+            ['closed', '지난 내역'],
+          ]}
+        />
+        <section className="activity-tickets">
+          {load.status !== 'done' ? (
+            <Loading state={load} retry={reload} />
+          ) : shown.length ? (
+            shown.map((r) => <Ticket key={r.id} r={r} agent={false} />)
+          ) : (
+            <Empty>
+              <button className="btn secondary" onClick={() => navigate('/')}>
+                도우미 찾기
+              </button>
+            </Empty>
+          )}
         </section>
         <aside className="activity-guide content-card" aria-labelledby="activity-guide-title">
           <header className="activity-guide-heading">
