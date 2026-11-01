@@ -370,6 +370,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
   const [image, setImage] = useState<{ file: File; url: string } | null>(null);
   const [error, setError] = useState('');
   const [bank, setBank] = useState({ code: '004', number: '' });
+  const [payoutChecking, setPayoutChecking] = useState(false);
   const [contactsLoad] = useLoad(() => unwrap<unknown>(api.GET('/api/me/contacts')).then(list), []);
   const primaryContact = contactsLoad.status === 'done' ? contactsLoad.data.find((c) => c.isPrimary === true) : undefined;
   const [contact, setContact] = useState<{ kind: string; value: string } | null>(null);
@@ -749,7 +750,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
                 <>
                   <p className="prose">본인 계좌 확인을 위해 팝빌(링크허브)에 은행·계좌번호·본인인증 생년월일 6자리를 전송해요. 조회한 예금주명은 본인인증 이름과 대조하며, PICO에는 계좌번호 일부와 확인 결과만 저장해요. <Link to="/privacy" target="_blank" rel="noopener noreferrer">개인정보 처리 안내</Link></p>
                   <Field label="은행" required className={fl('payout')}>
-                    <select required value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
+                    <select required disabled={payoutChecking} value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
                       {banks.map(([code, name]) => (
                         <option key={code} value={code}>
                           {name}
@@ -763,17 +764,22 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
                       계좌번호 <small className="account-required">필수</small>
                     </span>
                     <div className="account-input-action">
-                      <input required aria-label="계좌번호" inputMode="numeric" value={bank.number} placeholder="'-' 없이 숫자만 입력" onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
+                      <input required disabled={payoutChecking} aria-label="계좌번호" inputMode="numeric" value={bank.number} placeholder="'-' 없이 숫자만 입력" onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
                       <button
                         type="button"
                         className="btn primary"
                         disabled={pending || !state.identityVerified || bank.number.length < 8}
-                        onClick={() => run(() => verifyPayout(bank.code, bank.number), '본인 계좌를 확인했어요.').then((ok) => ok && reload())}
+                        onClick={async () => {
+                          setPayoutChecking(true);
+                          try {
+                            if (await run(() => verifyPayout(bank.code, bank.number), '본인 계좌를 확인했어요.')) reload();
+                          } finally { setPayoutChecking(false); }
+                        }}
                       >
-                        계좌 확인
+                        {payoutChecking ? '확인 중…' : '계좌 확인'}
                       </button>
                     </div>
-                    <small className="field-helper">{state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
+                    <small className="field-helper">{payoutChecking ? '요청이 많으면 최대 2분 정도 걸릴 수 있어요. 잠시 기다려 주세요.' : state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
                   </div>
                 </>
               )}

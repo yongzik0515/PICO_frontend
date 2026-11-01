@@ -298,6 +298,7 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
   const [load, reload] = useLoad(fetchAgentState, []);
   const { pending, run } = useAction();
   const [bank, setBank] = useState({ code: '004', number: '' });
+  const [payoutChecking, setPayoutChecking] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawPassword, setWithdrawPassword] = useState('');
   const providers = useSocialProviders();
@@ -367,7 +368,7 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
                   doneText={state.payoutMasked ? `확인 완료 · ${state.payoutMasked}` : undefined}
                 />
                 <Field label="은행" required>
-                  <select value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
+                  <select disabled={payoutChecking} value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
                     {banks.map(([code, bankName]) => (
                       <option key={code} value={code}>
                         {bankName}
@@ -381,17 +382,22 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
                     계좌번호 <em>*</em>
                   </span>
                   <div className="account-input-action">
-                    <input aria-label="계좌번호" inputMode="numeric" value={bank.number} placeholder="'-' 없이 숫자만 입력" onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
+                    <input disabled={payoutChecking} aria-label="계좌번호" inputMode="numeric" value={bank.number} placeholder="'-' 없이 숫자만 입력" onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
                     <button
                       type="button"
                       className="btn primary"
                       disabled={pending || !state.identityVerified || bank.number.length < 8}
-                      onClick={() => run(() => verifyPayout(bank.code, bank.number), '본인 계좌를 확인했어요.').then((ok) => ok && reload())}
+                      onClick={async () => {
+                        setPayoutChecking(true);
+                        try {
+                          if (await run(() => verifyPayout(bank.code, bank.number), '본인 계좌를 확인했어요.')) reload();
+                        } finally { setPayoutChecking(false); }
+                      }}
                     >
-                      {state.payoutVerified ? '계좌 변경' : '계좌 확인'}
+                      {payoutChecking ? '확인 중…' : state.payoutVerified ? '계좌 변경' : '계좌 확인'}
                     </button>
                   </div>
-                  <small className="field-helper">{state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
+                  <small className="field-helper">{payoutChecking ? '요청이 많으면 최대 2분 정도 걸릴 수 있어요. 잠시 기다려 주세요.' : state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
                 </div>
               </>
             )}
