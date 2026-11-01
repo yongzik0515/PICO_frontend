@@ -26,6 +26,7 @@ import { QuotePage, RequestSentPage } from './pages/QuotePage';
 import { RequestDetailPage } from './pages/RequestDetailPage';
 import { TermsPage } from './pages/TermsPage';
 import { HomePage } from './pages/HomePage';
+import { ServiceGuidePage } from './pages/ServiceGuidePage';
 import { SocialCallbackPage } from './pages/SocialCallbackPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -142,6 +143,7 @@ export default function App() {
               </Route>
               <Route element={<AppLayout />}>
                 <Route index element={<HomePage />} />
+                <Route path="service-guide" element={<ServiceGuidePage />} />
                 <Route path="agents/:id" element={auth(<ProfilePage />)} />
                 <Route path="login" element={<LoginPage />} />
                 <Route path="auth/social/callback" element={<SocialCallbackPage />} />

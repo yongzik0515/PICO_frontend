@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
 import { useAgentSearch } from '../discovery/agent';
@@ -11,6 +11,7 @@ import { TicketCarousel } from '../home/TicketCarousel';
 import { correctKeyword } from '../home/aiKeyword';
 import { loadPopularSearch, recordSearch, type PopularKeyword } from '../home/popularSearch';
 import '../home/home-layout.css';
+import './service-guide.css';
 import { Icon } from '../ui/Icon';
 import { Modal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
@@ -187,6 +188,14 @@ export function HomePage() {
         <PromoSlot />
         <HomeNote />
       </div>
+      <Link className="service-guide-banner" to="/service-guide">
+        <span className="service-guide-banner-icon"><Icon name="file" size={22} /></span>
+        <span className="service-guide-banner-copy">
+          <strong>피코 서비스 운영 안내</strong>
+          <span>서비스 구조 · 이용 기준 · 자주 묻는 질문</span>
+        </span>
+        <span className="service-guide-banner-action">안내 보기 <Icon name="arrow" size={17} /></span>
+      </Link>
       <div className="pc-discovery-header">
         <div>
           <span className="tiny-label">{search ? '나에게 맞는 조건으로' : '함께할 순간을 기다리는'}</span>
