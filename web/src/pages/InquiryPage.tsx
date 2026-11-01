@@ -8,6 +8,7 @@ import { inquiryTypeNames, privacyActionNames, restorableStatusNames, restoratio
 import { useLoad } from '../transactions/model';
 import { Field, Notice, useAction, utcToLocal, won } from '../transactions/ui';
 import { PageTitle } from '../ui/PageTitle';
+import './notices.css';
 
 type Inquiry = components['schemas']['InquiryDetail'];
 type RestorationTarget = components['schemas']['PassRestorationTarget'];
@@ -136,7 +137,7 @@ export function InquiryWritePage() {
           <textarea name="message" rows={6} required maxLength={3000} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={placeholders[type]} />
         </Field>
         <p className="record-note">접수한 문의와 운영팀 답변은 본인만 확인할 수 있어요.</p>
-        <div className="account-form-footer"><button type="submit" className="btn primary" disabled={pending || missingTarget}>{pending ? '접수 중…' : '문의 접수'}</button></div>
+        <div className="account-form-footer inquiry-submit-actions"><button type="submit" className="btn primary" disabled={pending || missingTarget}>{pending ? '접수 중…' : '문의 접수'}</button></div>
       </form>
     </section>
   </div>;
