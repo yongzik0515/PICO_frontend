@@ -140,9 +140,11 @@ export function UserActivityPage() {
             )}
           </div>
         </section>
-        <aside className="activity-guide content-card">
-          <h2>요청 후에는 이렇게 진행해요</h2>
-          <p>최종 조건을 확정하면 매칭이 완료되고 후기를 남길 수 있어요.</p>
+        <aside className="activity-guide content-card" aria-labelledby="activity-guide-title">
+          <header className="activity-guide-heading">
+            <span className="activity-guide-label"><Icon name="ticket" size={16} /> 진행 안내</span>
+            <h2 id="activity-guide-title">요청 후에는 이렇게 진행해요</h2>
+          </header>
           <ol className="guide-steps">
             <li>
               <b>1</b>
@@ -166,6 +168,10 @@ export function UserActivityPage() {
               </div>
             </li>
           </ol>
+          <p className="activity-guide-note">
+            <Icon name="check" size={16} />
+            <span>최종 조건을 확정하면 매칭이 완료되고 후기를 남길 수 있어요.</span>
+          </p>
         </aside>
       </div>
     </>
