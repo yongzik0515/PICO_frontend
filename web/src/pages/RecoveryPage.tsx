@@ -134,9 +134,13 @@ export function RecoveryPage() {
           </div>
         ) : (
           <>
-            <AccountNote>{purpose === 'FIND_ID'
-              ? '본인인증을 완료하면 가입한 아이디(이메일)를 바로 확인할 수 있어요.'
-              : '본인인증을 완료하면 가입한 이메일로 비밀번호 재설정 링크를 보내드려요.'}</AccountNote>
+            <AccountNote>
+              {purpose === 'FIND_ID'
+                ? '본인인증을 완료하면 가입한 아이디(이메일)를 바로 확인할 수 있어요.'
+                : '본인인증을 완료하면 가입한 이메일로 비밀번호 재설정 링크를 보내드려요.'}
+              <br />
+              <strong>현재 카카오 본인인증은 이용할 수 없어요.</strong> 다른 인증 수단을 이용해 주세요.
+            </AccountNote>
             <p className="recovery-error" role="alert">{error}</p>
             {session && <button type="button" className="btn primary full" disabled={pending} onClick={() => void complete(session)}>인증 결과 다시 확인</button>}
             <button type="button" className={`btn ${session ? 'ghost' : 'primary'} full`} disabled={pending} onClick={() => void start()}>
