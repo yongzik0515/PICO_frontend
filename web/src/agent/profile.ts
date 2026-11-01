@@ -221,7 +221,7 @@ export async function verifyIdentity() {
   const identityVerificationId = session.identityVerificationId;
   if (!identityVerificationId) throw new Error('본인인증을 시작하지 못했어요.');
   const PortOne = await loadPortOne();
-  const res = await PortOne.requestIdentityVerification({ storeId: session.storeId, identityVerificationId, channelKey: session.channelKey });
+  const res = await PortOne.requestIdentityVerification({ storeId: session.storeId, identityVerificationId, channelKey: session.channelKey, bypass: { inicisUnified: { flgFixedUser: 'N' } } });
   if (res?.code) throw new Error(res.message || '본인인증을 완료하지 못했어요.');
   await unwrap(api.POST('/api/me/identity/verify', { body: { identityReference: identityVerificationId } }));
 }

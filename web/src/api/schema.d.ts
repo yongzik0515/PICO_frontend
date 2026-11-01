@@ -1311,7 +1311,7 @@ export interface paths {
         put?: never;
         /**
          * 소셜 신규 가입 완료
-         * @description 검증된 제공자 ID와 닉네임·최신 약관 동의로 신규 계정 생성. adultConfirmed=true 필수이며 누락·null·false는 400입니다. 가입 후 본인인증에서 만 19세 이상을 확인합니다. 본인인증은 별도이며 기존 이메일 계정과 자동 병합하지 않습니다.
+         * @description 검증된 제공자 ID·가입 본인인증 토큰·닉네임·최신 약관 동의로 신규 계정을 생성합니다. adultConfirmed=true 필수입니다. 본인인증 결과로 만 19세 이상을 확인한 뒤 VERIFIED 계정만 생성하며, 이미 가입된 CI는 안내 문구와 함께 409로 거절합니다. 기존 계정과 자동 병합하지 않습니다.
          */
         post: operations["register"];
         delete?: never;
@@ -1351,7 +1351,7 @@ export interface paths {
         put?: never;
         /**
          * 이메일·비밀번호 회원가입
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. adultConfirmed=true 필수입니다. 누락·null·false는 400이며 회원을 생성하지 않습니다. 가입 시 확인은 연령 검증이 아니며 가입 후 본인인증에서 만 19세 이상을 확인합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. adultConfirmed=true와 identityVerificationToken이 필수입니다. 가입 전용 본인인증 세션으로 인증을 마친 뒤 가입하며, 서버가 PortOne 결과·만 19세 이상·CI 중복을 확인한 후 VERIFIED 회원을 생성합니다. 인증 토큰은 이메일에 결속된 10분 유효 일회용이며 누락·만료·재사용은 400, 이미 가입된 CI는 안내 문구와 함께 409입니다.
          */
         post: operations["register_1"];
         delete?: never;
@@ -3421,6 +3421,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/social/identity-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 소셜 가입 본인인증 시작
+         * @description 소셜 인증을 완료한 신규 가입 흐름에 결속된 일회용 본인인증 세션. 동일 출처의 세션 쿠키와 flowSecret이 필요합니다.
+         */
+        post: operations["identitySession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/registration/identity-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 이메일 가입 본인인증 시작
+         * @description 정규화한 이메일에 결속된 가입 전용 본인인증 세션. 토큰 유효기간은 10분이며 PortOne 인증 완료 후 register에 제출합니다. 아직 회원은 생성하지 않습니다.
+         */
+        post: operations["identitySession_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/recovery/identity/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 계정 찾기 본인인증 시작
+         * @description FIND_ID 또는 RESET_PASSWORD 목적의 로그인 전 인증 세션을 발급합니다. recoveryToken은 15분 유효하며 인증기관에 전달하지 않습니다.
+         */
+        post: operations["recoverySession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/recovery/identity/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 본인인증으로 아이디 찾기 또는 재설정 메일 요청
+         * @description 서버가 인증기관 결과와 CI를 확인합니다. FIND_ID는 가입 이메일을 반환하고 RESET_PASSWORD는 등록된 이메일로 15분 유효한 일회용 링크를 보냅니다. providers는 가입 방식이며 소셜 전용·미가입 계정에는 메일을 보내지 않습니다. 복구 세션은 한 번만 사용할 수 있고 메일은 1분 간격·하루 10회 제한입니다.
+         */
+        post: operations["recoveryConfirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5031,8 +5111,10 @@ export interface components {
             termsDocumentId?: number;
             /** Format: int64 */
             privacyDocumentId?: number;
-            /** @description 만 19세 이상이라는 가입자 확인. true 필수이며 실제 연령 검증은 본인인증에서 수행합니다. */
+            /** @description 만 19세 이상이라는 가입자 확인. true 필수이며 회원 생성 전에 본인인증 결과로 실제 연령도 검증합니다. */
             adultConfirmed: boolean;
+            /** @description 가입 전 본인인증 세션에서 받은 일회용 토큰. 이메일 또는 현재 소셜 인증 흐름에 결속되며 10분간 유효합니다. */
+            identityVerificationToken: string;
         };
         Register: {
             /** Format: email */
@@ -5043,8 +5125,10 @@ export interface components {
             termsDocumentId: number;
             /** Format: int64 */
             privacyDocumentId: number;
-            /** @description 만 19세 이상이라는 가입자 확인. true 필수이며 실제 연령 검증은 본인인증에서 수행합니다. */
+            /** @description 만 19세 이상이라는 가입자 확인. true 필수이며 회원 생성 전에 본인인증 결과로 실제 연령도 검증합니다. */
             adultConfirmed: boolean;
+            /** @description 가입 전 본인인증 세션에서 받은 일회용 토큰. 이메일 또는 현재 소셜 인증 흐름에 결속되며 10분간 유효합니다. */
+            identityVerificationToken: string;
         };
         Refresh: {
             refreshToken: string;
@@ -6214,6 +6298,54 @@ export interface components {
             success?: boolean;
             data?: components["schemas"]["AdminPassPurchaseResponse"][];
             message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseStarted: {
+            success?: boolean;
+            data?: components["schemas"]["Started"];
+            message?: string;
+        };
+        Started: {
+            identityVerificationToken?: string;
+            identityVerificationId?: string;
+            storeId?: string;
+            channelKey?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        RegistrationIdentityStart: {
+            /** Format: email */
+            email: string;
+        };
+        RecoveryStart: {
+            /** @enum {string} */
+            purpose: "FIND_ID" | "RESET_PASSWORD";
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseRecoverySession: {
+            success?: boolean;
+            data?: components["schemas"]["RecoverySession"];
+            message?: string;
+        };
+        RecoverySession: {
+            recoveryToken?: string;
+            identityVerificationId?: string;
+            storeId?: string;
+            channelKey?: string;
+        };
+        RecoveryConfirm: {
+            recoveryToken: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseRecoveryResult: {
+            success?: boolean;
+            data?: components["schemas"]["RecoveryResult"];
+            message?: string;
+        };
+        RecoveryResult: {
+            email?: string;
+            providers?: string[];
+            passwordResetRequested?: boolean;
         };
     };
     responses: never;
@@ -19749,6 +19881,138 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    identitySession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocialComplete"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseStarted"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    identitySession_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationIdentityStart"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseStarted"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    recoverySession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryStart"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRecoverySession"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    recoveryConfirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryConfirm"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRecoveryResult"];
                 };
             };
             /** @description 서버 오류가 발생했습니다. */

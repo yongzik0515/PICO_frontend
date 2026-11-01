@@ -20,9 +20,12 @@ const NO_REFRESH = [
   '/api/auth/login',
   '/api/auth/refresh',
   '/api/auth/register',
+  '/api/auth/registration/identity-session',
   '/api/auth/password-reset/request',
   '/api/auth/password-reset/confirm',
   '/api/auth/email-verification/confirm',
+  '/api/auth/recovery/identity/session',
+  '/api/auth/recovery/identity/confirm',
 ];
 let refreshing: Promise<boolean> | null = null;
 

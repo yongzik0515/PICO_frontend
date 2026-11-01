@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
+import { verifyRegistrationIdentity } from '../auth/registrationIdentity';
 import { findPolicy, usePolicies } from '../api/policies';
 import { AccountInput } from '../ui/account';
 import { Icon } from '../ui/Icon';
@@ -8,7 +9,7 @@ import { PageTitle } from '../ui/PageTitle';
 
 // 프로토타입 account.js의 signup()/signupComplete() 화면 구성.
 // 입력 항목은 API 명세(POST /api/auth/register: 이메일·비밀번호·닉네임·약관 문서 id)를 따른다.
-// 휴대폰 본인인증과 연락방법은 API에서 가입 후 별도 단계라 이 화면에서 뺐다(API_NOTES.md 2번).
+// 가입 전 본인인증 결과를 서버가 검증한 뒤 회원을 생성한다. 연락방법은 가입 후 등록한다.
 // 프로토타입의 가입 목적(이용자/도우미) 선택도 Register에 없어 뺐다. 모드는 가입 후 헤더에서 바꾸고 PATCH /api/me로 저장한다.
 const agreementItems = [
   ['terms', 'TERMS', '서비스 이용약관', '/terms'],
@@ -36,6 +37,7 @@ export function SignupPage() {
     setError('');
     setPending(true);
     try {
+      const identityVerificationToken = await verifyRegistrationIdentity({ email: String(data.get('email')).trim() });
       await unwrap(
         api.POST('/api/auth/register', {
           body: {
@@ -45,6 +47,7 @@ export function SignupPage() {
             termsDocumentId,
             privacyDocumentId,
             adultConfirmed: data.get('agreement_age') === 'on',
+            identityVerificationToken,
           },
         }),
       );
@@ -95,7 +98,7 @@ export function SignupPage() {
                 helper="10자 이상 72자 이하로 입력해 주세요."
               />
               <AccountInput name="nickname" label="닉네임" required maxLength={50} />
-              <p className="prose">PICO는 이용자·도우미 모두 만 19세 이상만 이용할 수 있어요. 가입 후 거래를 시작하려면 본인인증이 필요해요.</p>
+              <p className="prose">PICO는 만 19세 이상만 가입할 수 있어요. 본인인증을 마쳐야 가입이 완료되며, 한 사람당 하나의 계정만 만들 수 있어요.</p>
               <div className="account-agreements">
                 <div>
                   <label className="check-row">
@@ -132,9 +135,10 @@ export function SignupPage() {
           <div className="account-form-error" aria-live="polite">
             {error}
           </div>
+          <p className="prose">이미 가입하셨나요? <a className="text-link" href="/login">기존 계정으로 로그인하기</a></p>
           <div className="account-form-footer">
             <button className="btn primary" type="submit" disabled={pending}>
-              {pending ? '가입 중…' : '가입 완료'}
+              {pending ? '본인인증·가입 진행 중…' : '본인인증하고 가입하기'}
             </button>
           </div>
         </form>

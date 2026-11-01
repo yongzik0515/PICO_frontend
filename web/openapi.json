@@ -41,6 +41,10 @@
       "description": "최종 결과가 PARTIAL로 확정된 안전거래의 성공보수 정산. 도우미 제안 → 이용자 동의(지급·잔액 환불) 또는 반려 → 도우미가 새 금액 제안(반복). 마지막 활동 후 24시간 동안 변화가 없거나 당사자가 운영팀에 넘기기를 요청하면 운영팀이 결정할 수 있습니다. 요청 상태는 바꾸지 않습니다."
     },
     {
+      "name": "AI 검토",
+      "description": "요청 내용 PASS는 도우미에게 전달, REJECT는 보류, 불확실·미설정·장애는 수동 검토. 도우미 신청은 자동 사전 심사가 켜져 있으면 PASS일 때 관리자 없이 게시되고, 그 밖에는 관리자가 심사합니다. 경력·검색 외부 장애는 503입니다."
+    },
+    {
       "name": "파일",
       "description": "증빙·후기용 비공개 파일 업로드 URL 발급"
     },
@@ -91,10 +95,6 @@
     {
       "name": "정산계좌",
       "description": "본인 명의 정산계좌 상태 조회와 실명확인. 외부 업체 미연동 시 신규 인증은 503입니다."
-    },
-    {
-      "name": "AI 검토",
-      "description": "요청 내용 PASS는 도우미에게 전달, REJECT는 보류, 불확실·미설정·장애는 수동 검토. 도우미 신청은 자동 사전 심사가 켜져 있으면 PASS일 때 관리자 없이 게시되고, 그 밖에는 관리자가 심사합니다. 경력·검색 외부 장애는 503입니다."
     }
   ],
   "paths": {
@@ -7605,7 +7605,7 @@
           "social-controller"
         ],
         "summary": "소셜 신규 가입 완료",
-        "description": "검증된 제공자 ID와 닉네임·최신 약관 동의로 신규 계정 생성. adultConfirmed=true 필수이며 누락·null·false는 400입니다. 가입 후 본인인증에서 만 19세 이상을 확인합니다. 본인인증은 별도이며 기존 이메일 계정과 자동 병합하지 않습니다.",
+        "description": "검증된 제공자 ID·가입 본인인증 토큰·닉네임·최신 약관 동의로 신규 계정을 생성합니다. adultConfirmed=true 필수입니다. 본인인증 결과로 만 19세 이상을 확인한 뒤 VERIFIED 계정만 생성하며, 이미 가입된 CI는 안내 문구와 함께 409로 거절합니다. 기존 계정과 자동 병합하지 않습니다.",
         "operationId": "register",
         "requestBody": {
           "content": {
@@ -7691,7 +7691,7 @@
           "account"
         ],
         "summary": "이메일·비밀번호 회원가입",
-        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. adultConfirmed=true 필수입니다. 누락·null·false는 400이며 회원을 생성하지 않습니다. 가입 시 확인은 연령 검증이 아니며 가입 후 본인인증에서 만 19세 이상을 확인합니다. ",
+        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. adultConfirmed=true와 identityVerificationToken이 필수입니다. 가입 전용 본인인증 세션으로 인증을 마친 뒤 가입하며, 서버가 PortOne 결과·만 19세 이상·CI 중복을 확인한 후 VERIFIED 회원을 생성합니다. 인증 토큰은 이메일에 결속된 10분 유효 일회용이며 누락·만료·재사용은 400, 이미 가입된 CI는 안내 문구와 함께 409입니다. ",
         "operationId": "register_1",
         "requestBody": {
           "content": {
@@ -17319,6 +17319,178 @@
           }
         }
       }
+    },
+    "/api/auth/social/identity-session": {
+      "post": {
+        "tags": [
+          "social-controller"
+        ],
+        "summary": "소셜 가입 본인인증 시작",
+        "description": "소셜 인증을 완료한 신규 가입 흐름에 결속된 일회용 본인인증 세션. 동일 출처의 세션 쿠키와 flowSecret이 필요합니다.",
+        "operationId": "identitySession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SocialComplete"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseStarted"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/registration/identity-session": {
+      "post": {
+        "tags": [
+          "account-controller"
+        ],
+        "summary": "이메일 가입 본인인증 시작",
+        "description": "정규화한 이메일에 결속된 가입 전용 본인인증 세션. 토큰 유효기간은 10분이며 PortOne 인증 완료 후 register에 제출합니다. 아직 회원은 생성하지 않습니다.",
+        "operationId": "identitySession_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationIdentityStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseStarted"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/recovery/identity/session": {
+      "post": {
+        "tags": [
+          "account-recovery-controller"
+        ],
+        "summary": "계정 찾기 본인인증 시작",
+        "description": "FIND_ID 또는 RESET_PASSWORD 목적의 로그인 전 인증 세션을 발급합니다. recoveryToken은 15분 유효하며 인증기관에 전달하지 않습니다.",
+        "operationId": "recoverySession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseRecoverySession"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/recovery/identity/confirm": {
+      "post": {
+        "tags": [
+          "account-recovery-controller"
+        ],
+        "summary": "본인인증으로 아이디 찾기 또는 재설정 메일 요청",
+        "description": "서버가 인증기관 결과와 CI를 확인합니다. FIND_ID는 가입 이메일을 반환하고 RESET_PASSWORD는 등록된 이메일로 15분 유효한 일회용 링크를 보냅니다. providers는 가입 방식이며 소셜 전용·미가입 계정에는 메일을 보내지 않습니다. 복구 세션은 한 번만 사용할 수 있고 메일은 1분 간격·하루 10회 제한입니다.",
+        "operationId": "recoveryConfirm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseRecoveryResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
     }
   },
   "components": {
@@ -20550,12 +20722,19 @@
           },
           "adultConfirmed": {
             "type": "boolean",
-            "description": "만 19세 이상이라는 가입자 확인. true 필수이며 실제 연령 검증은 본인인증에서 수행합니다."
+            "description": "만 19세 이상이라는 가입자 확인. true 필수이며 회원 생성 전에 본인인증 결과로 실제 연령도 검증합니다."
+          },
+          "identityVerificationToken": {
+            "type": "string",
+            "description": "가입 전 본인인증 세션에서 받은 일회용 토큰. 이메일 또는 현재 소셜 인증 흐름에 결속되며 10분간 유효합니다.",
+            "maxLength": 43,
+            "minLength": 43
           }
         },
         "required": [
           "adultConfirmed",
           "flowSecret",
+          "identityVerificationToken",
           "nickname"
         ]
       },
@@ -20590,12 +20769,19 @@
           },
           "adultConfirmed": {
             "type": "boolean",
-            "description": "만 19세 이상이라는 가입자 확인. true 필수이며 실제 연령 검증은 본인인증에서 수행합니다."
+            "description": "만 19세 이상이라는 가입자 확인. true 필수이며 회원 생성 전에 본인인증 결과로 실제 연령도 검증합니다."
+          },
+          "identityVerificationToken": {
+            "type": "string",
+            "description": "가입 전 본인인증 세션에서 받은 일회용 토큰. 이메일 또는 현재 소셜 인증 흐름에 결속되며 10분간 유효합니다.",
+            "maxLength": 43,
+            "minLength": 43
           }
         },
         "required": [
           "adultConfirmed",
           "email",
+          "identityVerificationToken",
           "nickname",
           "password",
           "privacyDocumentId",
@@ -23249,6 +23435,148 @@
           },
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "ApiResponseStarted": {
+        "type": "object",
+        "description": "공통 응답. 성공은 success=true, 오류는 success=false와 data=null",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Started"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "Started": {
+        "type": "object",
+        "properties": {
+          "identityVerificationToken": {
+            "type": "string"
+          },
+          "identityVerificationId": {
+            "type": "string"
+          },
+          "storeId": {
+            "type": "string"
+          },
+          "channelKey": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RegistrationIdentityStart": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 191,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "RecoveryStart": {
+        "type": "object",
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "FIND_ID",
+              "RESET_PASSWORD"
+            ]
+          }
+        },
+        "required": [
+          "purpose"
+        ]
+      },
+      "ApiResponseRecoverySession": {
+        "type": "object",
+        "description": "공통 응답. 성공은 success=true, 오류는 success=false와 data=null",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RecoverySession"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "RecoverySession": {
+        "type": "object",
+        "properties": {
+          "recoveryToken": {
+            "type": "string"
+          },
+          "identityVerificationId": {
+            "type": "string"
+          },
+          "storeId": {
+            "type": "string"
+          },
+          "channelKey": {
+            "type": "string"
+          }
+        }
+      },
+      "RecoveryConfirm": {
+        "type": "object",
+        "properties": {
+          "recoveryToken": {
+            "type": "string",
+            "maxLength": 43,
+            "minLength": 43
+          }
+        },
+        "required": [
+          "recoveryToken"
+        ]
+      },
+      "ApiResponseRecoveryResult": {
+        "type": "object",
+        "description": "공통 응답. 성공은 success=true, 오류는 success=false와 data=null",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RecoveryResult"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "RecoveryResult": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "passwordResetRequested": {
+            "type": "boolean"
           }
         }
       }

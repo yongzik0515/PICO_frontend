@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { verifyRegistrationIdentity } from '../auth/registrationIdentity';
 import { clearSocialFlow, completeSocial, readSocialFlow, socialNames, socialRequest, type SocialResult } from '../auth/social';
 import { setTokens } from '../api/tokens';
 import { findPolicy, usePolicies } from '../api/policies';
@@ -39,7 +40,8 @@ export function SocialCallbackPage() {
     if (!termsDocumentId || !privacyDocumentId) return setError('약관을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
     setPending(true); setError('');
     try {
-      const data = await socialRequest<SocialResult>('/api/auth/social/register', { flowSecret: flow.flowSecret,
+      const identityVerificationToken = await verifyRegistrationIdentity({ flowSecret: flow.flowSecret });
+      const data = await socialRequest<SocialResult>('/api/auth/social/register', { flowSecret: flow.flowSecret, identityVerificationToken,
         nickname: String(new FormData(form).get('nickname')).trim(), termsDocumentId, privacyDocumentId, adultConfirmed: new FormData(form).get('agreement_age') === 'on' });
       if (!data.tokens) throw new Error('로그인 정보를 받지 못했어요.');
       setTokens(data.tokens); clearSocialFlow(); navigate(flow.from, { replace: true });
@@ -62,18 +64,18 @@ export function SocialCallbackPage() {
       {!result && !error && <p role="status">인증 결과를 확인하고 있어요…</p>}
       {!result && error && <Link to="/login">로그인으로 돌아가기</Link>}
       {result?.status === 'REGISTRATION_REQUIRED' && <form onSubmit={register}>
-        <p>{socialNames[result.provider]} 인증을 완료했어요. 닉네임과 필수 약관 동의로 가입을 마쳐 주세요.</p>
-        <AccountNote>이미 PICO 계정이 있다면 기존 계정으로 로그인한 뒤 프로필에서 소셜 로그인을 연결해 주세요. 새로 가입하면 기존 거래·본인인증 내역이 이어지지 않아요.</AccountNote>
+        <p>{socialNames[result.provider]} 인증을 완료했어요. 닉네임과 필수 약관 동의를 입력한 뒤 본인인증으로 가입을 마쳐 주세요.</p>
+        <AccountNote>이미 PICO 계정이 있다면 기존 계정으로 로그인한 뒤 프로필에서 소셜 로그인을 연결해 주세요. 이미 가입된 본인정보로는 새 계정을 만들 수 없어요.</AccountNote>
         <Link to="/login" onClick={clearSocialFlow}>기존 계정으로 로그인하기</Link>
         <AccountInput name="nickname" label="닉네임" required maxLength={50} />
-        <p className="prose">PICO는 이용자·도우미 모두 만 19세 이상만 이용할 수 있어요. 가입 후 거래를 시작하려면 본인인증이 필요해요.</p>
+        <p className="prose">PICO는 만 19세 이상만 가입할 수 있어요. 본인인증을 마쳐야 가입이 완료되며, 한 사람당 하나의 계정만 만들 수 있어요.</p>
         <label className="check-row"><input type="checkbox" name="agreement_age" required /> 만 19세 이상입니다. (필수)</label>
         {(['TERMS', 'PRIVACY'] as const).map(type => <div key={type} className="check-row">
           <label><input type="checkbox" required /> {type === 'TERMS' ? '서비스 이용약관' : '개인정보 수집·이용'} 동의 (필수)</label>
           <a href={findPolicy(policies, type).url || (type === 'TERMS' ? '/terms' : '/signup-privacy')} target="_blank" rel="noreferrer">보기</a>
         </div>)}
         <p className="prose"><a href="/privacy" target="_blank" rel="noreferrer">개인정보처리방침</a>에서 전체 처리 내용을 확인할 수 있어요.</p>
-        <button className="btn primary" disabled={pending}>가입 완료</button>
+        <button className="btn primary" disabled={pending}>{pending ? '본인인증·가입 진행 중…' : '본인인증하고 가입하기'}</button>
       </form>}
       {result?.status === 'REAUTHENTICATED' && <>
         <p>연결한 소셜 계정을 확인했어요. 아래 버튼을 눌러야 탈퇴가 완료돼요.</p>
