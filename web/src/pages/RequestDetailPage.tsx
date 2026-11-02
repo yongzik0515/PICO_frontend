@@ -1,5 +1,6 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState, type Dispatch, type SetStateAction, type FormEvent, type ReactNode } from 'react';
+import { Link, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import type { DetailNavigation } from '../layout/AppLayout';
 import { api, unwrap, ApiError } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { findPolicy, loadPolicies, usePolicies } from '../api/policies';
@@ -227,6 +228,17 @@ export function RequestDetailPage() {
   const { me } = useAuth();
   const [{ mode }] = useAppState();
   const [load, reload] = useLoad(() => fetchDetail(requestId), [requestId], { refreshOnFocus: true });
+  const { pathname } = useLocation();
+  const { setDetailNavigation } = useOutletContext<{ setDetailNavigation: Dispatch<SetStateAction<DetailNavigation | null>> }>();
+  const request = load.status === 'done' ? load.data.request : null;
+  const detailAgent = request ? roleIn(request, me, mode) === 'agent' : mode === 'agent';
+  // 받은 요청 목록과 동일하게 수락 전 종료된 요청도 받은 요청에 속한다.
+  const inbox = request && (['PENDING', 'REJECTED', 'EXPIRED'].includes(request.status) || (request.status === 'CANCELLED' && !request.raw.acceptedAt));
+  const navigationKey = detailAgent ? (inbox ? 'leads' : 'matches') : 'requests';
+  useEffect(() => {
+    setDetailNavigation({ path: pathname, key: navigationKey });
+    return () => setDetailNavigation(null);
+  }, [pathname, navigationKey, setDetailNavigation]);
   const policies = usePolicies();
   const [hasContact, setHasContact] = useState<boolean | null>(null);
   const [dialog, setDialog] = useState<Dialog>('');
@@ -325,7 +337,7 @@ export function RequestDetailPage() {
     });
   }
 
-  const back = agent ? (r.status === 'PENDING' ? { label: '받은 요청', to: '/leads' } : { label: '매칭 관리', to: '/matches' }) : { label: '내 활동', to: '/requests' };
+  const back = agent ? (inbox ? { label: '받은 요청', to: '/leads' } : { label: '매칭 관리', to: '/matches' }) : { label: '내 활동', to: '/requests' };
 
   /** 시도 증빙 카드 안내. 착수비 문구는 안전거래·착수비가 있을 때만, 종결 방식에 맞춰 보여 준다. */
   function attemptNote() {
@@ -445,7 +457,7 @@ export function RequestDetailPage() {
         ) : (
           <>
             {btn('확인하고 확정하기', () => setDialog('agree'))}
-            {go(`/requests/${r.id}/terms`, '조건 수정해서 제안하기')}
+            {go(`/requests/${r.id}/terms`, '조건 수정해서 제안하기', 'secondary')}
             {canRequestChange && btn('수정 요청하기', () => setDialog('revision'), 'ghost')}
             {cancelMatched}
           </>
