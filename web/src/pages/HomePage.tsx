@@ -187,15 +187,15 @@ export function HomePage() {
             배너 이미지와 기간은 home/promos.ts, 이미지 파일은 public/banners에 있다. */}
         <PromoSlot />
         <HomeNote />
+        <Link className="service-guide-banner" to="/service-guide">
+          <span className="service-guide-banner-icon"><Icon name="file" size={22} /></span>
+          <span className="service-guide-banner-copy">
+            <strong>피코 서비스 운영 안내</strong>
+            <span>서비스 관련 검토 사항 및 운영 기준</span>
+          </span>
+          <span className="service-guide-banner-action">안내 보기 <Icon name="arrow" size={17} /></span>
+        </Link>
       </div>
-      <Link className="service-guide-banner" to="/service-guide">
-        <span className="service-guide-banner-icon"><Icon name="file" size={22} /></span>
-        <span className="service-guide-banner-copy">
-          <strong>피코 서비스 운영 안내</strong>
-          <span>서비스 관련 검토 사항 및 운영 기준</span>
-        </span>
-        <span className="service-guide-banner-action">안내 보기 <Icon name="arrow" size={17} /></span>
-      </Link>
       <div className="pc-discovery-header">
         <div>
           <span className="tiny-label">{search ? '나에게 맞는 조건으로' : '함께할 순간을 기다리는'}</span>

@@ -250,3 +250,20 @@ main.page.home {
   font-weight: 600;
   color: var(--primary-500);
 }
+
+/* 운영 안내와 인사말은 같은 그리드 행에 둬 서로 덮지 않고 높이를 함께 확보한다. */
+.home .pc-search-row > .service-guide-banner {
+  margin: 24px 0 0;
+}
+@media (min-width: 1024px) {
+  .home .pc-search-row > .service-guide-banner {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: 16px;
+  }
+  .home .pc-search-row .service-guide-banner-copy {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

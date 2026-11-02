@@ -31,9 +31,11 @@ export function PromoSlot() {
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
     >
-      {/* key를 바꿔 배너가 바뀔 때마다 부드럽게 나타나게 한다. */}
-      <Link key={current.id} className="home-promo-link" to={current.to}>
-        <PromoImage image={current.image} alt={current.alt} />
+      {/* 이미지를 유지하고 투명도만 바꿔 전환 중 높이 변화와 빈 화면을 막는다. */}
+      <Link className="home-promo-link" to={current.to} aria-label={current.alt}>
+        {list.map((p) => (
+          <PromoImage key={p.id} image={p.image} active={p.id === current.id} />
+        ))}
       </Link>
       {list.length > 1 && (
         <div className="home-promo-dots">
@@ -46,11 +48,11 @@ export function PromoSlot() {
   );
 }
 
-function PromoImage({ image, alt }: { image: string; alt: string }) {
+function PromoImage({ image, active }: { image: string; active: boolean }) {
   return (
-    <picture>
-      <source media="(min-width: 1024px)" srcSet={`/banners/${image}-pc.png`} />
-      <img src={`/banners/${image}-mobile.png`} alt={alt} width="343" height="60" draggable={false} />
+    <picture className={`home-promo-image${active ? ' is-active' : ''}`} aria-hidden="true">
+      <source media="(min-width: 1024px)" srcSet={`/banners/${image}-pc.png`} width="306" height="114" />
+      <img src={`/banners/${image}-mobile.png`} alt="" width="343" height="60" draggable={false} />
     </picture>
   );
 }
