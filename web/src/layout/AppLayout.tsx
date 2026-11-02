@@ -60,6 +60,7 @@ function routeKey(pathname: string) {
 
 const titles: Record<string, string> = {
   home: '도우미 찾기',
+  notices: '공지·이벤트',
   'service-guide': '피코 서비스 운영 안내',
   requests: '내 활동',
   leads: '받은 요청',
@@ -179,6 +180,7 @@ export function AppLayout() {
             ))}
           </nav>
           <div className="header-right" ref={right}>
+            <Link className="support-link" to="/notices">공지·이벤트</Link>
             <button className="support-link" onClick={() => navigate('/inquiries')}>
               고객 문의
             </button>
@@ -304,6 +306,7 @@ export function AppLayout() {
             </span>
           </div>
           <div>
+            <Link to="/notices">공지·이벤트</Link>
             <button onClick={() => navigate('/guide')}>이용 방법</button>
             <button onClick={() => navigate('/inquiries')}>고객센터</button>
             <button onClick={() => navigate('/terms')}>이용약관</button>

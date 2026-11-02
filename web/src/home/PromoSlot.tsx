@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { activePromos } from './promos';
 import './promo-slot.css';
 
-const ROTATE_MS = 6000;
+// 배너 자동 전환 간격(ms). 운영 시 이 값을 조정한다.
+export const PROMO_ROTATE_MS = 3000;
 
-// 검색창 옆(1024px 이상) 또는 검색창 아래(그보다 좁을 때)의 이벤트·광고 자리. 이미지 배너를 6초마다 바꿔 보여 준다.
+// 검색창 옆(1024px 이상) 또는 검색창 아래(그보다 좁을 때)의 이벤트·광고 자리. 이미지 배너를 3초마다 바꿔 보여 준다.
 // 마우스를 올리거나 키보드로 들어오면 멈추고, '동작 줄이기' 설정이면 처음 배너만 보여 준다.
 export function PromoSlot() {
   const [list] = useState(() => activePromos());
@@ -15,7 +16,7 @@ export function PromoSlot() {
 
   useEffect(() => {
     if (paused || calm || list.length < 2) return;
-    const timer = window.setInterval(() => setIndex((i) => (i + 1) % list.length), ROTATE_MS);
+    const timer = window.setInterval(() => setIndex((i) => (i + 1) % list.length), PROMO_ROTATE_MS);
     return () => window.clearInterval(timer);
   }, [paused, calm, list.length]);
 

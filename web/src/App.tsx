@@ -26,6 +26,7 @@ import { QuotePage, RequestSentPage } from './pages/QuotePage';
 import { RequestDetailPage } from './pages/RequestDetailPage';
 import { TermsPage } from './pages/TermsPage';
 import { HomePage } from './pages/HomePage';
+import { NoticesPage } from './pages/NoticesPage';
 import { ServiceGuidePage } from './pages/ServiceGuidePage';
 import { SocialCallbackPage } from './pages/SocialCallbackPage';
 import { LoginPage } from './pages/LoginPage';
@@ -143,6 +144,7 @@ export default function App() {
               </Route>
               <Route element={<AppLayout />}>
                 <Route index element={<HomePage />} />
+                <Route path="notices" element={<NoticesPage />} />
                 <Route path="service-guide" element={<ServiceGuidePage />} />
                 <Route path="agents/:id" element={auth(<ProfilePage />)} />
                 <Route path="login" element={<LoginPage />} />
