@@ -60,6 +60,7 @@ function routeKey(pathname: string) {
 
 const titles: Record<string, string> = {
   home: '도우미 찾기',
+  'service-guide': '피코 서비스 운영 안내',
   requests: '내 활동',
   leads: '받은 요청',
   matches: '매칭 관리',
