@@ -6,7 +6,7 @@ export type RestorationReason = NonNullable<components['schemas']['InquiryCreate
 export type PrivacyAction = NonNullable<components['schemas']['InquiryCreate']['privacyAction']>;
 
 export const inquiryTypeNames: Record<InquiryType, string> = {
-  GENERAL: '일반 문의',
+  GENERAL: '일반·기타 문의',
   PASS_RESTORATION: '매칭권 복원 요청',
   PASS_REFUND: '매칭권 환불 요청',
   PRIVACY: '개인정보 요청',

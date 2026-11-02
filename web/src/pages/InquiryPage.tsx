@@ -17,7 +17,7 @@ const types = Object.keys(inquiryTypeNames) as InquiryType[];
 // 유형을 고르면 제목을 채워 둔다. 직접 고친 제목은 유형을 바꿔도 덮어쓰지 않는다.
 const defaultSubject: Record<InquiryType, string> = { GENERAL: '', PASS_RESTORATION: '매칭권 복원 요청', PASS_REFUND: '매칭권 환불 요청', PRIVACY: '개인정보 요청' };
 const placeholders: Record<InquiryType, string> = {
-  GENERAL: '거래 관련 문의라면 공연명과 요청 날짜를 함께 적어 주세요.',
+  GENERAL: '서비스 이용 중 궁금한 점, 오류, 제안 등을 자유롭게 적어 주세요. 거래 관련 문의라면 공연명과 요청 날짜를 함께 적어 주세요.',
   PASS_RESTORATION: '언제 어떤 일이 있었는지, 거래 진행에 어떤 영향을 줬는지 적어 주세요. 공식 공지 링크가 있으면 함께 적어 주세요.',
   PASS_REFUND: '환불받을 장수나 사유가 있으면 적어 주세요.',
   PRIVACY: '열람·정정·삭제를 원하는 정보와 내용을 적어 주세요.',
@@ -82,7 +82,7 @@ export function InquiryWritePage() {
             {types.map((t) => <option key={t} value={t}>{inquiryTypeNames[t]}</option>)}
           </select>
         </Field>
-        {type === 'GENERAL' && <p className="record-note">거래 상대와의 분쟁이나 신고는 해당 거래 상세의 신고하기를 이용해 주세요. 증빙 자료를 함께 올릴 수 있어요.</p>}
+        {type === 'GENERAL' && <p className="record-note">다른 유형에 해당하지 않는 문의는 여기에 남겨 주세요. 거래 상대와의 분쟁이나 신고는 해당 거래 상세의 신고하기를 이용해 주세요. 증빙 자료를 함께 올릴 수 있어요.</p>}
 
         {type === 'PASS_RESTORATION' && <>
           <p className="record-note">수락할 때 사용한 매칭권은 거래가 취소돼도 돌아오지 않아요. 공식 공연·예매 취소나 예매처·PICO 장애로 거래를 진행할 수 없었을 때만 운영팀이 확인한 뒤 1회 복원해요. 질병·사고 같은 개인 사정은 해당하지 않아요. 매칭권을 사용한 도우미가 취소됐거나 직접 거래 매칭이 완료된 거래로 요청할 수 있어요.</p>

@@ -312,7 +312,7 @@ function FilesTab() {
     });
   return (
     <>
-      <ListBlock title="검토 대기 증빙 파일" desc="도우미 심사용 경력·활동·사업자 증빙 파일이에요. 경력 증빙은 승인(CLEAN)돼야 도우미가 심사를 신청하고 관리자가 승인할 수 있어요. 결과 증빙과 분쟁 소명 파일은 이 탭의 검토 대상이 아니에요(승인·차단할 수 없어요). 결과 증빙은 이용자가 바로 확인하고, 이의가 생기면 '결과 확인·만료' 탭의 '증빙·소명 보기'로 함께 봐요. 승인은 악성코드 검사를 뜻하지 않아요." load={load} reload={reload} empty="검토할 파일이 없어요.">
+      <ListBlock title="검토 대기 증빙 파일" desc="도우미 심사용 경력·활동·사업자 증빙 파일이에요. 경력 인증은 현재 신청·승인 필수 조건이 아니에요. 기존에 제출된 파일과 검토 이력은 여기서 확인할 수 있어요. 결과 증빙과 분쟁 소명 파일은 이 탭의 검토 대상이 아니에요(승인·차단할 수 없어요). 결과 증빙은 이용자가 바로 확인하고, 이의가 생기면 '결과 확인·만료' 탭의 '증빙·소명 보기'로 함께 봐요. 승인은 악성코드 검사를 뜻하지 않아요." load={load} reload={reload} empty="검토할 파일이 없어요.">
         {(rows) =>
           rows.map((row) => (
             <Item
@@ -516,7 +516,7 @@ function AiReviewSwitch() {
         </button>
       </div>
       <p className="record-note">
-        켜 두면 도우미가 신청할 때마다 AI가 경력 설명과 증빙 사진을 비교해요. 문제가 없으면 관리자 승인 없이 바로 게시되고, 문제가 있거나 판단하기 어려우면 아래 심사 대기 목록에 남아요. 꺼 두면 모든 신청을 관리자가 심사해요.
+        켜 두면 도우미 신청의 공개 소개 문구를 AI가 검토해요. 경력 자료가 없어도 문구 검토와 필수 인증을 통과하면 게시돼요. 판단하기 어려운 신청은 관리자 검토로 남아요.
       </p>
       {on && missing && <Notice tone="error">{missing} 지금은 자동 심사가 동작하지 않아요. 신청은 모두 심사 대기 목록에 남아요.</Notice>}
     </section>
@@ -567,7 +567,7 @@ function ProfilesTab() {
   return (
     <>
       <AiReviewSwitch />
-      <ListBlock title="심사 대기 프로필" desc="승인하면 도우미 찾기에 게시돼요. 서버가 본인·정산계좌 인증과 경력 증빙 최소 1건(CLEAN)을 다시 확인해요. 경력 자료는 '증빙 보기'로 확인해 주세요. AI 자동 사전 심사가 켜져 있으면 AI가 문제를 찾았거나 판단하지 못한 신청만 여기에 남아요." load={load} reload={reload} empty="심사할 프로필이 없어요.">
+      <ListBlock title="심사 대기 프로필" desc="승인하면 도우미 찾기에 게시돼요. 서버가 본인·정산계좌 인증을 다시 확인해요. 경력 자료 없이도 승인할 수 있고, 기존 자료는 '증빙 보기'로 확인할 수 있어요. AI 자동 사전 심사가 켜져 있으면 검토 중이거나 관리자 확인이 필요한 신청이 여기에 표시돼요." load={load} reload={reload} empty="심사할 프로필이 없어요.">
         {(rows) =>
           rows.map((row) => (
             <Item
@@ -628,6 +628,7 @@ function ProfilesTab() {
                 rows={[
                   ['상태', s(e, 'status')],
                   ['설명', s(e, 'description')],
+                  ['검토 기록', s(e, 'reviewNote')],
                   ['첨부', list(pick(e, 'attachments')).map((f) => `${s(f, 'originalName')} (${s(f, 'scanStatus')})`).join(', ')],
                 ]}
               />

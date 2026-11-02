@@ -222,7 +222,7 @@ export function AgentActivityPage({ kind }: { kind: 'leads' | 'matches' }) {
         <div className="empty">
           <Icon name="info" size={38} />
           <h3>도우미 승인 후 이용할 수 있어요</h3>
-          <p>공개 프로필과 인증·경력 자료를 제출하고 심사를 받으면 요청을 받을 수 있어요.</p>
+          <p>공개 프로필을 작성하고 본인·계좌 확인과 심사를 마치면 요청을 받을 수 있어요.</p>
           <button type="button" className="btn primary" onClick={() => navigate('/application')}>
             도우미 신청 확인
           </button>

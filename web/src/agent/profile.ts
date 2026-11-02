@@ -183,7 +183,7 @@ export async function submitCareerCase(profileId: number, caseNumber: number, fi
 }
 
 /** 제출한 경력 사례 번호 목록 */
-/** 제출한 경력 사례(1~3)별 최신 상태. 심사 신청에는 최소 1건이 제출(SUBMITTED/APPROVED)이고 해당 최신 사례의 첨부가 전부 CLEAN이어야 한다. */
+/** 보관된 경력 사례 상태. 현재 경력 자료는 도우미 신청·승인의 필수 조건이 아니다. */
 export interface CareerCase {
   caseNumber: number;
   status: string;
