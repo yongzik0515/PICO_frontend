@@ -3521,6 +3521,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users/{userId}/matching-pass-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 무료 매칭권 지급
+         * @description 활성 관리자만 활성·본인/계좌 인증·승인된 도우미에게 1~1000장을 추가 지급합니다. 무료권은 지급일부터 330일 유효하고 현금 환불되지 않습니다. 유료 구매·결제 이력은 변경하지 않습니다. requestReference는 지급 건별 UUID이며 동일 관리자·대상·수량·사유의 재요청은 기존 지급을 반환합니다. 동일 식별자의 다른 내용은 409, 지급 자격 미충족도 409입니다. 내부 지급 사유는 관리자만 조회합니다.
+         */
+        post: operations["grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/matching-pass-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관리자 매칭권 지급 이력
+         * @description 활성 관리자만 조회합니다. userId 생략 시 전체 최신순이며 page는 0부터, size는 1~100입니다.
+         */
+        get: operations["history_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6390,6 +6430,56 @@ export interface components {
         PassPromotionsResponse: {
             firstPurchaseEligible?: boolean;
             grants?: components["schemas"]["Grant"][];
+        };
+        AdminPassGrantRequest: {
+            /**
+             * Format: int32
+             * @description 추가 지급 수량(1~1000장)
+             * @example 50
+             */
+            units: number;
+            /**
+             * @description 지급 건별 소문자 UUID. 실패 후 재시도에는 같은 값을 사용
+             * @example 16c1f1b9-88df-4494-9bcf-b9c2e9148123
+             */
+            requestReference: string;
+            /**
+             * @description 관리자 내부 지급 사유(1~500자). 회원에게 공개하지 않음
+             * @example 서비스 이용 테스트용 매칭권 지급
+             */
+            decisionNote: string;
+        };
+        AdminPassGrantResponse: {
+            /** Format: int64 */
+            purchaseId?: number;
+            /** Format: int64 */
+            userId?: number;
+            nickname?: string;
+            /** Format: int32 */
+            units?: number;
+            /** Format: int64 */
+            remainingUnits?: number;
+            requestReference?: string;
+            decisionNote?: string;
+            /** Format: int64 */
+            grantedByUserId?: number;
+            grantedByNickname?: string;
+            /** Format: date-time */
+            grantedAt?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAdminPassGrantResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminPassGrantResponse"];
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListAdminPassGrantResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminPassGrantResponse"][];
+            message?: string;
         };
     };
     responses: never;
@@ -20095,6 +20185,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    grant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPassGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminPassGrantResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    history_1: {
+        parameters: {
+            query?: {
+                userId?: number;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListAdminPassGrantResponse"];
                 };
             };
             /** @description 인증 필요 (Bearer JWT) */

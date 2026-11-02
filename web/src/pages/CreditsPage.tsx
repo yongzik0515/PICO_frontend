@@ -12,7 +12,7 @@ import { useToast } from '../ui/Toast';
 
 // 도우미가 요청을 수락할 때 매칭권 1장이 차감된다. 판매 상품은 그로블 결제창의 10장 5,000원 하나다.
 // 결제는 그로블 결제창에서 하고, 서버가 그로블의 서명된 결제 완료 알림(웹훅)을 받아 매칭권을 지급한다.
-const promotionNames: Record<string, string> = { FOUNDING_HELPER: '창립 도우미 혜택', APPROVAL_TRIAL: '승인 체험권', FIRST_PURCHASE: '첫 구매 보너스' };
+const promotionNames: Record<string, string> = { FOUNDING_HELPER: '창립 도우미 혜택', APPROVAL_TRIAL: '승인 체험권', FIRST_PURCHASE: '첫 구매 보너스', ADMIN_GRANT: '운영팀 지급' };
 const promotionStatuses: Record<string, string> = { AVAILABLE: '사용 가능', USED: '모두 사용', EXPIRED: '기간 만료', REVOKED_OR_REFUND_PENDING: '원구매 환불로 사용 불가' };
 const PRODUCT = { units: 10, price: 5000 };
 const PENDING_KEY = 'pico.pendingGroblePass';
