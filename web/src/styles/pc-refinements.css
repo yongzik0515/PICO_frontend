@@ -250,10 +250,16 @@ form[data-account-form="application"] .account-form-footer{border-top:1px solid 
   .nav-wrap{gap:20px}
   .desktop-nav{gap:18px}
 }
-/* 휴대폰(767px 이하): 메뉴·전환·프로필을 헤더에 다 두면 약 463px가 필요해 360~430px 화면에서 가로로 넘쳤다.
-   프로토타입 규칙대로 헤더에서 숨기고 하단 탭바(AppLayout의 .bottom-nav, 3칸)로 대신한다. */
+/* 휴대폰에서는 현재 역할과 전환 버튼을 작게 묶어 프로필·알림과 함께 표시한다. */
+.mobile-role-switch{display:none}
 @media (max-width:767px){
+  .topbar:not(.admin-topbar) .nav-wrap{padding-inline:16px;gap:8px}
+  .topbar:not(.admin-topbar) .header-right{gap:4px}
   .header-right>.mode-switch{display:none}
+  .header-right>.my-avatar{display:inline-flex}
+  .mobile-role-switch{display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:2px;min-height:44px;padding:4px 6px;border-radius:9px;background:var(--canvas);white-space:nowrap}
+  .mobile-role-switch strong{font-size:12px;color:var(--primary-500)}
+  .mobile-role-switch span{font-size:10px;color:var(--ink-600)}
   .bottom-nav button{width:auto;flex:1}
 }
 

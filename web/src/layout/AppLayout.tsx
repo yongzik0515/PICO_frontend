@@ -197,6 +197,17 @@ export function AppLayout() {
               </button>
             </div>
             <button
+              className="mobile-role-switch"
+              aria-label={`현재 ${helper ? '도우미' : '이용자'}, ${helper ? '이용자' : '도우미'}로 전환`}
+              onClick={() => {
+                setOpened('');
+                switchMode(helper ? 'user' : 'agent');
+              }}
+            >
+              <strong>{helper ? '도우미' : '이용자'}</strong>
+              <span>{helper ? '이용자' : '도우미'}로 전환</span>
+            </button>
+            <button
               className="icon-btn notification-bell"
               aria-label={`알림${unread ? ` ${unread}개 안 읽음` : ''}`}
               data-shell="notifications"
@@ -285,8 +296,8 @@ export function AppLayout() {
       <main id="main" className={`page ${route}`} tabIndex={-1}>
         <Outlet context={{ setDetailNavigation }} />
       </main>
-      {/* 휴대폰(767px 이하) 하단 탭바. 헤더의 메뉴·이용자/도우미 전환·프로필 버튼이 숨겨지는 폭이라
-          메뉴 2개 + 마이(역할 전환·로그아웃이 있는 마이페이지)로 대신한다. 스타일은 styles.css의 .bottom-nav. */}
+      {/* 휴대폰(767px 이하) 하단 탭바. 주 메뉴 2개 + 마이페이지를 제공한다.
+          역할 전환과 프로필 메뉴는 헤더에서도 접근할 수 있다. 스타일은 styles.css의 .bottom-nav. */}
       <nav className="bottom-nav" aria-label="하단 메뉴">
         {[...nav, ['/my', 'my', '마이', 'user'] as const].map(([to, key, label, icon]) => (
           <button key={key} className={active === key ? 'active' : ''} aria-current={active === key ? 'page' : undefined} onClick={() => navigate(to)}>

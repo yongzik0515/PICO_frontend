@@ -248,8 +248,8 @@ body {
   }
 }
 
-/* Keep helper application steps and fields within a phone viewport. */
-@media (max-width: 767px) {
+/* Keep helper application steps and fields readable on phones and narrow tablets. */
+@media (max-width: 1023px) {
   .account-form-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 24px;
@@ -276,4 +276,20 @@ body {
   .account-form-layout .account-image-picker { gap: 14px; }
   .account-form-layout .account-image-picker > * { min-width: 0; }
   .account-form-layout .account-image-picker > .avatar { flex-shrink: 0; }
+}
+
+/* Narrow cards need separate rows for review charts and form actions. */
+@media (max-width: 767px) {
+  .profile-feedback .review-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .account-form-footer {
+    flex-wrap: wrap;
+  }
+  .tx-form-footer,
+  #tx-terms-form .tx-card .tx-form-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
