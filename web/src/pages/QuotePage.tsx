@@ -409,7 +409,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
               <textarea name="requirements" rows={3} required maxLength={10000} defaultValue={restored.requirements ?? edit?.requirements} placeholder="예: 1층 지정석, 연석 2매" />
             </Field>
             <Field label="성공 요건" required error={errors.successConditions} helper="희망 좌석을 확보하지 못해도 성공으로 인정할 최소 조건과, 그 경우 지급할 최소 수고비를 함께 적어 주세요.">
-              <textarea name="successConditions" rows={3} required maxLength={10000} defaultValue={restored.successConditions ?? edit?.successConditions} placeholder="예: 희망 좌석은 1층 A구역 연석 2매. B~C구역 연석 2매까지 성공으로 인정하며, 이 경우 수고비는 최소 30,000원" />
+              <textarea name="successConditions" rows={3} required maxLength={10000} defaultValue={restored.successConditions ?? edit?.successConditions} placeholder="예: 1층 B~C구역 연석 2매 확보 시 성공으로 인정하며, 이 경우 수고비는 최소 30,000원" />
             </Field>
             <Field label="희망 착수비 (원)" helper="예매 시도에 대해 제안하는 금액이에요. 0원도 입력할 수 있고, 비워 두면 미정으로 전달돼요." error={errors.upfrontBudgetDesired}>
               <input name="upfrontBudgetDesired" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.upfrontBudgetDesired ?? edit?.upfrontBudgetDesired} placeholder="예: 5000" />
