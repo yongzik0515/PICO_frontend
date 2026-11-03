@@ -1,9 +1,10 @@
+import { VerifiedHelperName } from '../transactions/VerifiedHelperName';
 import { isReviewOpen } from '../transactions/reviewAvailability';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
-import { findPolicy, loadPolicies, usePolicies } from '../api/policies';
+import { findPolicy, usePolicies } from '../api/policies';
 import { BookingTermsNotice } from '../transactions/BookingTermsNotice';
 import { PartialSettlementCard, RefundCard, refundCase } from '../transactions/Settlement';
 import { DisputeCard } from '../transactions/Dispute';
@@ -308,11 +309,11 @@ export function RequestDetailPage() {
   }
 
   async function accept() {
-    const contactSharingDocumentId = findPolicy(await loadPolicies(), 'CONTACT_SHARING').id;
+    const contactSharingDocumentId = findPolicy(policies, 'CONTACT_SHARING').id;
     await run(async () => {
       if (!contactSharingDocumentId) throw new Error('연락처 공유 동의 문서를 불러오지 못했어요.');
       try {
-        await unwrap(api.POST('/api/requests/{requestId}/accept', { ...path, body: { contactSharingDocumentId } }));
+        await unwrap(api.POST('/api/requests/{requestId}/accept', { ...path, body: { contactSharingDocumentId, verifiedNameSharingAgreed: true } }));
       } catch (e) {
         // 명세: 매칭권 잔액 부족은 409
         if (e instanceof ApiError && e.status === 409 && balance !== null && balance < 1) throw new Error('매칭권이 부족해요. 충전한 뒤 다시 수락해 주세요.');
@@ -712,13 +713,14 @@ export function RequestDetailPage() {
             ) : ['COMPLETED', 'CANCELLED'].includes(r.status) ? (
               <Notice>거래가 끝나 연락처 공개가 종료됐어요.</Notice>
             ) : r.myContactConsentWithdrawn ? (
-              <Notice>연락처 제공 동의를 철회했어요. 이 거래에서는 서로의 연락처가 보이지 않아요.</Notice>
+              <Notice>연락처 제공 동의를 철회했어요. 이 거래에서는 서로의 연락처와 도우미 본인인증 이름이 보이지 않아요.</Notice>
             ) : r.counterpartyContactConsentWithdrawn ? (
-              <Notice>상대방이 연락처 제공 동의를 철회해 연락처가 보이지 않아요.</Notice>
+              <Notice>상대방이 제공 동의를 철회해 연락처와 도우미 본인인증 이름이 보이지 않아요.</Notice>
             ) : d.contactsError ? (
               <Notice>{d.contactsError}</Notice>
             ) : contacts.length ? (
               <>
+                <VerifiedHelperName name={!agent ? str(pick(d.contacts, 'verifiedName')) : undefined} />
                 <dl className="document-rows">
                   {contacts.map(([k, v], i) => (
                     <div key={i}>
@@ -894,7 +896,7 @@ export function RequestDetailPage() {
               수락하려면 이용자에게 공개할 대표 연락처가 필요해요. <Link to="/user-profile">연락처 등록</Link> 후 수락해 주세요.
             </Notice>
           )}
-          <p className="record-note">수락하면 이 거래의 이용자에게 대표 연락처를 제공하는 데 동의해요. <a className="text-link" href={findPolicy(policies, 'CONTACT_SHARING').url} target="_blank" rel="noreferrer">연락처 제공 동의문 보기</a></p>
+          <p className="record-note">수락하면 이 거래의 이용자에게 대표 연락처와 본인인증 이름을 제공하는 데 동의해요. 이름은 송금 전 예금주 비교에 사용돼요. <a className="text-link" href={findPolicy(policies, 'CONTACT_SHARING').url} target="_blank" rel="noreferrer">연락처·도우미 실명 제공 동의문 보기</a></p>
         </ConfirmModal>
         </BookingTermsNotice>
       )}
@@ -1025,7 +1027,7 @@ export function RequestDetailPage() {
           onConfirm={() => act(() => unwrap(api.POST('/api/requests/{requestId}/contact-consent/withdraw', path)), '연락처 제공 동의를 철회했어요.')}
         >
           <p className="prose">
-            이 거래에서 내 연락처 제공 동의를 철회할까요? 철회하면 이 거래에서 서로의 연락처가 바로 보이지 않고, 다시 동의할 수 없어요. 상대방에게는 받은 연락처를 지워 달라고 알려요.
+            이 거래에서 내 연락처 제공 동의를 철회할까요? 철회하면 이 거래에서 서로의 연락처와 도우미 본인인증 이름이 바로 보이지 않고, 다시 동의할 수 없어요. 상대방에게는 받은 연락처와 도우미 본인인증 이름을 지워 달라고 알려요.
           </p>
         </ConfirmModal>
       )}

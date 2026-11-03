@@ -4544,6 +4544,8 @@ export interface components {
             additionalNote?: string;
         };
         Accept: {
+            /** Explicit agreement after displaying helper verified-name sharing notice. */
+            verifiedNameSharingAgreed: boolean;
             /** Format: int64 */
             contactSharingDocumentId: number;
         };

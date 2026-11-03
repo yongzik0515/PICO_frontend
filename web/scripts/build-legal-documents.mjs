@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 const legalDocuments = JSON.parse(await readFile(new URL('../src/legal/legalDocuments.json', import.meta.url), 'utf8'));
 
 // Published bytes are immutable. Change the version when changing a published document.
-const version = '2026-11-03.1';
+const version = '2026-11-03.2';
 const publishedDate = '2026년 11월 3일';
 const privacyUrl = `/legal/${version}/privacy.html`;
 const termsUrl = `/legal/${version}/terms.html`;
@@ -17,9 +17,9 @@ const directory = new URL(`../public/legal/${version}/`, import.meta.url);
 await mkdir(directory, { recursive: true });
 const manifest = [];
 for (const [type, filename, documents, previousUrl] of [
-  ['PRIVACY', 'privacy', [legalDocuments.signupPrivacy, legalDocuments.accountStorage, legalDocuments.privacy], '/legal/2026-11-01.2/privacy.html'],
-  ['TERMS', 'terms', [legalDocuments.terms], '/legal/2026-11-01.2/terms.html'],
-  ['CONTACT_SHARING', 'contact-sharing', [legalDocuments.contactSharing], '/legal/2026-11-01.2/contact-sharing.html'],
+  ['PRIVACY', 'privacy', [legalDocuments.signupPrivacy, legalDocuments.accountStorage, legalDocuments.privacy], '/legal/2026-11-03.1/privacy.html'],
+  ['TERMS', 'terms', [legalDocuments.terms], '/legal/2026-11-03.1/terms.html'],
+  ['CONTACT_SHARING', 'contact-sharing', [legalDocuments.contactSharing], '/legal/2026-11-03.1/contact-sharing.html'],
 ]) {
   const effectiveAt = '2026-11-02T15:00:00';
   const effectiveDate = publishedDate;
