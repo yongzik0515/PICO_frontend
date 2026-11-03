@@ -142,10 +142,12 @@ export function RecoveryPage() {
               <strong>현재 카카오 본인인증은 이용할 수 없어요.</strong> 다른 인증 수단을 이용해 주세요.
             </AccountNote>
             <p className="recovery-error" role="alert">{error}</p>
-            {session && <button type="button" className="btn primary full" disabled={pending} onClick={() => void complete(session)}>인증 결과 다시 확인</button>}
-            <button type="button" className={`btn ${session ? 'ghost' : 'primary'} full`} disabled={pending} onClick={() => void start()}>
-              {pending ? '확인 중…' : session ? '본인인증 다시 시작' : '본인인증하고 계속하기'}
-            </button>
+            <div className="recovery-actions">
+              {session && <button type="button" className="btn primary full" disabled={pending} onClick={() => void complete(session)}>인증 결과 다시 확인</button>}
+              <button type="button" className={`btn ${session ? 'ghost' : 'primary'} full`} disabled={pending} onClick={() => void start()}>
+                {pending ? '확인 중…' : session ? '본인인증 다시 시작' : '본인인증하고 계속하기'}
+              </button>
+            </div>
           </>
         )}
       </section>

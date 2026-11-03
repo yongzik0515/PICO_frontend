@@ -482,7 +482,7 @@ function InquiriesTab() {
         })}>답변 작성</button>}
       </Item>;
     })}</ListBlock>
-    <div className="modal-actions"><button type="button" className="btn ghost" disabled={page === 0 || load.status !== 'done'} onClick={() => setPage(page - 1)}>이전</button><span>{page + 1}페이지</span><button type="button" className="btn ghost" disabled={load.status !== 'done' || load.data.length < 20} onClick={() => setPage(page + 1)}>다음</button></div>
+    <div className="admin-toolbar admin-pagination"><button type="button" className="btn ghost" disabled={page === 0 || load.status !== 'done'} onClick={() => setPage(page - 1)}>이전</button><span>{page + 1}페이지</span><button type="button" className="btn ghost" disabled={load.status !== 'done' || load.data.length < 20} onClick={() => setPage(page + 1)}>다음</button></div>
     {modal}
     {restoring && <InquiryRestoreModal row={restoring} onClose={() => setRestoring(null)} onDone={() => { setRestoring(null); reload(); }} />}
   </>;
@@ -1309,7 +1309,7 @@ function AllRequestsTab() {
   return <>
     <AdminSearchForm hint="요청·회원 번호, 요청명 또는 회원 닉네임으로 검색해요." onSearch={(value) => { setQuery(value); setPage(0); }} />
     <section className="content-card">
-      <div className="modal-actions">
+      <div className="admin-toolbar">
         <button type="button" className="btn secondary" onClick={() => { setStatus('PENDING'); setPolicyStatus('ALLOWED'); setPage(0); }}>심사 통과·수락 대기</button>
         <button type="button" className="btn ghost" onClick={() => { setStatus(''); setPolicyStatus(''); setPage(0); }}>전체 상태 보기</button>
       </div>
@@ -1559,7 +1559,7 @@ function PassPurchasesTab({ initialQuery }: { initialQuery: string }) {
           })
         }
       </ListBlock>
-      <div className="modal-actions">
+      <div className="admin-toolbar admin-pagination">
         <button type="button" className="btn ghost" disabled={page === 0 || load.status !== 'done'} onClick={() => setPage(page - 1)}>
           이전
         </button>
@@ -1717,7 +1717,7 @@ function AdminSearchForm({ hint, onSearch }: { hint: string; onSearch: (query: s
       <Field label="검색" helper={hint}>
         <input type="search" maxLength={100} value={input} onChange={(e) => setInput(e.target.value)} placeholder="검색어를 입력해 주세요" />
       </Field>
-      <div className="modal-actions">
+      <div className="admin-toolbar">
         <button type="button" className="btn ghost" onClick={() => { setInput(''); onSearch(''); }}>검색 초기화</button>
         <button type="submit" className="btn primary">검색</button>
       </div>
@@ -1727,7 +1727,7 @@ function AdminSearchForm({ hint, onSearch }: { hint: string; onSearch: (query: s
 
 function AdminPagination({ page, setPage, load }: { page: number; setPage: (page: number) => void; load: ReturnType<typeof useLoad<Raw[]>>[0] }) {
   return (
-    <nav className="modal-actions" aria-label="목록 페이지 이동">
+    <nav className="admin-toolbar admin-pagination" aria-label="목록 페이지 이동">
       <button type="button" className="btn ghost" disabled={page === 0 || load.status === 'loading'} onClick={() => setPage(page - 1)}>이전</button>
       <span aria-live="polite">{page + 1}페이지</span>
       <button type="button" className="btn ghost" disabled={load.status !== 'done' || load.data.length < ADMIN_PAGE_SIZE} onClick={() => setPage(page + 1)}>다음</button>
