@@ -39,6 +39,7 @@ export interface TxRequest {
   purchaseBudgetMax?: number;
   agencyBudgetMax?: number;
   agencyBudgetDesired?: number;
+  upfrontBudgetDesired?: number;
   additionalNote: string;
   contactDeadlineRule: string;
   applicationRound: string;
@@ -114,6 +115,7 @@ export function toRequest(raw: Raw): TxRequest {
     purchaseBudgetMax: n('purchaseBudgetMax'),
     agencyBudgetMax: n('agencyBudgetMax'),
     agencyBudgetDesired: n('agencyBudgetDesired'),
+    upfrontBudgetDesired: n('upfrontBudgetDesired'),
     additionalNote: s('additionalNote'),
     contactDeadlineRule: s('contactDeadlineRule'),
     applicationRound: s('applicationRound'),

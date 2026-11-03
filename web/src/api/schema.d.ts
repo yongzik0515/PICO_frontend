@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * 거래 당사자의 요청 상세
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 거래 당사자만 조회할 수 있습니다. 숨김·삭제된 후기 원문과 이미지 저장 키, 내부 정책 검토 메모·근거 URL은 응답에서 제외합니다. disputeNote는 이용자의 최근 이의 사유(양쪽 당사자에게 보임), resultConfirmDueAt은 이용자 결과 확인 기한(UTC, 확인 대기 중일 때만), paymentId·paymentStatus는 최신 합의의 최신 결제(환불 요청 API에 씀)입니다. stage는 REQUEST_WAITING·CONDITION_PREPARATION·CONDITION_CONFIRMATION·CONDITION_CHANGE_REQUESTED·OPENING_PASSED·PAYMENT_WAITING·READY_TO_START·IN_PROGRESS·RESULT_CONFIRMATION·BOOKING_UPCOMING 또는 종료/분쟁 상태 코드입니다. 직접 거래는 MATCHING_COMPLETED와 completedAt으로 매칭 완료를 표시하고 finalResult는 null입니다. 후기 작성 후에는 이용 예정일 전이라도 stage=MATCHING_COMPLETED로 완료 표시하며 후기 삭제·숨김 후에도 유지합니다. agencyBudgetDesired·agencyBudgetMax는 희망·최대 수고비입니다. opensAt·useAt은 티켓 오픈·이용 예정 시각(UTC), contactsVisibleUntil은 연락처 공개가 끝나는 시각(useAt+7일)입니다. 이용자에게만 policyBlockedBy(AUTO 자동 검사·ADMIN 운영팀)와 policyBlockReason(자동 검사는 고정 항목명, 운영팀은 이용자에게 쓴 사유)을 줍니다. myContactConsentWithdrawn·counterpartyContactConsentWithdrawn은 이 거래의 연락처 제공 동의 철회 여부입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 거래 당사자만 조회할 수 있습니다. 숨김·삭제된 후기 원문과 이미지 저장 키, 내부 정책 검토 메모·근거 URL은 응답에서 제외합니다. disputeNote는 이용자의 최근 이의 사유(양쪽 당사자에게 보임), resultConfirmDueAt은 이용자 결과 확인 기한(UTC, 확인 대기 중일 때만), paymentId·paymentStatus는 최신 합의의 최신 결제(환불 요청 API에 씀)입니다. stage는 REQUEST_WAITING·CONDITION_PREPARATION·CONDITION_CONFIRMATION·CONDITION_CHANGE_REQUESTED·OPENING_PASSED·PAYMENT_WAITING·READY_TO_START·IN_PROGRESS·RESULT_CONFIRMATION·BOOKING_UPCOMING 또는 종료/분쟁 상태 코드입니다. 직접 거래는 MATCHING_COMPLETED와 completedAt으로 매칭 완료를 표시하고 finalResult는 null입니다. 후기 작성 후에는 이용 예정일 전이라도 stage=MATCHING_COMPLETED로 완료 표시하며 후기 삭제·숨김 후에도 유지합니다. upfrontBudgetDesired는 희망 착수비, agencyBudgetDesired·agencyBudgetMax는 희망·최대 수고비(원)입니다. opensAt·useAt은 티켓 오픈·이용 예정 시각(UTC), contactsVisibleUntil은 연락처 공개가 끝나는 시각(useAt+7일)입니다. 이용자에게만 policyBlockedBy(AUTO 자동 검사·ADMIN 운영팀)와 policyBlockReason(자동 검사는 고정 항목명, 운영팀은 이용자에게 쓴 사유)을 줍니다. myContactConsentWithdrawn·counterpartyContactConsentWithdrawn은 이 거래의 연락처 제공 동의 철회 여부입니다.
          */
         get: operations["get"];
         /**
@@ -407,7 +407,7 @@ export interface paths {
         put?: never;
         /**
          * 지정 도우미에게 견적요청
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자 본인인증(VERIFIED)이 필요하며 미인증은 403입니다. 내용 검사 PASS는 ALLOWED로 도우미 전달, REJECT는 BLOCKED로 저장·보류, 불확실·AI 미사용/미설정/장애는 PENDING 수동 검토입니다. data.contentReview={decision,issues,message,source}와 policyGateStatus를 확인하세요. 저장 성공이 곧 도우미 전달 성공은 아닙니다. 인증·예매처 등 기존 검증 실패는 오류입니다. applicationOpenDate/Time 및 scheduledUseDate/Time은 한국 현지 시각, expiresAt은 UTC입니다. 도우미의 본인·계좌 인증 및 게시 프로필, 지원 분야·신청처, 이용자 연락처·동의가 필요합니다. 요청은 내용 검사 결과에 따라 전달 또는 수동 검토·보류됩니다. agencyBudgetDesired는 희망 수고비, agencyBudgetMax는 최대 수고비이며 둘 다 입력하면 희망 금액은 최대 금액 이하여야 합니다. platformId 또는 otherPlatformName 중 하나만 입력합니다. 활성 예매처는 정책 미입력도 요청 가능하며 BLOCK인 예매처는 진행할 수 없습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자 본인인증(VERIFIED)이 필요하며 미인증은 403입니다. 내용 검사 PASS는 ALLOWED로 도우미 전달, REJECT는 BLOCKED로 저장·보류, 불확실·AI 미사용/미설정/장애는 PENDING 수동 검토입니다. data.contentReview={decision,issues,message,source}와 policyGateStatus를 확인하세요. 저장 성공이 곧 도우미 전달 성공은 아닙니다. 인증·예매처 등 기존 검증 실패는 오류입니다. applicationOpenDate/Time 및 scheduledUseDate/Time은 한국 현지 시각, expiresAt은 UTC입니다. 도우미의 본인·계좌 인증 및 게시 프로필, 지원 분야·신청처, 이용자 연락처·동의가 필요합니다. 요청은 내용 검사 결과에 따라 전달 또는 수동 검토·보류됩니다. upfrontBudgetDesired는 희망 착수비, agencyBudgetDesired·agencyBudgetMax는 희망·최대 수고비(원)이며 둘 다 입력하면 희망 금액은 최대 금액 이하여야 합니다. 세 금액은 선택 입력이며 최종 합의·결제 금액과 별개입니다. requestedQuantity는 양의 정수 매수, locationNote는 선택 공연장·위치입니다. platformId 또는 otherPlatformName 중 하나만 입력합니다. 활성 예매처는 정책 미입력도 요청 가능하며 BLOCK인 예매처는 진행할 수 없습니다.
          */
         post: operations["create"];
         delete?: never;
@@ -3704,8 +3704,16 @@ export interface components {
             expiresAt: string;
             /** Format: int64 */
             contactSharingDocumentId: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description 희망 수고비(원). 최대 수고비 이하여야 합니다.
+             */
             agencyBudgetDesired?: number;
+            /**
+             * Format: int64
+             * @description 희망 착수비(원). 선택 입력이며 최종 합의 금액·결제 금액과는 별개입니다.
+             */
+            upfrontBudgetDesired?: number;
         };
         /**
          * @description agent_profile_versions.primary_category의 DDL CHECK 허용값

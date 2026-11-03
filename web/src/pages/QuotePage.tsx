@@ -41,7 +41,11 @@ const DRAFT_FIELDS = [
   'otherPlatformName',
   'requirements',
   'successConditions',
+  'locationNote',
+  'requestedQuantity',
+  'upfrontBudgetDesired',
   'agencyBudgetDesired',
+  'agencyBudgetMax',
   'additionalNote',
   'expiresAt',
 ] as const;
@@ -266,6 +270,9 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
     }
     if (Object.keys(found).length) return fail(form, found);
     const d = Object.fromEntries([...new FormData(form)].map(([k, v]) => [k, String(v).trim()]));
+    if (d.agencyBudgetDesired && d.agencyBudgetMax && Number(d.agencyBudgetDesired) > Number(d.agencyBudgetMax)) {
+      return fail(form, { agencyBudgetMax: '최대 수고비는 희망 수고비 이상이어야 해요.' });
+    }
     const contactSharingDocumentId = findPolicy(policies, 'CONTACT_SHARING').id;
     if (!contactSharingDocumentId) return setError('연락처 공유 동의 문서를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
     if (new Date(d.expiresAt) <= new Date()) return fail(form, { expiresAt: '응답 기한은 지금보다 뒤여야 해요.' });
@@ -285,13 +292,14 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
       scheduledUseTime: d.scheduledUseTime || undefined,
       platformId: platform && platform !== 'other' ? Number(platform) : undefined,
       otherPlatformName: platform === 'other' ? d.otherPlatformName : undefined,
-      locationNote: edit?.locationNote,
-      requestedQuantity: edit?.requestedQuantity,
+      locationNote: d.locationNote || undefined,
+      requestedQuantity: optionalNumber(d.requestedQuantity),
       requirements: d.requirements,
       successConditions: d.successConditions,
       purchaseBudgetMax: edit?.purchaseBudgetMax,
       agencyBudgetDesired: optionalNumber(d.agencyBudgetDesired),
-      agencyBudgetMax: edit?.agencyBudgetMax,
+      agencyBudgetMax: optionalNumber(d.agencyBudgetMax),
+      upfrontBudgetDesired: optionalNumber(d.upfrontBudgetDesired),
       additionalNote: d.additionalNote || undefined,
       applicationRound: (d.applicationRound || undefined) as RequestBody['applicationRound'],
       expiresAt: toUtc(d.expiresAt),
@@ -366,6 +374,12 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
                 <input name="applicationOpenTime" type="time" defaultValue={restored.applicationOpenTime ?? edit?.applicationOpenTime} />
               </Field>
             </div>
+            <Field label="공연장·위치" helper="같은 공연의 지역·회차를 구분할 수 있도록 공연장 이름이나 지역을 적어 주세요. 선택 항목이에요." error={errors.locationNote}>
+              <input name="locationNote" maxLength={250} defaultValue={restored.locationNote ?? edit?.locationNote} placeholder="예: 서울 KSPO DOME" />
+            </Field>
+            <Field label="매수" required error={errors.requestedQuantity}>
+              <input name="requestedQuantity" type="number" required min={1} max={2147483647} step={1} defaultValue={restored.requestedQuantity ?? edit?.requestedQuantity} placeholder="예: 2" />
+            </Field>
             <Field label="예매 회차" error={errors.applicationRound}>
               <select name="applicationRound" defaultValue={restored.applicationRound ?? edit?.applicationRound ?? ''}>
                 {rounds.map(([v, t]) => (
@@ -394,12 +408,20 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
             <Field label="희망 좌석·요청 내용" required error={errors.requirements} helper="원하는 좌석과 요청 사항을 적어 주세요. 도우미가 어떻게 진행할지 참고하는 내용이에요.">
               <textarea name="requirements" rows={3} required maxLength={10000} defaultValue={restored.requirements ?? edit?.requirements} placeholder="예: 1층 지정석, 연석 2매" />
             </Field>
-            <Field label="성공 요건" required error={errors.successConditions} helper="어디까지 잡아야 성공으로 볼지 적어 주세요. 성공 요건은 수고비 지급의 최소 기준이 됩니다.">
-              <textarea name="successConditions" rows={3} required maxLength={10000} defaultValue={restored.successConditions ?? edit?.successConditions} placeholder="예: 1층 A~C구역 연석 2매를 확보하면 성공" />
+            <Field label="성공 요건" required error={errors.successConditions} helper="희망 좌석을 확보하지 못해도 성공으로 인정할 최소 조건과, 그 경우 지급할 최소 수고비를 함께 적어 주세요.">
+              <textarea name="successConditions" rows={3} required maxLength={10000} defaultValue={restored.successConditions ?? edit?.successConditions} placeholder="예: 희망 좌석은 1층 A구역 연석 2매. B~C구역 연석 2매까지 성공으로 인정하며, 이 경우 수고비는 최소 30,000원" />
             </Field>
-            <Field label="희망 수고비" helper="도우미에게 제안하고 싶은 수고비예요. 최종 금액은 서로 합의해요." error={errors.agencyBudgetDesired}>
-              <input name="agencyBudgetDesired" type="number" min={0} step={100} defaultValue={restored.agencyBudgetDesired ?? edit?.agencyBudgetDesired} />
+            <Field label="희망 착수비 (원)" helper="예매 시도에 대해 제안하는 금액이에요. 0원도 입력할 수 있고, 비워 두면 미정으로 전달돼요." error={errors.upfrontBudgetDesired}>
+              <input name="upfrontBudgetDesired" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.upfrontBudgetDesired ?? edit?.upfrontBudgetDesired} placeholder="예: 5000" />
             </Field>
+            <div className="form-grid">
+              <Field label="희망 수고비 (원)" helper="희망 좌석을 확보했을 때 지급하고 싶은 수고비예요. 최종 금액은 서로 합의해요." error={errors.agencyBudgetDesired}>
+                <input name="agencyBudgetDesired" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.agencyBudgetDesired ?? edit?.agencyBudgetDesired} placeholder="예: 30000" />
+              </Field>
+              <Field label="최대 수고비 (원)" helper="희망 좌석 확보 시 지급할 수 있는 최대 수고비예요." error={errors.agencyBudgetMax}>
+                <input name="agencyBudgetMax" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.agencyBudgetMax ?? edit?.agencyBudgetMax} placeholder="예: 50000" />
+              </Field>
+            </div>
             <Field label="기타 사항" error={errors.additionalNote}>
               <textarea name="additionalNote" rows={3} maxLength={10000} defaultValue={restored.additionalNote ?? edit?.additionalNote} />
             </Field>
@@ -558,6 +580,7 @@ export function RequestSentPage() {
           ))}
         </p>
       )}
+      {r?.status === 'PENDING' && <p>도우미가 수락하기 전에는 보낸 요청에서 내용을 수정하거나 취소할 수 있어요.</p>}
       <div>
         {blocked && r?.agentId ? (
           // 수락 전 요청을 고치는 기존 진입점(요청 상세의 '요청 고치기'와 같다)

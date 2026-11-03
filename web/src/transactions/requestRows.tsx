@@ -18,6 +18,7 @@ export function requestRows(r: TxRequest): [string, ReactNode][] {
     ['매수', r.requestedQuantity ? `${r.requestedQuantity}매` : ''],
     ['희망 좌석·요청 내용', r.requirements],
     ['성공 요건', r.successConditions],
+    ['희망 착수비', won(r.upfrontBudgetDesired)],
     ['희망 수고비', won(r.agencyBudgetDesired)],
     ['최대 수고비', won(r.agencyBudgetMax)],
     ['기타 사항', r.additionalNote],
@@ -29,10 +30,10 @@ export function requestRows(r: TxRequest): [string, ReactNode][] {
 export function agreementRows(a: Agreement): [string, ReactNode][] {
   return [
     ['착수비', won(a.upfrontFeeKrw)],
-    ['수고비(성공보수)', won(a.successFeeKrw)],
+    ['희망 좌석 확보 시 수고비', won(a.successFeeKrw)],
     ['거래 방식', a.safePayment ? `안전거래 · 수수료 ${won(a.safetyFeeKrw)}` : '직접 거래(수수료 없음)'],
     ['희망 좌석·요청 내용', a.requirements],
-    ['성공 요건', a.successConditions],
+    ['최소 성공 요건·해당 수고비', a.successConditions],
     ['예매 시도 방식', a.attemptRule],
     ['실패·환불 처리', a.refundRule],
     ['결과 연락 기한', a.contactDeadlineRule],
