@@ -1,3 +1,4 @@
+import { useAuth } from '../auth/AuthContext';
 import { clearPlatformCache } from '../discovery/agent';
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -19,11 +20,12 @@ import { PageTitle } from '../ui/PageTitle';
 // 권한은 서버가 검사한다(ROLE_ADMIN이 아니면 403). 메뉴에는 노출하지 않고 /admin 주소로 들어온다.
 // 목록 응답 필드가 명세에 없는 API가 많아(data: object) pick()으로 찾고, 항목마다 원본 응답을 펼쳐 볼 수 있게 했다.
 
-type Tab = 'pass-restoration' | 'inquiries' | 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'completed' | 'payments' | 'pass-purchases' | 'reports' | 'reviews' | 'users' | 'setup';
+type Tab = 'pass-grants' | 'pass-restoration' | 'inquiries' | 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'completed' | 'payments' | 'pass-purchases' | 'reports' | 'reviews' | 'users' | 'setup';
 const tabs: [Tab, string][] = [
   ['policy', '요청 정책 검토'],
   ['inquiries', '문의 답변'],
   ['pass-restoration', '매칭권 예외 복원'],
+  ['pass-grants', '매칭권 지급'],
   ['files', '증빙 파일 검토'],
   ['profiles', '도우미 심사'],
   ['attempts', '시도 증빙 대리 승인'],
@@ -2478,6 +2480,118 @@ function PassRestorationTab() {
   </section>;
 }
 
+// A submitted gift keeps the same reference across network retries and page reloads.
+type PendingPassGrant = { userId: number; nickname: string; units: number; decisionNote: string; requestReference: string };
+function AdminPassGrantsTab() {
+  const { userKey } = useAuth();
+  return <AdminPassGrantsForm key={userKey} userKey={userKey} />;
+}
+function AdminPassGrantsForm({ userKey }: { userKey: string }) {
+  const storageKey = `pico.adminPassGrant.${userKey}`;
+  const [saved, setSaved] = useState<PendingPassGrant | null>(() => {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(storageKey) ?? 'null');
+      return value && Number.isInteger(value.userId) && Number.isInteger(value.units)
+        && typeof value.requestReference === 'string' && typeof value.decisionNote === 'string' ? value : null;
+    } catch { return null; }
+  });
+  const [query, setQuery] = useState('');
+  const [memberPage, setMemberPage] = useState(0);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [selected, setSelected] = useState<Raw | null>(null);
+  const [units, setUnits] = useState('1');
+  const [note, setNote] = useState('');
+  const [confirming, setConfirming] = useState<PendingPassGrant | null>(null);
+  const [result, setResult] = useState<Raw | null>(null);
+  const { pending, run } = useAction();
+  const [members, reloadMembers] = useLoad<Raw[]>(() => unwrap(api.GET('/api/admin/users', {
+    params: { query: { q: query || undefined, page: memberPage, size: ADMIN_PAGE_SIZE } },
+  })).then(list), [query, memberPage], { resetOnLoad: true });
+  const [history, reloadHistory] = useLoad<Raw[]>(() => unwrap(api.GET('/api/admin/matching-pass-grants', {
+    params: { query: { page: historyPage, size: ADMIN_PAGE_SIZE } },
+  })).then(list), [historyPage], { resetOnLoad: true });
+  const valid = selected && Number.isInteger(Number(units)) && Number(units) >= 1 && Number(units) <= 1000 && note.trim();
+  async function grant(input: PendingPassGrant) {
+    const retrying = saved?.requestReference === input.requestReference;
+    const ok = await run(async () => {
+      // If storage is unavailable, do not send a request whose retry identity could be lost.
+      try { sessionStorage.setItem(storageKey, JSON.stringify(input)); }
+      catch { throw new Error('지급 요청을 보관할 수 없어요. 브라우저 저장소 설정을 확인해 주세요.'); }
+      setSaved(input);
+      try {
+        const response = await unwrap<Raw>(api.POST('/api/admin/users/{userId}/matching-pass-grants', {
+          params: { path: { userId: input.userId } },
+          body: { units: input.units, requestReference: input.requestReference, decisionNote: input.decisionNote },
+        }));
+        sessionStorage.removeItem(storageKey);
+        setSaved(null);
+        setResult(response);
+      } catch (e) {
+        // Only an initial definitive rejection may discard the key. A previous unknown outcome must be resolved with the same key.
+        if (!retrying && e instanceof ApiError && [400, 403, 404, 409, 422].includes(e.status)) {
+          sessionStorage.removeItem(storageKey);
+          setSaved(null);
+          setConfirming(null);
+        }
+        throw e;
+      }
+    }, `매칭권 ${input.units}장 지급을 확인했어요.`);
+    reloadHistory();
+    if (ok) { setConfirming(null); setSelected(null); setUnits('1'); setNote(''); }
+  }
+  return <>
+    {saved && <section className="content-card">
+      <h2>지급 결과 확인</h2>
+      <p className="prose">{saved.nickname} (회원 #{saved.userId})에게 {saved.units}장 지급 요청을 보냈어요. 결과 확인이나 재시도는 같은 요청으로 처리되어 중복 지급되지 않아요.</p>
+      <button className="btn primary" disabled={pending} onClick={() => void grant(saved)}>지급 결과 확인·재시도</button>
+    </section>}
+    {!saved && <>
+      <AdminSearchForm hint="지급할 도우미의 회원 번호, 닉네임 또는 로그인 이메일을 검색해요." onSearch={(q) => { setQuery(q); setMemberPage(0); }} />
+      <ListBlock title="지급 대상 선택" desc="본인·계좌 확인과 도우미 승인을 마친 활성 회원에게 지급할 수 있어요." load={members} reload={reloadMembers} empty="검색 결과가 없어요.">
+        {(rows) => rows.map((row) => <Item key={n(row, 'userId', 'id')} raw={row}
+          title={`${s(row, 'nickname')} · 회원 #${n(row, 'userId', 'id')}`}
+          rows={[["이메일", s(row, 'email')], ["상태", s(row, 'status')]]}>
+          <button className="btn secondary" disabled={pending || s(row, 'status') !== 'ACTIVE' || !!pick(row, 'agentSuspendedAt')}
+            onClick={() => { setSelected(row); setResult(null); }}>지급 대상 선택</button>
+        </Item>)}
+      </ListBlock>
+      <AdminPagination page={memberPage} setPage={setMemberPage} load={members} />
+      {selected && <form className="content-card" onSubmit={(e) => {
+        e.preventDefault();
+        if (valid && !pending) setConfirming({ userId: n(selected, 'userId', 'id')!, nickname: s(selected, 'nickname'),
+          units: Number(units), decisionNote: note.trim(), requestReference: crypto.randomUUID() });
+      }}>
+        <h2>{s(selected, 'nickname')} (회원 #{n(selected, 'userId', 'id')})에게 매칭권 지급</h2>
+        <p className="record-note">현재 잔액에 추가돼요. 무료권은 지급일부터 330일간 유효하며 현금 환불되지 않아요.</p>
+        <Field label="추가 지급 수량" required helper="1~1000장">
+          <input type="number" min={1} max={1000} step={1} required value={units} onChange={(e) => setUnits(e.target.value)} />
+        </Field>
+        <Field label="지급 사유" required helper="관리자에게만 보이는 내부 기록이에요.">
+          <textarea required maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        <button className="btn primary" type="submit" disabled={pending || !valid}>지급 내용 확인</button>
+      </form>}
+    </>}
+    {result && <Notice>회원 #{n(result, 'userId')}에게 {n(result, 'units')}장 지급 완료 · 지급 번호 #{n(result, 'purchaseId')} · {utcToLocal(s(result, 'expiresAt'))}까지 사용 가능</Notice>}
+    <ListBlock title="관리자 지급 이력" desc="지급 대상, 수량, 관리자와 사유를 기록해요." load={history} reload={reloadHistory} empty="지급 이력이 없어요.">
+      {(rows) => rows.map((row) => <Item key={n(row, 'purchaseId')} raw={row}
+        title={`${s(row, 'nickname')} (#${n(row, 'userId')}) · ${n(row, 'units')}장`}
+        rows={[["지급 번호", `#${n(row, 'purchaseId')}`], ["남은 수량", `${n(row, 'remainingUnits')}장`],
+          ["지급 사유", s(row, 'decisionNote')], ["지급 관리자", `${s(row, 'grantedByNickname')} (#${n(row, 'grantedByUserId')})`],
+          ["지급 시각", utcToLocal(s(row, 'grantedAt'))], ["유효기간", utcToLocal(s(row, 'expiresAt'))]]} />)}
+    </ListBlock>
+    <AdminPagination page={historyPage} setPage={setHistoryPage} load={history} />
+    {confirming && <Modal title="매칭권 지급 확인" onClose={() => { if (!pending) setConfirming(null); }}>
+      <p className="prose">{confirming.nickname} (회원 #{confirming.userId})에게 무료 매칭권 {confirming.units}장을 추가 지급합니다.</p>
+      <p className="prose">지급 사유: {confirming.decisionNote}</p>
+      <div className="modal-actions">
+        <button className="btn secondary" disabled={pending} onClick={() => setConfirming(null)}>돌아가기</button>
+        <button className="btn primary" disabled={pending} onClick={() => void grant(confirming)}>{pending ? '지급 확인 중…' : `${confirming.units}장 지급`}</button>
+      </div>
+    </Modal>}
+  </>;
+}
+
 export function AdminPage() {
   // ?tab=으로 처음 탭을 고르고(알림에서 /admin?tab=payments 등으로 들어온다), 탭을 바꾸면 주소의 tab도 바꾼다.
   // 매칭권 구매 탭은 ?q=로 검색어를 받는다(결제 확인의 '구매 건 보기').
@@ -2502,6 +2616,7 @@ export function AdminPage() {
       {tab === 'profiles' && <ProfilesTab />}
       {tab === 'inquiries' && <InquiriesTab />}
       {tab === 'pass-restoration' && <PassRestorationTab />}
+      {tab === 'pass-grants' && <AdminPassGrantsTab />}
       {tab === 'attempts' && <AttemptsTab />}
       {tab === 'settlements' && <SettlementsTab />}
       {tab === 'requests' && <RequestsTab />}

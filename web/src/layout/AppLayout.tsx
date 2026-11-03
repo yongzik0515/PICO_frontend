@@ -71,6 +71,8 @@ const titles: Record<string, string> = {
   application: '도우미 신청',
 };
 
+export type DetailNavigation = { path: string; key: 'requests' | 'leads' | 'matches' };
+
 type Popover = '' | 'notifications' | 'profile';
 
 export function AppLayout() {
@@ -79,6 +81,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const route = routeKey(pathname);
+  const [detailNavigation, setDetailNavigation] = useState<DetailNavigation | null>(null);
   // 팝오버는 열었던 화면에서만 열려 있다(경로가 바뀌면 자동으로 닫힘).
   const [popover, setPopover] = useState<{ kind: Popover; path: string }>({ kind: '', path: '' });
   const opened = popover.path === pathname ? popover.kind : '';
@@ -100,7 +103,7 @@ export function AppLayout() {
   const nav: [string, string, string, IconName][] = helper
     ? [['/leads', 'leads', '받은 요청', 'inbox'], ['/matches', 'matches', '매칭 관리', 'ticket']]
     : [['/', 'home', '도우미 찾기', 'search'], ['/requests', 'requests', '내 활동', 'ticket']];
-  const active = ['my', 'favorites', 'help', 'inquiries', 'terms', 'privacy', 'guide', 'user-profile', 'helper-profile', 'account', 'history', 'application', 'credits', 'reports'].includes(route) ? 'my' : helper ? (route === 'matches' || route === 'availability' ? 'matches' : 'leads') : route === 'requests' ? 'requests' : 'home';
+  const active = (route === 'detail' && detailNavigation?.path === pathname) ? detailNavigation.key : ['my', 'favorites', 'help', 'inquiries', 'terms', 'privacy', 'guide', 'user-profile', 'helper-profile', 'account', 'history', 'application', 'credits', 'reports'].includes(route) ? 'my' : helper ? (route === 'matches' || route === 'availability' ? 'matches' : 'leads') : route === 'requests' ? 'requests' : 'home';
 
   useEffect(() => {
     document.title = `${titles[route] || '티켓팅 매칭'} · PICO`;
@@ -280,7 +283,7 @@ export function AppLayout() {
         </div>
       </header>
       <main id="main" className={`page ${route}`} tabIndex={-1}>
-        <Outlet />
+        <Outlet context={{ setDetailNavigation }} />
       </main>
       {/* 휴대폰(767px 이하) 하단 탭바. 헤더의 메뉴·이용자/도우미 전환·프로필 버튼이 숨겨지는 폭이라
           메뉴 2개 + 마이(역할 전환·로그아웃이 있는 마이페이지)로 대신한다. 스타일은 styles.css의 .bottom-nav. */}
