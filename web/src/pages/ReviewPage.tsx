@@ -1,3 +1,4 @@
+import { isReviewOpen } from '../transactions/reviewAvailability';
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
@@ -65,7 +66,7 @@ export function ReviewPage() {
   // 예전 안전거래 거래만 결제·정산 결과가 있다. 직접 거래 후기의 예매 결과는 참고 정보일 뿐이다.
   const safePayment = load.data.agreements.some((a) => a.status === 'FINALIZED' && a.safePayment);
   const used = !!review || r.reviewWritten || usedReviews.has(requestId);
-  if ((stage !== 'completed' && stage !== 'matching_completed') || roleIn(r, me, mode) !== 'user' || used)
+  if (!isReviewOpen(r) || roleIn(r, me, mode) !== 'user' || used)
     return (
       <>
         <PageTitle title="후기를 작성할 수 없어요" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
@@ -74,7 +75,7 @@ export function ReviewPage() {
             {used
               ? '이미 후기를 남긴 거래예요. 거래당 후기는 한 번만 쓸 수 있어요(삭제한 뒤에도 다시 쓸 수 없어요).'
               : stage === 'booking_upcoming'
-                ? `후기는 ${r.useAt ? utcToLocal(r.useAt) : '이용 예정일'} 이후에 쓸 수 있어요.`
+                ? `후기는 ${r.opensAt ? utcToLocal(r.opensAt) : '티켓 예매 오픈 시각'}부터 쓸 수 있어요.`
                 : '매칭 완료 후 이용자가 한 번 작성할 수 있어요.'}
           </p>
           <button type="button" className="btn secondary" onClick={() => navigate(`/requests/${requestId}`)}>
@@ -99,7 +100,7 @@ export function ReviewPage() {
       try {
         await unwrap(api.POST('/api/requests/{requestId}/review', { params: { path: { requestId } }, body: { rating, comment: comment.trim() || null, imageKey: imageKey ?? null, bookingResult: bookingResult || undefined } }));
       } catch (err) {
-        // 409는 이미 후기를 썼거나(삭제·숨김 포함, 재작성 불가) 이용 예정일 전인 경우다. 서버 메시지를 그대로 보여 주고,
+        // 409는 이미 후기를 썼거나(삭제·숨김 포함, 재작성 불가) 티켓 예매 오픈 전인 경우다. 서버 메시지를 그대로 보여 주고,
         // 이미 쓴 거래로 확인될 때만 다시 쓰기를 막는다.
         if (err instanceof ApiError && err.status === 409) {
           const fresh = await unwrap<Raw>(api.GET('/api/requests/{requestId}', { params: { path: { requestId } } })).then(toRequest, () => null);

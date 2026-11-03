@@ -1,3 +1,4 @@
+import { isReviewOpen } from './reviewAvailability';
 import { useCallback, useEffect, useState } from 'react';
 import { api, unwrap, ApiError } from '../api/client';
 import { bool, list, num, pick, str, type Raw } from '../api/pick';
@@ -434,9 +435,9 @@ export async function fetchDetail(id: number): Promise<Detail> {
   const payment = paymentId && !known ? await soft(unwrap<Raw>(api.GET('/api/payments/{paymentId}', { params: { path: { paymentId } } })), null) : null;
   if (latest && payment && !latest.paymentStatus) latest.paymentStatus = str(payment.status) ?? '';
   const stage = stageOf(request, agreements, changeRequests);
-  // 후기 없음·삭제·숨김은 404. '후기 없음'으로 본다. 이용 예정 시각 전(booking_upcoming)에는 후기를 쓸 수 없다.
+  // 후기 없음·삭제·숨김은 404. 직접 거래는 공연일과 무관하게 예매 오픈부터 후기를 조회한다.
   const completed = request.status === 'COMPLETED';
-  const reviewable = completed || (request.status === 'MATCHING_COMPLETED' && stage !== 'booking_upcoming');
+  const reviewable = isReviewOpen(request) || request.reviewWritten;
   const finalized = agreements.find((a) => a.status === 'FINALIZED');
   const final = request.finalResult ?? (request.requesterResult === request.agentResult ? request.agentResult : undefined);
   const [review, partial, refunds] = await Promise.all([

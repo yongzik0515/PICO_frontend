@@ -1,3 +1,4 @@
+import { isReviewOpen } from '../transactions/reviewAvailability';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
@@ -413,17 +414,19 @@ export function RequestDetailPage() {
           </>
         );
       case 'booking_upcoming':
-        // 이용 예정 시각 전의 직접 거래 매칭 완료: 진행 중으로 보이고, 후기는 이용 예정 시각 뒤에 쓸 수 있다(서버 409).
+        // 이용 예정 시각 전의 직접 거래 매칭 완료: 진행 중으로 보이고, 후기는 티켓 예매 오픈 시각부터 쓸 수 있다.
         return (
           <>
             <Notice tone="success">직접 거래 매칭이 완료됐어요. 이용 예정일{useAt ? `(${useAt})` : ''}까지는 진행 중으로 보여요.</Notice>
             {!agent && (
-              <>
-                <button type="button" className="btn primary full" disabled>
-                  후기 작성
-                </button>
-                <p className="record-note">후기는 {useAt || '이용 예정일'} 이후에 쓸 수 있어요.</p>
-              </>
+              d.review || r.reviewWritten || usedReviews.has(r.id)
+                ? <Notice>이 거래의 후기는 이미 작성했어요. 거래당 후기는 한 번만 쓸 수 있어요.</Notice>
+                : isReviewOpen(r)
+                  ? go(`/requests/${r.id}/review`, '후기 작성')
+                  : <>
+                      <button type="button" className="btn primary full" disabled>후기 작성</button>
+                      <p className="record-note">후기는 {r.opensAt ? utcToLocal(r.opensAt) : '티켓 예매 오픈 시각'}부터 쓸 수 있어요.</p>
+                    </>
             )}
             {agent && <p className="record-note">공식 공연·예매 취소나 예매처·PICO 장애로 진행하지 못하게 되면 <Link to={`/inquiries?type=PASS_RESTORATION&requestId=${r.id}`}>매칭권 복원 요청</Link>을 보내 주세요.</p>}
           </>
@@ -547,6 +550,7 @@ export function RequestDetailPage() {
         </>;
         // 가이드 12-1: 거래당 후기 1개, 삭제·숨김 후에도 다시 쓸 수 없다(서버 409). 상세 응답의 reviewWritten으로 가린다.
         if (r.reviewWritten || usedReviews.has(r.id)) return <Notice>이 거래의 후기는 이미 작성했어요(삭제·숨김 포함). 거래당 후기는 한 번만 쓸 수 있어 다시 작성할 수 없어요.</Notice>;
+        if (!isReviewOpen(r)) return <Notice>후기는 티켓 예매 오픈 시각부터 쓸 수 있어요.</Notice>;
         return go(`/requests/${r.id}/review`, '후기 작성');
       default:
         return <Notice>{r.closeReason ? `사유: ${r.closeReason}` : '응답이 종료된 요청이에요.'}</Notice>;
