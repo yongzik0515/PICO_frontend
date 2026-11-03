@@ -1,8 +1,10 @@
+import { AccountStorageConsent } from '../agent/AccountStorageConsent';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, str } from '../api/pick';
 import {
+  ACCOUNT_STORAGE_CONSENT_VERSION,
   banks,
   emptyProfile,
   fetchAgentState,
@@ -368,6 +370,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
   const [error, setError] = useState('');
   const [bank, setBank] = useState({ code: '004', number: '' });
   const [payoutChecking, setPayoutChecking] = useState(false);
+  const [accountStorageConsent, setAccountStorageConsent] = useState(false);
   const [contactsLoad] = useLoad(() => unwrap<unknown>(api.GET('/api/me/contacts')).then(list), []);
   const primaryContact = contactsLoad.status === 'done' ? contactsLoad.data.find((c) => c.isPrimary === true) : undefined;
   const [contact, setContact] = useState<{ kind: string; value: string } | null>(null);
@@ -737,7 +740,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
               <Verification title="본인 계좌 확인" text="도우미 활동에 필요한 본인 명의 계좌인지 확인해요. PICO는 이 계좌로 돈을 보내지 않아요." done={state.payoutVerified} doneText={state.payoutMasked ? `확인 완료 · ${state.payoutMasked}` : undefined} />
               {!state.payoutVerified && (
                 <>
-                  <p className="prose">본인 계좌 확인을 위해 팝빌(링크허브)에 은행·계좌번호·본인인증 생년월일 6자리를 전송해요. 조회한 예금주명은 본인인증 이름과 대조하며, PICO에는 계좌번호 일부와 확인 결과만 저장해요. <Link to="/privacy" target="_blank" rel="noopener noreferrer">개인정보 처리 안내</Link></p>
+                  <AccountStorageConsent checked={accountStorageConsent} onChange={setAccountStorageConsent} disabled={payoutChecking} />
                   <Field label="은행" required className={fl('payout')}>
                     <select required disabled={payoutChecking} value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
                       {banks.map(([code, name]) => (
@@ -757,11 +760,16 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
                       <button
                         type="button"
                         className="btn primary"
-                        disabled={pending || !state.identityVerified || bank.number.length < 8}
+                        disabled={pending || !state.identityVerified || bank.number.length < 8 || !accountStorageConsent}
                         onClick={async () => {
                           setPayoutChecking(true);
                           try {
-                            if (await run(() => verifyPayout(bank.code, bank.number), '본인 계좌를 확인했어요.')) reload();
+                            if (!accountStorageConsent) return;
+                            if (await run(() => verifyPayout(bank.code, bank.number, ACCOUNT_STORAGE_CONSENT_VERSION), '본인 계좌를 확인했어요.')) {
+                              setBank({ ...bank, number: '' });
+                              setAccountStorageConsent(false);
+                              reload();
+                            }
                           } finally { setPayoutChecking(false); }
                         }}
                       >

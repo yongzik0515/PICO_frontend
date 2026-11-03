@@ -42,7 +42,7 @@ export interface paths {
         get: operations["getPayoutAccount"];
         /**
          * 정산계좌 등록 및 인증
-         * @description 은행 코드와 계좌번호를 받아 저장된 본인인증 이름·생년월일로 실명조회합니다. 최종 검증 성공 시 마스킹값과 인증 시각만 저장합니다. 업체 미연동 시 503이며 DB를 변경하지 않습니다.
+         * @description 은행 코드와 계좌번호를 받아 저장된 본인인증 이름·생년월일로 실명조회합니다. 계좌 수집·이용 동의 버전을 확인하고 최종 검증 성공 시 전체 번호를 암호화하여 동의 이력·마스킹값·인증 시각과 함께 저장합니다. 기존 인증 계좌의 재등록 조건은 유지합니다. 업체 미연동 시 503이며 DB를 변경하지 않습니다.
          */
         put: operations["verifyPayoutAccount"];
         post?: never;
@@ -3521,6 +3521,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users/{userId}/matching-pass-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 무료 매칭권 지급
+         * @description 활성 관리자만 활성·본인/계좌 인증·승인된 도우미에게 1~1000장을 추가 지급합니다. 무료권은 지급일부터 330일 유효하고 현금 환불되지 않습니다. 유료 구매·결제 이력은 변경하지 않습니다. requestReference는 지급 건별 UUID이며 동일 관리자·대상·수량·사유의 재요청은 기존 지급을 반환합니다. 동일 식별자의 다른 내용은 409, 지급 자격 미충족도 409입니다. 내부 지급 사유는 관리자만 조회합니다.
+         */
+        post: operations["grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/matching-pass-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관리자 매칭권 지급 이력
+         * @description 활성 관리자만 조회합니다. userId 생략 시 전체 최신순이며 page는 0부터, size는 1~100입니다.
+         */
+        get: operations["history_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/reports/{reportId}/identity-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 신고 대상 실명·계좌 열람
+         * @description 현재 보관된 실명과 전체 계좌번호를 별도 열람합니다. 관리자 권한과 사유가 필요하며 신고·거래 당사자인 관리자는 접근할 수 없습니다. 열람 이력 저장이 실패하면 정보를 반환하지 않습니다. 미보관 항목은 null이며 거래 당시 송금 계좌를 의미하지 않습니다.
+         */
+        post: operations["identity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3587,8 +3647,10 @@ export interface components {
              * @example 088
              */
             bankCode: string;
-            /** @description 확인할 계좌번호. 조회에만 사용하고 저장하지 않음 */
+            /** @description 확인할 계좌번호. 동의 후 검증에 성공한 번호를 암호화하여 보관 */
             accountNumber: string;
+            /** @description 계좌 수집·이용 안내를 확인하고 동의한 버전. 현재 2026-11-03.1 */
+            accountStorageConsentVersion: string;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponse: {
@@ -6390,6 +6452,77 @@ export interface components {
         PassPromotionsResponse: {
             firstPurchaseEligible?: boolean;
             grants?: components["schemas"]["Grant"][];
+        };
+        AdminPassGrantRequest: {
+            /**
+             * Format: int32
+             * @description 추가 지급 수량(1~1000장)
+             * @example 50
+             */
+            units: number;
+            /**
+             * @description 지급 건별 소문자 UUID. 실패 후 재시도에는 같은 값을 사용
+             * @example 16c1f1b9-88df-4494-9bcf-b9c2e9148123
+             */
+            requestReference: string;
+            /**
+             * @description 관리자 내부 지급 사유(1~500자). 회원에게 공개하지 않음
+             * @example 서비스 이용 테스트용 매칭권 지급
+             */
+            decisionNote: string;
+        };
+        AdminPassGrantResponse: {
+            /** Format: int64 */
+            purchaseId?: number;
+            /** Format: int64 */
+            userId?: number;
+            nickname?: string;
+            /** Format: int32 */
+            units?: number;
+            /** Format: int64 */
+            remainingUnits?: number;
+            requestReference?: string;
+            decisionNote?: string;
+            /** Format: int64 */
+            grantedByUserId?: number;
+            grantedByNickname?: string;
+            /** Format: date-time */
+            grantedAt?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAdminPassGrantResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminPassGrantResponse"];
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListAdminPassGrantResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminPassGrantResponse"][];
+            message?: string;
+        };
+        AdminReportIdentityRequest: {
+            /** @description 신고 조사 또는 적법한 기관 요청에 따른 구체적인 열람 사유. 계좌번호 등 개인정보 입력 금지 */
+            reason: string;
+        };
+        /** @description 신고 대상의 현재 보관된 본인인증 성명과 계좌. 거래 당시 송금 계좌를 증명하지 않으며 미보관 항목은 null */
+        AdminReportIdentityResponse: {
+            /** Format: int64 */
+            reportedUserId?: number;
+            verifiedName?: string;
+            bankCode?: string;
+            accountNumber?: string;
+            maskedAccount?: string;
+            /** Format: date-time */
+            accountVerifiedAt?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAdminReportIdentityResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminReportIdentityResponse"];
+            message?: string;
         };
     };
     responses: never;
@@ -20095,6 +20228,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    grant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPassGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminPassGrantResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    history_1: {
+        parameters: {
+            query?: {
+                userId?: number;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListAdminPassGrantResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    identity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReportIdentityRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminReportIdentityResponse"];
                 };
             };
             /** @description 인증 필요 (Bearer JWT) */

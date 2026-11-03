@@ -226,9 +226,11 @@ export async function verifyIdentity() {
   await unwrap(api.POST('/api/me/identity/verify', { body: { identityReference: identityVerificationId } }));
 }
 
+export const ACCOUNT_STORAGE_CONSENT_VERSION = '2026-11-03.1';
+
 /** 정산 계좌: 본인인증한 이름으로 실명조회한다. */
-export async function verifyPayout(bankCode: string, accountNumber: string) {
-  return unwrap(api.PUT('/api/me/payout-account', { body: { bankCode, accountNumber } }));
+export async function verifyPayout(bankCode: string, accountNumber: string, accountStorageConsentVersion: string) {
+  return unwrap(api.PUT('/api/me/payout-account', { body: { bankCode, accountNumber, accountStorageConsentVersion } }));
 }
 
 // 금융결제원 은행 코드(3자리) 중 자주 쓰는 은행

@@ -1700,6 +1700,7 @@ function ReportsTab() {
   const [evidenceOf, setEvidenceOf] = useState<number | null>(null);
   const [dealOf, setDealOf] = useState<number | null>(null);
   const [statementsOf, setStatementsOf] = useState<number | null>(null);
+  const [identityOf, setIdentityOf] = useState<number | null>(null);
   const [resolving, setResolving] = useState<Raw | null>(null);
   const update = (row: Raw, next: ReportStatus) =>
     open({
@@ -1752,6 +1753,9 @@ function ReportsTab() {
                 <button type="button" className="btn secondary" onClick={() => setStatementsOf(n(row, 'reportId')!)}>
                   소명 보기
                 </button>
+                <button type="button" className="btn secondary" onClick={() => setIdentityOf(n(row, 'reportId')!)}>
+                  실명·계좌 조회
+                </button>
                 {st === 'OPEN' && (
                   <button type="button" className="btn secondary" disabled={pending} onClick={() => update(row, 'INVESTIGATING')}>
                     조사 시작
@@ -1779,8 +1783,51 @@ function ReportsTab() {
       {evidenceOf !== null && <ReportEvidenceModal reportId={evidenceOf} onClose={() => setEvidenceOf(null)} />}
       {dealOf !== null && <ReportDealModal reportId={dealOf} onClose={() => setDealOf(null)} />}
       {statementsOf !== null && <ReportStatementsModal reportId={statementsOf} onClose={() => setStatementsOf(null)} />}
+      {identityOf !== null && <ReportIdentityModal key={identityOf} reportId={identityOf} onClose={() => setIdentityOf(null)} />}
     </>
   );
+}
+
+function ReportIdentityModal({ reportId, onClose }: { reportId: number; onClose: () => void }) {
+  const [reason, setReason] = useState('');
+  const [data, setData] = useState<components['schemas']['AdminReportIdentityResponse'] | null>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!data) return;
+    const timer = window.setTimeout(() => setData(null), 60_000);
+    const hide = () => { if (document.hidden) setData(null); };
+    document.addEventListener('visibilitychange', hide);
+    return () => { window.clearTimeout(timer); document.removeEventListener('visibilitychange', hide); };
+  }, [data]);
+  async function reveal(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!reason.trim() || pending) return;
+    setPending(true); setError(''); setData(null);
+    try {
+      const result = await unwrap(api.POST('/api/admin/reports/{reportId}/identity-access', {
+        params: { path: { reportId } }, body: { reason: reason.trim() }, cache: 'no-store',
+      }));
+      if (!document.hidden) setData(result);
+    } catch (e) { setError(e instanceof ApiError && e.status === 403 ? '권한이 없거나 본인이 당사자인 신고·거래입니다.' : errorText(e)); }
+    finally { setPending(false); }
+  }
+  return <Modal title={`신고 #${reportId} · 실명·계좌 조회`} onClose={onClose}>
+    <p className="prose">신고 대상 회원의 보관된 본인인증·계좌정보입니다. 실제 송금 계좌는 송금 내역과 따로 확인해 주세요.</p>
+    <form onSubmit={reveal}>
+      <Field label="열람 사유" required><textarea required maxLength={500} value={reason} disabled={pending} onChange={e => setReason(e.target.value)} placeholder="신고 조사에 필요한 이유 또는 기관 요청의 문서번호·목적을 입력하세요. 개인정보는 입력하지 마세요." /></Field>
+      <p className="record-note">열람자·사유·시각이 기록됩니다. 조회한 정보는 1분 뒤 또는 다른 탭으로 이동하면 숨겨집니다.</p>
+      <button type="submit" className="btn primary" disabled={pending || !reason.trim()}>{pending ? '조회 중…' : '사유 기록 후 조회'}</button>
+    </form>
+    {error && <p role="alert" className="record-note">{error}</p>}
+    {data && <dl className="document-rows">
+      <div><dt>본인인증 성명</dt><dd>{data.verifiedName ?? '보관된 정보 없음'}</dd></div>
+      <div><dt>은행 코드</dt><dd>{data.bankCode ?? '보관된 정보 없음'}</dd></div>
+      <div><dt>전체 계좌번호</dt><dd>{data.accountNumber ?? '전체 계좌번호 미보관'}</dd></div>
+      <div><dt>계좌 확인일</dt><dd>{data.accountVerifiedAt ? utcToLocal(data.accountVerifiedAt) : '확인 이력 없음'}</dd></div>
+    </dl>}
+    <div className="modal-actions"><button type="button" className="btn secondary" onClick={onClose}>닫기</button></div>
+  </Modal>;
 }
 
 const agreementStatusNames: Record<string, string> = { PROPOSED: '제안', FINALIZED: '확정' };
