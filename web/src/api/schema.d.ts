@@ -3621,6 +3621,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 전체 요청서 목록
+         * @description 활성 관리자 전용. 수락 전·진행 중·종료된 모든 요청을 생성 시각·번호 내림차순으로 조회합니다. status는 PENDING, MATCHED, MATCHING_COMPLETED, IN_PROGRESS, DISPUTED, COMPLETED, CANCELLED, REJECTED, EXPIRED 중 선택합니다. policyStatus는 PENDING(심사 대기), ALLOWED(심사 통과), BLOCKED(보류·차단)이며 요청 진행 상태와 독립입니다. status=PENDING&policyStatus=ALLOWED로 심사 통과 후 도우미 수락 전 요청을 조회합니다. 기한 만료 작업 전에는 응답 기한이 지난 PENDING도 포함하므로 expiresAt을 함께 확인합니다. q는 요청·회원 번호 또는 요청명·닉네임 검색(최대 100자). page=0~10000, size=1~100. 본인이 당사자인 요청은 제외하며 읽기 전용입니다.
+         */
+        get: operations["all"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 전체 요청서 상세
+         * @description 활성 관리자 전용. 수락 전·진행 중·종료 여부와 관계없이 request(요청 내용·심사 상태·심사 시각·결과), agreements(모든 조건 버전), changeRequests, history를 반환합니다. 본인이 당사자인 요청은 403, 없는 요청은 404입니다. 연락처·실명·계좌·결제 비밀값은 포함하지 않고 읽기 전용입니다.
+         */
+        get: operations["requestDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -20512,6 +20552,108 @@ export interface operations {
         };
     };
     detail_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    all: {
+        parameters: {
+            query?: {
+                status?: string;
+                policyStatus?: string;
+                q?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    requestDetail: {
         parameters: {
             query?: never;
             header?: never;

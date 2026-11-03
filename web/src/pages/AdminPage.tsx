@@ -32,7 +32,7 @@ const tabs: [Tab, string][] = [
   ['settlements', '부분성공 정산'],
   ['requests', '결과 확인·만료'],
   ['resolved', '결과 확정 이력'],
-  ['completed', '처리된 요청서'],
+  ['completed', '전체 요청서'],
   ['payments', '결제 확인'],
   ['pass-purchases', '매칭권 구매'],
   ['reports', '신고'],
@@ -1293,37 +1293,53 @@ function ResolvedTab() {
   );
 }
 
-// ── 처리된 요청서 ─────────────────────────────────────────────
-function CompletedRequestsTab() {
+// ── 전체 요청서 ─────────────────────────────────────────────
+function AllRequestsTab() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
   const [status, setStatus] = useState('');
+  const [policyStatus, setPolicyStatus] = useState('');
   const [shown, setShown] = useState<number | null>(null);
   const [load, reload] = useLoad<Raw[]>(
-    () => unwrap(api.GET('/api/admin/requests/completed', {
-      params: { query: { q: query || undefined, status: status || undefined, page, size: ADMIN_PAGE_SIZE } },
+    () => unwrap(api.GET('/api/admin/requests', {
+      params: { query: { q: query || undefined, status: status || undefined, policyStatus: policyStatus || undefined, page, size: ADMIN_PAGE_SIZE } },
     })).then(list, (e) => { throw new Error(errorText(e)); }),
-    [query, status, page], { resetOnLoad: true },
+    [query, status, policyStatus, page], { resetOnLoad: true },
   );
   return <>
     <AdminSearchForm hint="요청·회원 번호, 요청명 또는 회원 닉네임으로 검색해요." onSearch={(value) => { setQuery(value); setPage(0); }} />
+    <section className="content-card">
+      <div className="modal-actions">
+        <button type="button" className="btn secondary" onClick={() => { setStatus('PENDING'); setPolicyStatus('ALLOWED'); setPage(0); }}>심사 통과·수락 대기</button>
+        <button type="button" className="btn ghost" onClick={() => { setStatus(''); setPolicyStatus(''); setPage(0); }}>전체 상태 보기</button>
+      </div>
+      <Field label="심사 상태">
+        <select value={policyStatus} onChange={(e) => { setPolicyStatus(e.target.value); setPage(0); }}>
+          <option value="">전체</option>
+          {Object.entries(requestPolicyNames).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
+      </Field>
+    </section>
     <StatusFilter value={status} onChange={(value) => { setStatus(value); setPage(0); }}
-      options={['COMPLETED', 'MATCHING_COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED'].map((key) => [key, requestStatusNames[key]])} />
-    <ListBlock title="처리된 요청서" desc="완료·직접 거래 매칭 완료·취소·거절·만료된 요청을 확인해요. 요청 내용과 조건·상태 이력은 읽기 전용이며, 본인이 당사자인 요청은 제외돼요."
-      load={load} reload={reload} empty="조건에 맞는 처리된 요청서가 없어요.">
+      options={['PENDING', 'MATCHED', 'MATCHING_COMPLETED', 'IN_PROGRESS', 'DISPUTED', 'COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED'].map((key) => [key, requestStatusNames[key]])} />
+    <ListBlock title="전체 요청서" desc="수락 전·진행 중·종료된 요청을 모두 확인해요. 심사 통과는 도우미 수락과 별개예요. 수락 대기 건은 응답 기한도 확인해 주세요. 본인이 당사자인 요청은 제외되며 읽기 전용이에요."
+      load={load} reload={reload} empty="조건에 맞는 전체 요청서가 없어요.">
       {(rows) => rows.map((row) => <Item key={n(row, 'id')} raw={row}
         title={`#${n(row, 'id')} ${s(row, 'submittedTargetName')}`}
         rows={[
-          ['상태', requestStatusNames[s(row, 'status')] ?? s(row, 'status')],
+          ['요청 상태', requestStatusNames[s(row, 'status')] ?? s(row, 'status')],
+          ['심사 상태', requestPolicyNames[s(row, 'policyGateStatus')] ?? s(row, 'policyGateStatus')],
+          ['심사 시각', utcToLocal(s(row, 'policyGateCheckedAt'))],
+          ['도우미 응답 기한', utcToLocal(s(row, 'expiresAt'))],
           ['이용자 → 도우미', `${s(row, 'requesterName')} → ${s(row, 'agentName')}`],
           ['최종 결과', resultLabels[s(row, 'finalResult')] ?? s(row, 'finalResult')],
-          ['처리 시각', utcToLocal(s(row, 'processedAt'))],
+          ['요청 시각', utcToLocal(s(row, 'createdAt'))],
         ]}>
         <button type="button" className="btn secondary" onClick={() => setShown(n(row, 'id')!)}>요청서·조건·이력 보기</button>
       </Item>)}
     </ListBlock>
     <AdminPagination page={page} setPage={setPage} load={load} />
-    {shown !== null && <DealDetailModal key={shown} id={shown} kind="completed" onClose={() => setShown(null)} />}
+    {shown !== null && <DealDetailModal key={shown} id={shown} kind="request" onClose={() => setShown(null)} />}
   </>;
 }
 
@@ -1869,7 +1885,8 @@ function ReportIdentityModal({ reportId, onClose }: { reportId: number; onClose:
 
 const agreementStatusNames: Record<string, string> = { PROPOSED: '제안', FINALIZED: '확정' };
 const partyNames: Record<string, string> = { REQUESTER: '이용자', AGENT: '도우미' };
-const requestStatusNames: Record<string, string> = { PENDING: '응답 대기', MATCHED: '매칭됨', MATCHING_COMPLETED: '직접 거래 매칭 완료', IN_PROGRESS: '진행 중', DISPUTED: '분쟁', COMPLETED: '완료', CANCELLED: '취소', REJECTED: '거절', EXPIRED: '만료' };
+const requestPolicyNames: Record<string, string> = { PENDING: '심사 대기', ALLOWED: '심사 통과', BLOCKED: '보류·차단' };
+const requestStatusNames: Record<string, string> = { PENDING: '수락 대기', MATCHED: '매칭됨', MATCHING_COMPLETED: '직접 거래 매칭 완료', IN_PROGRESS: '진행 중', DISPUTED: '분쟁', COMPLETED: '완료', CANCELLED: '취소', REJECTED: '거절', EXPIRED: '만료' };
 const reportDealError = (e: unknown) =>
   e instanceof ApiError && e.status === 404 ? '이 신고에 연결된 거래가 없어요.' : e instanceof ApiError && e.status === 403 ? '본인이 당사자인 신고·거래는 볼 수 없어요.' : errorText(e);
 
@@ -1878,15 +1895,15 @@ function ReportDealModal({ reportId, onClose }: { reportId: number; onClose: () 
   return <DealDetailModal id={reportId} kind="report" onClose={onClose} />;
 }
 
-function DealDetailModal({ id, kind, onClose }: { id: number; kind: 'report' | 'completed'; onClose: () => void }) {
+function DealDetailModal({ id, kind, onClose }: { id: number; kind: 'report' | 'request'; onClose: () => void }) {
   const member = useMemberName();
   const [load] = useLoad<Raw>(
     () =>
       unwrap<unknown>(kind === 'report'
         ? api.GET('/api/admin/reports/{reportId}/deal', { params: { path: { reportId: id } } })
-        : api.GET('/api/admin/requests/completed/{requestId}', { params: { path: { requestId: id } } })).then(
+        : api.GET('/api/admin/requests/{requestId}', { params: { path: { requestId: id } } })).then(
         (d) => (d ?? {}) as Raw,
-        (e) => Promise.reject(new Error(kind === 'completed' && e instanceof ApiError && e.status === 404 ? '처리된 요청서를 찾을 수 없어요.' : reportDealError(e))),
+        (e) => Promise.reject(new Error(kind === 'request' && e instanceof ApiError && e.status === 404 ? '요청서를 찾을 수 없어요.' : reportDealError(e))),
       ),
     [id, kind],
   );
@@ -1913,6 +1930,8 @@ function DealDetailModal({ id, kind, onClose }: { id: number; kind: 'report' | '
                 rows={[
                   ['이용자 → 도우미', `${s(request, 'requesterName') || party(n(request, 'requesterUserId'))} → ${s(request, 'agentName') || party(n(request, 'agentUserId'))}`],
                   ['상태', requestStatusNames[s(request, 'status')] ?? s(request, 'status')],
+                  ['심사 상태', requestPolicyNames[s(request, 'policyGateStatus')] ?? s(request, 'policyGateStatus')],
+                  ['심사 시각', time(request, 'policyGateCheckedAt')],
                   ['최종 결과', resultLabels[s(request, 'finalResult')] ?? s(request, 'finalResult')],
                   ['확정 사유', s(request, 'resolutionNote')],
                   ['종료 사유', s(request, 'closeReason')],
@@ -2621,7 +2640,7 @@ export function AdminPage() {
       {tab === 'settlements' && <SettlementsTab />}
       {tab === 'requests' && <RequestsTab />}
       {tab === 'resolved' && <ResolvedTab />}
-      {tab === 'completed' && <CompletedRequestsTab />}
+      {tab === 'completed' && <AllRequestsTab />}
       {tab === 'payments' && <PaymentsTab onOpenPurchase={(q) => setParams({ tab: 'pass-purchases', q })} />}
       {tab === 'pass-purchases' && <PassPurchasesTab key={purchaseQuery} initialQuery={purchaseQuery} />}
       {tab === 'reports' && <ReportsTab />}
