@@ -67,7 +67,7 @@ const nextCopy: Record<Stage, [string, string, string?]> = {
   result_submitted: ['이용자가 예매 결과를 확인할 차례예요', '확정 조건과 등록된 결과를 함께 확인해 주세요.', '이용자가 결과를 확인하고 있어요.'],
   disputed: ['양쪽 결과가 달라 운영팀이 확인하고 있어요', '운영팀이 증빙을 검토해 결과를 확정해요.'],
   opening_passed: ['티켓 오픈 시각이 지나 조건을 확정할 수 없어요', '거래를 취소해 주세요.'],
-  booking_upcoming: ['직접 거래 매칭이 완료됐어요', '이용 예정일까지는 진행 중으로 보여요. 착수·결과 등록 없이 당사자끼리 진행해요.', '이용 예정일까지는 진행 중으로 보여요. 착수·결과 등록 없이 이용자와 직접 진행해 주세요.'],
+  booking_upcoming: ['직접 거래 매칭이 완료됐어요', '후기를 작성하거나 이용 예정일이 지나면 완료로 보여요. 착수·결과 등록 없이 당사자끼리 진행해요.', '후기를 작성하거나 이용 예정일이 지나면 완료로 보여요. 착수·결과 등록 없이 이용자와 직접 진행해 주세요.'],
   matching_completed: ['직접 거래 매칭을 마쳤어요', '착수·결과 등록 없이 당사자끼리 진행해요. 이용자는 거래 경험과 예매 결과를 후기로 남길 수 있어요.', '착수·결과 등록 없이 이용자와 직접 진행해 주세요.'],
   completed: ['결과 확인을 마쳤어요', '안전거래라면 정산·환불은 확정된 결과와 합의 조건에 따라 처리돼요. 직접 거래는 당사자끼리 정산해요.'],
   cancelled: ['이 요청은 취소되었어요', '새 요청은 도우미 프로필에서 보낼 수 있어요.'],
@@ -78,7 +78,7 @@ const nextCopy: Record<Stage, [string, string, string?]> = {
 // 단계마다 지금 해야 할 일이 있는 쪽. 다른 쪽에는 기다리면 된다는 안내를 한 줄 더 보여 준다.
 const actor: Partial<Record<Stage, Role>> = { pending: 'agent', payment: 'user', ready: 'agent', in_progress: 'agent', result_submitted: 'user' };
 
-export function NextStep({ stage, role, proposedBy, myName }: { stage: Stage; role: Role; proposedBy?: 'REQUESTER' | 'AGENT'; myName?: string }) {
+export function NextStep({ stage, role, proposedBy, myName, reviewWritten = false }: { stage: Stage; role: Role; proposedBy?: 'REQUESTER' | 'AGENT'; myName?: string; reviewWritten?: boolean }) {
   const idle =
     stage === 'policy_review' ||
     (stage === 'terms_sent' && !!proposedBy && (proposedBy === 'AGENT') === (role === 'agent')) ||
@@ -86,7 +86,9 @@ export function NextStep({ stage, role, proposedBy, myName }: { stage: Stage; ro
   const [title, userText, agentText] =
     stage === 'terms_sent' && proposedBy === 'REQUESTER'
       ? ['도우미가 최종 조건을 확인할 차례예요', '도우미의 확인을 기다려 주세요.', '변경된 내용을 확인하고 확정하거나 수정을 요청해 주세요.']
-      : nextCopy[stage];
+      : stage === 'matching_completed' && reviewWritten
+        ? ['후기 작성까지 완료했어요', '이 거래는 완료 내역에서 확인할 수 있어요.']
+        : nextCopy[stage];
   const text = role === 'agent' && agentText !== undefined ? agentText : userText;
   return (
     <div className={`tx-next ${(stage === 'completed' || stage === 'matching_completed') ? 'success' : ''}`}>
@@ -122,7 +124,7 @@ export function Progress({ stage, direct = false, proposedBy }: { stage: Stage; 
     <ol aria-label="거래 진행 상황">
       {shown.map(([label], i) => {
         const done = (stage === 'completed' || stage === 'matching_completed') || (active >= 0 && i < active);
-        const current = i === active;
+        const current = !done && i === active;
         return (
           <li key={label} className={done ? 'done' : current ? 'current' : 'upcoming'} aria-current={current ? 'step' : undefined}>
             <b>{done ? <Icon name="check" size={14} /> : i + 1}</b>
