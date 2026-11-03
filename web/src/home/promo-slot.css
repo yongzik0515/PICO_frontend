@@ -1,29 +1,23 @@
-/* 홈 이벤트·광고 자리(PromoSlot).
-   배너는 이미지라서 크기만 맞춘다: 검색창 옆 306×114, 검색창 아래 343×60(화면 폭에 맞춰 늘어남). */
+/* 홈 이벤트·광고 자리. 모든 슬라이드를 같은 격자에 두어 전환 중 높이를 유지한다. */
 .home-promo {
   position: relative;
   margin-top: 12px;
 }
 .home-promo-link {
   display: grid;
-  aspect-ratio: 343 / 60;
   border-radius: 14px;
   box-shadow: 0 6px 18px #5478c71a;
 }
-.home-promo-image {
+.home-promo-slide {
   grid-area: 1 / 1;
   min-width: 0;
   opacity: 0;
+  visibility: hidden;
   transition: opacity 0.35s var(--ease-out, ease-out);
 }
-.home-promo-image.is-active {
+.home-promo-slide.is-active {
   opacity: 1;
-}
-.home-promo-link img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 14px;
+  visibility: visible;
 }
 .home-promo-link:hover {
   box-shadow: 0 8px 24px #5478c72b;
@@ -31,15 +25,15 @@
 .home-promo-dots {
   position: absolute;
   right: 12px;
-  bottom: 8px;
+  bottom: 2px;
   display: flex;
   gap: 2px;
 }
 /* 점은 작게 보이지만 누르는 칸은 24px로 둔다. */
 .home-promo-dots button {
   position: relative;
-  width: 14px;
-  height: 14px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
   background: none;
@@ -48,7 +42,7 @@
 .home-promo-dots button::before {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 9px;
   border-radius: 50%;
   background: #16181d33;
 }
@@ -56,15 +50,12 @@
   background: #16181d99;
 }
 @media (prefers-reduced-motion: reduce) {
-  .home-promo-image {
+  .home-promo-slide {
     transition: none;
   }
 }
 
 @media (min-width: 1024px) {
-  .home-promo-link {
-    aspect-ratio: 306 / 114;
-  }
   .home .pc-search-row > .home-promo {
     grid-column: 2;
     grid-row: 1 / 3;
@@ -72,6 +63,6 @@
     align-self: start;
   }
   .home-promo-dots {
-    bottom: 6px;
+    bottom: 2px;
   }
 }

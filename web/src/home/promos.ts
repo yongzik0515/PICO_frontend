@@ -1,8 +1,11 @@
-// 홈 광고 자리에 돌려 보여 줄 배너 목록. 배너는 public/banners의 이미지 파일이고, 여기서는 순서·기간·이동 주소만 정한다.
-// 이미지 파일명은 `${image}-pc.png`(검색창 옆), `${image}-mobile.png`(좁은 화면의 검색창 아래)다.
+// 홈·이벤트 목록에서 공유하는 배너 문구, 순서, 기간과 이동 주소. 장식은 PromoBanner의 SVG로 그린다.
 export type Promo = {
   id: string;
-  image: string;
+  badge: string;
+  title: string;
+  emphasis?: string;
+  description: string;
+  ticketLabel: string;
   alt: string;
   to: string;
   /** 보이는 기간(한국 시간). 없으면 항상 보인다. 끝 시각은 포함하지 않는다. */
@@ -17,10 +20,10 @@ export const FIRST_PURCHASE_FROM = '2026-11-04T00:00:00+09:00';
 export const FIRST_PURCHASE_UNTIL: string | undefined = undefined;
 
 export const promos: Promo[] = [
-  { id: 'founding', image: 'founding', alt: '이벤트. 도우미 승인되면 매칭권 5장을 드려요. 11월 3일 밤 12시 마감', to: '/application', until: FOUNDING_UNTIL },
-  { id: 'first-purchase', image: 'first-purchase', alt: '이벤트. 첫 구매하면 매칭권 5장 더. 승인 시 체험권 1장도 드려요', to: '/credits', from: FIRST_PURCHASE_FROM, until: FIRST_PURCHASE_UNTIL },
-  { id: 'guide', image: 'guide', alt: '도우미 일을 미리 해 보세요. 가입 없이 둘러볼 수 있어요', to: '/guide' },
-  { id: 'ad', image: 'ad', alt: '광고. 공연·굿즈 소식을 팬들에게 알려 보세요. 광고 문의하기', to: '/inquiries' },
+  { id: 'founding', badge: '이벤트', title: '도우미 승인되면 매칭권 ', emphasis: '5장', description: '11월 3일(화) 밤 12시 마감', ticketLabel: '5장', alt: '이벤트. 도우미 승인되면 매칭권 5장을 드려요. 11월 3일 밤 12시 마감', to: '/application', until: FOUNDING_UNTIL },
+  { id: 'first-purchase', badge: '이벤트', title: '첫 구매하면 매칭권 ', emphasis: '5장 더', description: '승인 시 체험권 1장도 드려요', ticketLabel: '+5장', alt: '이벤트. 첫 구매하면 매칭권 5장 더. 승인 시 체험권 1장도 드려요', to: '/credits', from: FIRST_PURCHASE_FROM, until: FIRST_PURCHASE_UNTIL },
+  { id: 'guide', badge: '체험', title: '도우미 일을 미리 해 보세요', description: '가입 없이 둘러볼 수 있어요', ticketLabel: '체험', alt: '도우미 일을 미리 해 보세요. 가입 없이 둘러볼 수 있어요', to: '/guide' },
+  { id: 'ad', badge: '광고', title: '공연·굿즈 소식을 알려 보세요', description: '광고 문의하기', ticketLabel: '광고', alt: '광고. 공연·굿즈 소식을 팬들에게 알려 보세요. 광고 문의하기', to: '/inquiries' },
 ];
 
 /** 지금 보여 줄 배너. 기간 밖인 배너는 뺀다. */

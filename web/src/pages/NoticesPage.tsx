@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { activePromos } from '../home/promos';
+import { PromoBanner } from '../home/PromoBanner';
 import { PageTitle } from '../ui/PageTitle';
 import './notices.css';
 
@@ -15,7 +16,7 @@ export function NoticesPage() {
     </nav>
     {events ? <section aria-label="진행 중인 이벤트" className="notices-events">
       {entries.length ? entries.map((p) => <Link className="notices-event" to={p.to} key={p.id}>
-        <img src={`/banners/${p.image}-mobile.png`} alt={p.alt} width="343" height="60" />
+        <PromoBanner promo={p} />
         <span>진행 중</span><h2>{p.id === 'founding' ? '창립 도우미 매칭권 지원' : '매칭권 첫 구매 보너스'}</h2>
         <p>{p.alt.replace(/^이벤트\. /, '')}</p><strong>자세히 보기 →</strong>
       </Link>) : <p className="empty">현재 진행 중인 이벤트가 없습니다.</p>}

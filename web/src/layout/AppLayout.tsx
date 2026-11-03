@@ -152,6 +152,7 @@ export function AppLayout() {
   }, [me, setState, navigate]);
 
   function switchMode(next: Mode) {
+    setOpened('');
     if (next === mode) return;
     setState((s) => ({ ...s, mode: next }));
     // 명세: PATCH /api/me는 닉네임과 기본 모드를 함께 받는다. 저장에 실패해도 화면 전환은 그대로 둔다.
@@ -196,17 +197,6 @@ export function AppLayout() {
                 도우미
               </button>
             </div>
-            <button
-              className="mobile-role-switch"
-              aria-label={`현재 ${helper ? '도우미' : '이용자'}, ${helper ? '이용자' : '도우미'}로 전환`}
-              onClick={() => {
-                setOpened('');
-                switchMode(helper ? 'user' : 'agent');
-              }}
-            >
-              <strong>{helper ? '도우미' : '이용자'}</strong>
-              <span>{helper ? '이용자' : '도우미'}로 전환</span>
-            </button>
             <button
               className="icon-btn notification-bell"
               aria-label={`알림${unread ? ` ${unread}개 안 읽음` : ''}`}

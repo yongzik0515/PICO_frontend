@@ -250,17 +250,18 @@ form[data-account-form="application"] .account-form-footer{border-top:1px solid 
   .nav-wrap{gap:20px}
   .desktop-nav{gap:18px}
 }
-/* 휴대폰에서는 현재 역할과 전환 버튼을 작게 묶어 프로필·알림과 함께 표시한다. */
-.mobile-role-switch{display:none}
+/* 모바일도 PC와 같은 역할 선택 탭을 쓰되 프로필·알림과 함께 들어가도록 줄인다. */
 @media (max-width:767px){
   .topbar:not(.admin-topbar) .nav-wrap{padding-inline:16px;gap:8px}
   .topbar:not(.admin-topbar) .header-right{gap:4px}
-  .header-right>.mode-switch{display:none}
+  .header-right>.mode-switch{display:flex;flex-shrink:0}
+  .header-right>.mode-switch button{padding:7px 8px;min-height:36px}
   .header-right>.my-avatar{display:inline-flex}
-  .mobile-role-switch{display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:2px;min-height:44px;padding:4px 6px;border-radius:9px;background:var(--canvas);white-space:nowrap}
-  .mobile-role-switch strong{font-size:12px;color:var(--primary-500)}
-  .mobile-role-switch span{font-size:10px;color:var(--ink-600)}
   .bottom-nav button{width:auto;flex:1}
+}
+/* 가장 좁은 비로그인 헤더에서는 PICO 글자 로고를 남겨 로그인·역할 탭의 공간을 확보한다. */
+@media (max-width:359px){
+  .topbar:not(.admin-topbar) .nav-wrap:has(.header-login) .brand-symbol{display:none}
 }
 
 /* 로그인: 1023px 이하에서는 소개(왼쪽)와 로그인 카드가 두 칸에 끼어 소개 문구가 한 단어씩 줄바꿈되고 티켓 그림이 카드와 겹쳤다. 한 칸으로 바꾸고 소개는 숨긴다. */

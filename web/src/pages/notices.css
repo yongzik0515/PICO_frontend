@@ -12,8 +12,8 @@
 .notices-list details a{display:inline-block;margin:12px 20px 0 0;color:var(--primary-500);text-decoration:underline}
 .notices-events{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
 .notices-event{border:1px solid var(--line-200);border-radius:14px;overflow:hidden;padding-bottom:24px;background:white}
-.notices-event img{width:100%;height:auto;display:block;margin-bottom:20px}
-.notices-event>span,.notices-event h2,.notices-event p,.notices-event strong{display:block;margin:12px 24px;font-size:14px;line-height:1.8}
-.notices-event h2{font-size:18px}.notices-event>span,.notices-event strong{color:var(--primary-500);font-size:12px}
+.notices-event>.promo-banner{height:auto;margin-bottom:20px;border-radius:0}
+.notices-event>span,.notices-event h2,.notices-event p,.notices-event>strong{display:block;margin:12px 24px;font-size:14px;line-height:1.8}
+.notices-event h2{font-size:18px}.notices-event>span,.notices-event>strong{color:var(--primary-500);font-size:12px}
 .notices-tabs a:focus-visible,.notices-event:focus-visible,.notices-list summary:focus-visible{outline:2px solid var(--primary-500);outline-offset:3px}
 @media(max-width:640px){.notices-events{grid-template-columns:1fr}.notices-list h2{display:block;margin:8px 0 0}.notices-list details>div{padding:18px}}
