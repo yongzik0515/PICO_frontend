@@ -16,44 +16,6 @@ const FALLBACK_COLOR = '#2B2F6E';
 const DRAG_START = 6; // 이만큼(px) 가로로 움직여야 드래그로 본다(그 전에는 클릭)
 const DRAG_GO = 0.15; // 카드 폭의 15% 넘게 끌면 다음·이전 배너로 넘긴다
 
-// 대표 색상이 비어 있으면 이미지 왼쪽 가장자리(너비의 4%)의 평균 색을 뽑는다.
-// 흰 글자가 올라가므로 너무 밝은 색은 어둡게 낮춘다. 실패하면 FALLBACK_COLOR.
-const colorCache = new Map<string, string>();
-function edgeColor(img: HTMLImageElement): string {
-  const cached = colorCache.get(img.src);
-  if (cached) return cached;
-  try {
-    const canvas = document.createElement('canvas');
-    canvas.width = 4;
-    canvas.height = 24;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx || !img.naturalWidth) return FALLBACK_COLOR;
-    ctx.drawImage(img, 0, 0, Math.max(1, Math.round(img.naturalWidth * 0.04)), img.naturalHeight, 0, 0, 4, 24);
-    const data = ctx.getImageData(0, 0, 4, 24).data;
-    let r = 0;
-    let g = 0;
-    let b = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      r += data[i];
-      g += data[i + 1];
-      b += data[i + 2];
-    }
-    const n = data.length / 4;
-    [r, g, b] = [r / n, g / n, b / n];
-    // 밝기(0~1)가 0.36을 넘으면 같은 색조로 어둡게 맞춘다(흰 글자 대비 확보).
-    const light = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    if (light > 0.36) {
-      const k = 0.36 / light;
-      [r, g, b] = [r * k, g * k, b * k];
-    }
-    const hex = `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
-    colorCache.set(img.src, hex);
-    return hex;
-  } catch {
-    return FALLBACK_COLOR;
-  }
-}
-
 type Size = { view: number; left: number; card: number; gap: number };
 
 export function TicketCarousel() {
@@ -361,8 +323,8 @@ function Slide({
 }) {
   const active = position === 'active';
   const [imgOk, setImgOk] = useState(true); // 이미지 파일이 없으면 배경색만 남긴다
-  const [autoColor, setAutoColor] = useState<string | null>(null);
-  const color = banner.color || autoColor || FALLBACK_COLOR;
+  const color = banner.color || FALLBACK_COLOR;
+  const dates = banner.period.match(/^(\d{4})\.(\d{2})\.(\d{2})\s*~\s*(\d{4})\.(\d{2})\.(\d{2})$/);
   const pad = (n: number) => String(n).padStart(2, '0');
 
   return (
@@ -372,13 +334,13 @@ function Slide({
       aria-roledescription="배너"
       aria-label={`${page} / ${total}`}
       aria-hidden={!active}
-      // 가운데 카드를 누르면 배너 링크로 가고(도우미 찾기), 양옆 카드를 누르면 그 방향으로 넘어간다.
+      // 가운데 카드는 공연 상세를 열고, 양옆 카드는 그 방향으로 넘긴다.
       onClick={active ? onOpen : onPick}
     >
       <div
         className="tsb-card"
         style={{ '--tsb-color': color } as CSSProperties}
-        role={active ? 'link' : undefined}
+        role={active ? 'button' : undefined}
         tabIndex={active ? 0 : -1}
         aria-label={active ? `${banner.title} 공연 정보 보기` : undefined}
         onKeyDown={(e) => {
@@ -387,6 +349,9 @@ function Slide({
           onOpen();
         }}
       >
+        {imgOk && banner.image && <div className="tsb-backdrop" aria-hidden="true">
+          <img src={banner.image} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async" draggable={false} />
+        </div>}
         <div className="tsb-main">
           {imgOk && banner.image && (
             <img
@@ -396,23 +361,24 @@ function Slide({
               loading={eager ? 'eager' : 'lazy'}
               decoding="async"
               draggable={false}
-              onLoad={(e) => !banner.color && setAutoColor(edgeColor(e.currentTarget))}
               onError={() => setImgOk(false)}
             />
           )}
+          {(!imgOk || !banner.image) && <div className="tsb-poster-empty" aria-hidden="true">PICO<span>공연 포스터</span></div>}
           <div className="tsb-copy">
             <span className="tsb-chip tsb-rise" style={{ '--d': 0 } as CSSProperties}>
-              {banner.category}
+              {banner.category} · KOPIS {banner.rank}위
             </span>
             <div className="tsb-copy-mid">
               <h2 className="tsb-title tsb-rise" style={{ '--d': 1 } as CSSProperties}>
                 {banner.title}
               </h2>
               <p className="tsb-meta tsb-rise" style={{ '--d': 2 } as CSSProperties}>
-                <span>{banner.venue}</span>
                 <span>{banner.period}</span>
+                <span>{banner.venue}</span>
               </p>
             </div>
+            <span className="tsb-cta tsb-rise" style={{ '--d': 3 } as CSSProperties}>공연 정보 보기 <span aria-hidden="true">↗</span></span>
           </div>
         </div>
 
@@ -425,9 +391,11 @@ function Slide({
 
         <div className="tsb-stub">
           <div className="tsb-stub-top">
-            <span className="tsb-open-label">KOPIS RANK</span>
-            <strong className="tsb-dday is-word">{banner.rank}위</strong>
-            <span className="tsb-open-at">공연 정보 보기</span>
+            <span className="tsb-open-label">PERFORMANCE</span>
+            {dates ? <>
+              <strong className="tsb-dates"><span>{dates[2]}.{dates[3]}</span><span className="tsb-date-separator">—</span><span>{dates[5]}.{dates[6]}</span></strong>
+              <span className="tsb-year">{dates[1] === dates[4] ? dates[1] : `${dates[1]} — ${dates[4]}`}</span>
+            </> : <strong className="tsb-period">{banner.period}</strong>}
           </div>
           <span className="tsb-count">
             {pad(page)} / {pad(total)}
