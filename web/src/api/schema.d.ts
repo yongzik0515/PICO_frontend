@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * 거래 당사자의 요청 상세
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 거래 당사자만 조회할 수 있습니다. 숨김·삭제된 후기 원문과 이미지 저장 키, 내부 정책 검토 메모·근거 URL은 응답에서 제외합니다. disputeNote는 이용자의 최근 이의 사유(양쪽 당사자에게 보임), resultConfirmDueAt은 이용자 결과 확인 기한(UTC, 확인 대기 중일 때만), paymentId·paymentStatus는 최신 합의의 최신 결제(환불 요청 API에 씀)입니다. stage는 REQUEST_WAITING·CONDITION_PREPARATION·CONDITION_CONFIRMATION·CONDITION_CHANGE_REQUESTED·OPENING_PASSED·PAYMENT_WAITING·READY_TO_START·IN_PROGRESS·RESULT_CONFIRMATION·BOOKING_UPCOMING 또는 종료/분쟁 상태 코드입니다. 직접 거래는 MATCHING_COMPLETED와 completedAt으로 매칭 완료를 표시하고 finalResult는 null입니다. agencyBudgetDesired·agencyBudgetMax는 희망·최대 수고비입니다. opensAt·useAt은 티켓 오픈·이용 예정 시각(UTC), contactsVisibleUntil은 연락처 공개가 끝나는 시각(useAt+7일)입니다. 이용자에게만 policyBlockedBy(AUTO 자동 검사·ADMIN 운영팀)와 policyBlockReason(자동 검사는 고정 항목명, 운영팀은 이용자에게 쓴 사유)을 줍니다. myContactConsentWithdrawn·counterpartyContactConsentWithdrawn은 이 거래의 연락처 제공 동의 철회 여부입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 거래 당사자만 조회할 수 있습니다. 숨김·삭제된 후기 원문과 이미지 저장 키, 내부 정책 검토 메모·근거 URL은 응답에서 제외합니다. disputeNote는 이용자의 최근 이의 사유(양쪽 당사자에게 보임), resultConfirmDueAt은 이용자 결과 확인 기한(UTC, 확인 대기 중일 때만), paymentId·paymentStatus는 최신 합의의 최신 결제(환불 요청 API에 씀)입니다. stage는 REQUEST_WAITING·CONDITION_PREPARATION·CONDITION_CONFIRMATION·CONDITION_CHANGE_REQUESTED·OPENING_PASSED·PAYMENT_WAITING·READY_TO_START·IN_PROGRESS·RESULT_CONFIRMATION·BOOKING_UPCOMING 또는 종료/분쟁 상태 코드입니다. 직접 거래는 MATCHING_COMPLETED와 completedAt으로 매칭 완료를 표시하고 finalResult는 null입니다. 후기 작성 후에는 이용 예정일 전이라도 stage=MATCHING_COMPLETED로 완료 표시하며 후기 삭제·숨김 후에도 유지합니다. agencyBudgetDesired·agencyBudgetMax는 희망·최대 수고비입니다. opensAt·useAt은 티켓 오픈·이용 예정 시각(UTC), contactsVisibleUntil은 연락처 공개가 끝나는 시각(useAt+7일)입니다. 이용자에게만 policyBlockedBy(AUTO 자동 검사·ADMIN 운영팀)와 policyBlockReason(자동 검사는 고정 항목명, 운영팀은 이용자에게 쓴 사유)을 줍니다. myContactConsentWithdrawn·counterpartyContactConsentWithdrawn은 이 거래의 연락처 제공 동의 철회 여부입니다.
          */
         get: operations["get"];
         /**
@@ -173,8 +173,8 @@ export interface paths {
         };
         get?: never;
         /**
-         * 승인 경력을 유지하며 공개 프로필 수정
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 게시된 도우미 프로필의 공개 정보만 수정하는 전체 입력 API입니다. expectedProfileId는 현재 게시 프로필 ID이며 필수입니다. activityName·headline·bio·primaryCategory·platformIds·categories 등 PublicProfile 입력을 받으며, imageStorageKey는 선택입니다. 승인된 경력·경력 증빙·사업자 정보는 재입력하거나 재심사하지 않고 유지합니다. 이전 프로필은 ARCHIVED, 새 버전은 즉시 PUBLISHED이며 저장된 경력 초안의 공개 정보도 동기화합니다. 게시 프로필이 바뀌었거나 심사 중인 프로필이 있으면 409입니다. 경력 변경은 별도의 프로필 초안·심사 API를 사용합니다.
+         * 승인 상태를 유지하며 공개 프로필 수정
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 게시된 도우미 프로필의 공개 정보만 수정하는 전체 입력 API입니다. expectedProfileId는 현재 게시 프로필 ID이며 필수입니다. activityName·headline·bio·primaryCategory·platformIds·categories 등 PublicProfile 입력을 받으며, imageStorageKey는 선택입니다. 기존 경력 소개·증빙·사업자 정보가 있으면 재입력하거나 재심사하지 않고 유지합니다. 경력 증빙이 없어도 수정할 수 있습니다. 이전 프로필은 ARCHIVED, 새 버전은 즉시 PUBLISHED이며 저장된 초안의 공개 정보도 동기화합니다. 게시 프로필이 바뀌었거나 심사 중인 프로필이 있으면 409입니다. 경력 변경은 별도의 프로필 초안·심사 API를 사용합니다.
          */
         put: operations["updatePublic"];
         post?: never;
@@ -401,7 +401,7 @@ export interface paths {
         };
         /**
          * 내 요청 목록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 로그인 회원의 요청을 최신 ID 순으로 반환합니다. role=ALL|REQUESTER|AGENT(기본 ALL), status는 선택 필터이며 page=0~100000, size=1~100입니다. data는 배열이며 카드용 stage·counterpartyName·counterpartyImageUrl·agreementStatus·agreementVersion·paymentId·paymentStatus·agreementChangePending·reviewWritten 등을 포함합니다. 직접 거래의 매칭 완료 상태는 MATCHING_COMPLETED이며 예매 성공을 뜻하지 않습니다. stage는 이용 예정 시각(useAt: 공연 일시, 없으면 티켓 오픈 일시) 전의 매칭 완료를 BOOKING_UPCOMING(진행 중, 예매 예정)으로, 티켓 오픈 시각(opensAt)이 지나도록 조건을 확정하지 못한 MATCHED를 OPENING_PASSED(조건 확정 불가, 취소 안내)로 줍니다. contactsVisibleUntil은 직접 거래 연락처 공개가 끝나는 시각(useAt+7일, UTC)입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 로그인 회원의 요청을 최신 ID 순으로 반환합니다. role=ALL|REQUESTER|AGENT(기본 ALL), status는 선택 필터이며 page=0~100000, size=1~100입니다. data는 배열이며 카드용 stage·counterpartyName·counterpartyImageUrl·agreementStatus·agreementVersion·paymentId·paymentStatus·agreementChangePending·reviewWritten 등을 포함합니다. 직접 거래의 매칭 완료 상태는 MATCHING_COMPLETED이며 예매 성공을 뜻하지 않습니다. stage는 후기가 없고 이용 예정 시각(useAt: 공연 일시, 없으면 티켓 오픈 일시) 전인 매칭 완료를 BOOKING_UPCOMING(진행 중, 예매 예정)으로, 후기 작성 후에는 MATCHING_COMPLETED(완료, 삭제·숨김 후에도 유지)로, 티켓 오픈 시각(opensAt)이 지나도록 조건을 확정하지 못한 MATCHED를 OPENING_PASSED(조건 확정 불가, 취소 안내)로 줍니다. contactsVisibleUntil은 직접 거래 연락처 공개가 끝나는 시각(useAt+7일, UTC)입니다.
          */
         get: operations["list"];
         put?: never;
@@ -471,7 +471,7 @@ export interface paths {
         put?: never;
         /**
          * 후기 작성
-         * @description 안전거래 COMPLETED 또는 직접 거래 MATCHING_COMPLETED의 요청자만 작성할 수 있습니다. bookingResult는 선택이며 이용자가 기록한 후기 결과로만 저장하고 거래 확정 결과·결제·정산을 바꾸지 않습니다. requests의 후기 컬럼을 사용하며 별도 리뷰 ID를 만들지 않습니다. 거래 1건당 1개이며 삭제한 후기도 다시 작성할 수 없습니다(409). 요청자가 아니면 403, 없는 거래는 404입니다. imageKey는 purpose=REVIEW_IMAGE로 본인이 업로드한 파일만 허용하며 소유권·MIME·파일 시그니처를 검증한 뒤 서버 전용 경로에 비공개로 보관합니다. JPEG·PNG는 서버가 최대 2048px JPEG로 재인코딩(EXIF 제거)한 공개본을 만들어 imageUrl로 제공합니다. WebP·HEIC·손상 파일은 후기는 저장되지만 imageUrl=null입니다. 프런트 사진 입력은 accept="image/jpeg,image/png"로 두세요(아이폰 웹은 HEIC를 JPEG로 변환해 올립니다). 작성·삭제는 거래·결제·정산 상태를 바꾸지 않습니다.
+         * @description 안전거래 COMPLETED 또는 직접 거래 MATCHING_COMPLETED의 요청자만 작성할 수 있습니다. bookingResult는 선택이며 이용자가 기록한 후기 결과로만 저장하고 거래 확정 결과·결제·정산을 바꾸지 않습니다. requests의 후기 컬럼을 사용하며 별도 리뷰 ID를 만들지 않습니다. 직접 거래는 티켓 예매 오픈 시각(opensAt, UTC)부터 작성할 수 있고 그 전에는 REVIEW_NOT_YET_OPEN(409)입니다. opensAt이 없는 기존 거래는 시간 제한이 없습니다. 공연 이용 예정일과는 무관합니다. 거래 1건당 1개이며 삭제한 후기도 다시 작성할 수 없습니다(409). 요청자가 아니면 403, 없는 거래는 404입니다. imageKey는 purpose=REVIEW_IMAGE로 본인이 업로드한 파일만 허용하며 소유권·MIME·파일 시그니처를 검증한 뒤 서버 전용 경로에 비공개로 보관합니다. JPEG·PNG는 서버가 최대 2048px JPEG로 재인코딩(EXIF 제거)한 공개본을 만들어 imageUrl로 제공합니다. WebP·HEIC·손상 파일은 후기는 저장되지만 imageUrl=null입니다. 프런트 사진 입력은 accept="image/jpeg,image/png"로 두세요(아이폰 웹은 HEIC를 JPEG로 변환해 올립니다). 작성·삭제는 거래·결제·정산 상태를 바꾸지 않습니다.
          */
         post: operations["createReview"];
         /**
@@ -839,7 +839,7 @@ export interface paths {
         put?: never;
         /**
          * 요청 수락 및 매칭권 차감
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 수락하면 MatchingPassPort JDBC 구현으로 지급·결제 완료된 유효 매칭권 1회를 차감하고, 취소는 매칭권을 복구하지 않습니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. 매칭권은 수락 시 사용이 확정되어 MATCHED 취소는 이용자·도우미 누구의 취소든 매칭권을 복구하지 않습니다. 공식 공연 취소·예매처·플랫폼 장애는 관리자 예외 복원 API로 처리합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. verifiedNameSharingAgreed=true가 필수입니다. 도우미에게 대표 연락처와 본인인증 이름 제공 안내를 표시하고, 그 화면에서 확인한 contactSharingDocumentId를 함께 전송합니다. 미전송·false는 400이며 새 동의·매칭권 차감은 발생하지 않습니다. 수락하면 MatchingPassPort JDBC 구현으로 지급·결제 완료된 유효 매칭권 1회를 차감하고, 취소는 매칭권을 복구하지 않습니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. 매칭권은 수락 시 사용이 확정되어 MATCHED 취소는 이용자·도우미 누구의 취소든 매칭권을 복구하지 않습니다. 공식 공연 취소·예매처·플랫폼 장애는 관리자 예외 복원 API로 처리합니다.
          */
         post: operations["accept"];
         delete?: never;
@@ -1123,7 +1123,7 @@ export interface paths {
         put?: never;
         /**
          * 프로필 심사 신청
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 본인인증·정산계좌 인증 및 경력 증빙 사례 최소 1건의 최신 제출에 정상 파일이 필요합니다. 보완 요청(CHANGES_REQUESTED) 프로필도 수정·증빙 재업로드·재제출할 수 있습니다. 인증 API 자체는 별도 연동 영역입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 본인인증·정산계좌 인증이 필요합니다. 경력 소개와 경력 증빙은 선택이며 자료 없이도 신청·승인할 수 있습니다. 보완 요청(CHANGES_REQUESTED) 프로필도 수정·재제출할 수 있습니다. 인증 API 자체는 별도 연동 영역입니다.
          */
         post: operations["submit_2"];
         delete?: never;
@@ -1531,7 +1531,7 @@ export interface paths {
         put?: never;
         /**
          * 요청 내용 사전 검사
-         * @description 개인정보·외부 거래 유도·욕설/비하/협박 검사. AI 미사용 시 단순 규칙으로 검출하고 나머지는 MANUAL_REVIEW. 원문·검출된 개인정보는 응답하지 않습니다.
+         * @description 개인정보·매칭 전 외부 연락 유도·욕설/비하/협박 검사. 좌석·성공 조건·수고비 협의와 결제 방식 언급 자체는 허용합니다. AI 미사용 시 단순 규칙으로 검출하고 나머지는 MANUAL_REVIEW. 원문·검출된 개인정보는 응답하지 않습니다.
          */
         post: operations["request_1"];
         delete?: never;
@@ -2133,7 +2133,7 @@ export interface paths {
         };
         /**
          * 동의한 거래 상대방 연락처 공개
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 활성 연락처 중 isPrimary=true인 선택 연락처만 공개합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 활성 연락처 중 isPrimary=true인 선택 연락처만 공개합니다. 요청 수락은 verifiedNameSharingAgreed=true가 필수이며 구 클라이언트의 미전송·false는 400입니다. verifiedName은 이용자에게만 제공하는 도우미 본인인증 이름입니다. 도우미가 실명 제공을 포함한 CONTACT_SHARING 2026-11-03.2 또는 2026-11-03.3에 해당 거래별로 동의한 경우에만 반환하며 기존 동의·미인증·도우미 조회에서는 null입니다. 양측 동의, 거래 참여 권한, 공개 기간과 철회 조건은 연락처와 동일합니다. 공개 프로필·일반 요청 상세에는 이름을 추가하지 않습니다. Cache-Control: no-store.
          */
         get: operations["contacts_1"];
         put?: never;
@@ -2153,7 +2153,7 @@ export interface paths {
         };
         /**
          * 내 활동 탭별 전체 개수
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. role=ALL|REQUESTER|AGENT(기본 ALL)로 활동 건수를 조회합니다. data={totalCount,waitingCount,inProgressCount,completedCount,closedCount}입니다. waitingCount는 PENDING, inProgressCount는 MATCHED·IN_PROGRESS·DISPUTED와 이용 예정 시각(useAt) 전의 MATCHING_COMPLETED, completedCount는 COMPLETED와 이용 예정 시각이 지난 MATCHING_COMPLETED, closedCount는 CANCELLED·REJECTED·EXPIRED입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. role=ALL|REQUESTER|AGENT(기본 ALL)로 활동 건수를 조회합니다. data={totalCount,waitingCount,inProgressCount,completedCount,closedCount}입니다. waitingCount는 PENDING, inProgressCount는 MATCHED·IN_PROGRESS·DISPUTED와 후기가 없고 이용 예정 시각(useAt) 전인 MATCHING_COMPLETED, completedCount는 COMPLETED와 후기를 작성했거나(삭제·숨김 포함) 이용 예정 시각이 지난 MATCHING_COMPLETED, closedCount는 CANCELLED·REJECTED·EXPIRED입니다.
          */
         get: operations["counts"];
         put?: never;
@@ -3312,7 +3312,7 @@ export interface paths {
         put?: never;
         /**
          * 거래별 연락처 제공 동의 철회
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 당사자 본인의 이 거래 연락처 제공 동의를 철회합니다. 철회하면 이 거래에서 양쪽 연락처 공개가 바로 멈추고(GET contacts 403 CONTACTS_CLOSED), 상대방에게 받은 연락처를 거래 목적 밖에서 쓰지 말고 지워 달라는 알림을 보냅니다. 다시 동의하는 기능은 없습니다. 수락 전 요청은 409(CONSENT_NOT_WITHDRAWABLE)이며 요청 취소를 안내합니다. 반복 호출은 현재 요청 상세를 반환합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 당사자 본인의 이 거래 연락처 제공 동의를 철회합니다. 철회하면 이 거래에서 양쪽 연락처와 도우미 본인인증 이름 공개가 바로 멈추고(GET contacts 403 CONTACTS_CLOSED), 상대방에게 받은 연락처를 거래 목적 밖에서 쓰지 말고 지워 달라는 알림을 보냅니다. 다시 동의하는 기능은 없습니다. 수락 전 요청은 409(CONSENT_NOT_WITHDRAWABLE)이며 요청 취소를 안내합니다. 반복 호출은 현재 요청 상세를 반환합니다.
          */
         post: operations["withdrawContactConsent"];
         delete?: never;
@@ -3575,6 +3575,46 @@ export interface paths {
          * @description 현재 보관된 실명과 전체 계좌번호를 별도 열람합니다. 관리자 권한과 사유가 필요하며 신고·거래 당사자인 관리자는 접근할 수 없습니다. 열람 이력 저장이 실패하면 정보를 반환하지 않습니다. 미보관 항목은 null이며 거래 당시 송금 계좌를 의미하지 않습니다.
          */
         post: operations["identity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/completed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 처리된 요청서 목록
+         * @description 활성 관리자 전용. COMPLETED, MATCHING_COMPLETED, CANCELLED, REJECTED, EXPIRED를 처리 시각·번호 내림차순으로 조회합니다. status는 이 중 하나이며 생략하면 전체입니다. q는 요청·회원 번호 정확 일치 또는 요청명·닉네임 부분 일치(최대 100자). page=0~10000, size=1~100. 본인이 당사자인 요청은 제외하며 상태를 변경하지 않습니다.
+         */
+        get: operations["completed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/completed/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 처리된 요청서 상세
+         * @description 활성 관리자 전용. request(요청 내용·최종 결과), agreements(모든 조건 버전), changeRequests(조건 수정 요청), history(상태 이력)를 반환합니다. 본인이 당사자이면 403, 없는 요청이나 처리 전 요청은 404입니다. 연락처·실명·계좌·결제 비밀값을 포함하지 않으며 상태를 변경하지 않습니다.
+         */
+        get: operations["detail_1"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4544,10 +4584,9 @@ export interface components {
             additionalNote?: string;
         };
         Accept: {
-            /** Explicit agreement after displaying helper verified-name sharing notice. */
-            verifiedNameSharingAgreed: boolean;
             /** Format: int64 */
             contactSharingDocumentId: number;
+            verifiedNameSharingAgreed: boolean;
         };
         /** @description 신고자 식별은 인증 주체에서 가져옴 */
         ReportCreateRequest: {
@@ -20387,6 +20426,107 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseAdminReportIdentityResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    completed: {
+        parameters: {
+            query?: {
+                status?: string;
+                q?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    detail_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
                 };
             };
             /** @description 인증 필요 (Bearer JWT) */

@@ -19,7 +19,7 @@ import { PageTitle } from '../ui/PageTitle';
 // 권한은 서버가 검사한다(ROLE_ADMIN이 아니면 403). 메뉴에는 노출하지 않고 /admin 주소로 들어온다.
 // 목록 응답 필드가 명세에 없는 API가 많아(data: object) pick()으로 찾고, 항목마다 원본 응답을 펼쳐 볼 수 있게 했다.
 
-type Tab = 'pass-restoration' | 'inquiries' | 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'payments' | 'pass-purchases' | 'reports' | 'reviews' | 'users' | 'setup';
+type Tab = 'pass-restoration' | 'inquiries' | 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'completed' | 'payments' | 'pass-purchases' | 'reports' | 'reviews' | 'users' | 'setup';
 const tabs: [Tab, string][] = [
   ['policy', '요청 정책 검토'],
   ['inquiries', '문의 답변'],
@@ -30,6 +30,7 @@ const tabs: [Tab, string][] = [
   ['settlements', '부분성공 정산'],
   ['requests', '결과 확인·만료'],
   ['resolved', '결과 확정 이력'],
+  ['completed', '처리된 요청서'],
   ['payments', '결제 확인'],
   ['pass-purchases', '매칭권 구매'],
   ['reports', '신고'],
@@ -1290,6 +1291,40 @@ function ResolvedTab() {
   );
 }
 
+// ── 처리된 요청서 ─────────────────────────────────────────────
+function CompletedRequestsTab() {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [status, setStatus] = useState('');
+  const [shown, setShown] = useState<number | null>(null);
+  const [load, reload] = useLoad<Raw[]>(
+    () => unwrap(api.GET('/api/admin/requests/completed', {
+      params: { query: { q: query || undefined, status: status || undefined, page, size: ADMIN_PAGE_SIZE } },
+    })).then(list, (e) => { throw new Error(errorText(e)); }),
+    [query, status, page], { resetOnLoad: true },
+  );
+  return <>
+    <AdminSearchForm hint="요청·회원 번호, 요청명 또는 회원 닉네임으로 검색해요." onSearch={(value) => { setQuery(value); setPage(0); }} />
+    <StatusFilter value={status} onChange={(value) => { setStatus(value); setPage(0); }}
+      options={['COMPLETED', 'MATCHING_COMPLETED', 'CANCELLED', 'REJECTED', 'EXPIRED'].map((key) => [key, requestStatusNames[key]])} />
+    <ListBlock title="처리된 요청서" desc="완료·직접 거래 매칭 완료·취소·거절·만료된 요청을 확인해요. 요청 내용과 조건·상태 이력은 읽기 전용이며, 본인이 당사자인 요청은 제외돼요."
+      load={load} reload={reload} empty="조건에 맞는 처리된 요청서가 없어요.">
+      {(rows) => rows.map((row) => <Item key={n(row, 'id')} raw={row}
+        title={`#${n(row, 'id')} ${s(row, 'submittedTargetName')}`}
+        rows={[
+          ['상태', requestStatusNames[s(row, 'status')] ?? s(row, 'status')],
+          ['이용자 → 도우미', `${s(row, 'requesterName')} → ${s(row, 'agentName')}`],
+          ['최종 결과', resultLabels[s(row, 'finalResult')] ?? s(row, 'finalResult')],
+          ['처리 시각', utcToLocal(s(row, 'processedAt'))],
+        ]}>
+        <button type="button" className="btn secondary" onClick={() => setShown(n(row, 'id')!)}>요청서·조건·이력 보기</button>
+      </Item>)}
+    </ListBlock>
+    <AdminPagination page={page} setPage={setPage} load={load} />
+    {shown !== null && <DealDetailModal key={shown} id={shown} kind="completed" onClose={() => setShown(null)} />}
+  </>;
+}
+
 // ── 결제 확인 ─────────────────────────────────────────────
 const reviewTypes: Record<string, string> = { EVENT: '실패 웹훅', PAYMENT_FLAG: '수동 확인 표시', PAYMENT_STUCK: 'PG 확인 지연', REFUND_STUCK: '환불 지연', CANCEL_REQUEST: '그로블 결제 취소 요청' };
 const cancelRequestLabel = '그로블 결제 취소 요청: 구매 건 보기에서 남은 장수와 환불 가능 금액을 확인하고 그로블 판매 관리에서 처리한 뒤 처리 내용을 기록해 주세요. 이미 쓴 매칭권이 있으면 전액을 승인하지 말고 환불 가능 금액만 취소해 주세요';
@@ -1838,19 +1873,25 @@ const reportDealError = (e: unknown) =>
 
 /** 신고에 연결된 거래의 요청 내용, 조건 버전별 내용, 조건 수정 요청, 상태 이력(GET /api/admin/reports/{id}/deal) */
 function ReportDealModal({ reportId, onClose }: { reportId: number; onClose: () => void }) {
+  return <DealDetailModal id={reportId} kind="report" onClose={onClose} />;
+}
+
+function DealDetailModal({ id, kind, onClose }: { id: number; kind: 'report' | 'completed'; onClose: () => void }) {
   const member = useMemberName();
   const [load] = useLoad<Raw>(
     () =>
-      unwrap<unknown>(api.GET('/api/admin/reports/{reportId}/deal', { params: { path: { reportId } } })).then(
+      unwrap<unknown>(kind === 'report'
+        ? api.GET('/api/admin/reports/{reportId}/deal', { params: { path: { reportId: id } } })
+        : api.GET('/api/admin/requests/completed/{requestId}', { params: { path: { requestId: id } } })).then(
         (d) => (d ?? {}) as Raw,
-        (e) => Promise.reject(new Error(reportDealError(e))),
+        (e) => Promise.reject(new Error(kind === 'completed' && e instanceof ApiError && e.status === 404 ? '처리된 요청서를 찾을 수 없어요.' : reportDealError(e))),
       ),
-    [reportId],
+    [id, kind],
   );
   const party = (id: number | undefined) => (id == null ? '' : member(id));
   const time = (raw: unknown, key: string) => utcToLocal(s(raw, key));
   return (
-    <Modal title={`신고 #${reportId} 거래 조건·이력`} onClose={onClose} wide>
+    <Modal title={`${kind === 'report' ? '신고' : '요청서'} #${id} 조건·이력`} onClose={onClose} wide>
       {load.status === 'loading' ? (
         <p className="prose">불러오는 중이에요.</p>
       ) : load.status === 'error' ? (
@@ -1870,6 +1911,11 @@ function ReportDealModal({ reportId, onClose }: { reportId: number; onClose: () 
                 rows={[
                   ['이용자 → 도우미', `${s(request, 'requesterName') || party(n(request, 'requesterUserId'))} → ${s(request, 'agentName') || party(n(request, 'agentUserId'))}`],
                   ['상태', requestStatusNames[s(request, 'status')] ?? s(request, 'status')],
+                  ['최종 결과', resultLabels[s(request, 'finalResult')] ?? s(request, 'finalResult')],
+                  ['확정 사유', s(request, 'resolutionNote')],
+                  ['종료 사유', s(request, 'closeReason')],
+                  ['완료 시각', time(request, 'completedAt')],
+                  ['종료 시각', time(request, 'closedAt')],
                   ['티켓 오픈 시각', time(request, 'opensAt')],
                   ['이용 예정 시각', time(request, 'useAt')],
                   ...requestRows(toRequest(request)),
@@ -2460,6 +2506,7 @@ export function AdminPage() {
       {tab === 'settlements' && <SettlementsTab />}
       {tab === 'requests' && <RequestsTab />}
       {tab === 'resolved' && <ResolvedTab />}
+      {tab === 'completed' && <CompletedRequestsTab />}
       {tab === 'payments' && <PaymentsTab onOpenPurchase={(q) => setParams({ tab: 'pass-purchases', q })} />}
       {tab === 'pass-purchases' && <PassPurchasesTab key={purchaseQuery} initialQuery={purchaseQuery} />}
       {tab === 'reports' && <ReportsTab />}
