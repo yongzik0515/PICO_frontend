@@ -297,7 +297,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
       requirements: d.requirements,
       successConditions: d.successConditions,
       purchaseBudgetMax: edit?.purchaseBudgetMax,
-      agencyBudgetDesired: optionalNumber(d.agencyBudgetDesired),
+      agencyBudgetDesired: Number(d.agencyBudgetDesired),
       agencyBudgetMax: optionalNumber(d.agencyBudgetMax),
       upfrontBudgetDesired: optionalNumber(d.upfrontBudgetDesired),
       additionalNote: d.additionalNote || undefined,
@@ -415,8 +415,8 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
               <input name="upfrontBudgetDesired" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.upfrontBudgetDesired ?? edit?.upfrontBudgetDesired} placeholder="예: 5000" />
             </Field>
             <div className="form-grid">
-              <Field label="희망 수고비 (원)" helper="희망 좌석을 확보했을 때 지급하고 싶은 수고비예요. 최종 금액은 서로 합의해요." error={errors.agencyBudgetDesired}>
-                <input name="agencyBudgetDesired" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.agencyBudgetDesired ?? edit?.agencyBudgetDesired} placeholder="예: 30000" />
+              <Field label="희망 수고비 (원)" required helper="희망 좌석을 확보했을 때 지급하고 싶은 수고비예요. 최종 금액은 서로 합의해요." error={errors.agencyBudgetDesired}>
+                <input name="agencyBudgetDesired" type="number" required min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.agencyBudgetDesired ?? edit?.agencyBudgetDesired} placeholder="예: 30000" />
               </Field>
               <Field label="최대 수고비 (원)" helper="희망 좌석 확보 시 지급할 수 있는 최대 수고비예요." error={errors.agencyBudgetMax}>
                 <input name="agencyBudgetMax" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.agencyBudgetMax ?? edit?.agencyBudgetMax} placeholder="예: 50000" />

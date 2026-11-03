@@ -18,7 +18,7 @@ export interface paths {
         get: operations["get"];
         /**
          * 수락 전 요청 내용 전체 수정
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. Create와 같은 전체 입력을 받습니다. 이용자만 만료 전 PENDING 요청을 수정할 수 있으며 대상 도우미 변경은 금지됩니다. 수정 내용은 다시 검사합니다. 내용 검사 PASS는 ALLOWED로 도우미 전달, REJECT는 BLOCKED로 저장·보류, 불확실·AI 미사용/미설정/장애는 PENDING 수동 검토입니다. data.contentReview={decision,issues,message,source}와 policyGateStatus를 확인하세요. 저장 성공이 곧 도우미 전달 성공은 아닙니다. 인증·예매처 등 기존 검증 실패는 오류입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. Create와 같은 전체 입력을 받으며 희망 수고비는 필수(0원 허용)입니다. 이용자만 만료 전 PENDING 요청을 수정할 수 있으며 대상 도우미 변경은 금지됩니다. 수정 내용은 다시 검사합니다. 내용 검사 PASS는 ALLOWED로 도우미 전달, REJECT는 BLOCKED로 저장·보류, 불확실·AI 미사용/미설정/장애는 PENDING 수동 검토입니다. data.contentReview={decision,issues,message,source}와 policyGateStatus를 확인하세요. 저장 성공이 곧 도우미 전달 성공은 아닙니다. 인증·예매처 등 기존 검증 실패는 오류입니다.
          */
         put: operations["edit"];
         post?: never;
@@ -407,7 +407,7 @@ export interface paths {
         put?: never;
         /**
          * 지정 도우미에게 견적요청
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자 본인인증(VERIFIED)이 필요하며 미인증은 403입니다. 내용 검사 PASS는 ALLOWED로 도우미 전달, REJECT는 BLOCKED로 저장·보류, 불확실·AI 미사용/미설정/장애는 PENDING 수동 검토입니다. data.contentReview={decision,issues,message,source}와 policyGateStatus를 확인하세요. 저장 성공이 곧 도우미 전달 성공은 아닙니다. 인증·예매처 등 기존 검증 실패는 오류입니다. applicationOpenDate/Time 및 scheduledUseDate/Time은 한국 현지 시각, expiresAt은 UTC입니다. 도우미의 본인·계좌 인증 및 게시 프로필, 지원 분야·신청처, 이용자 연락처·동의가 필요합니다. 요청은 내용 검사 결과에 따라 전달 또는 수동 검토·보류됩니다. upfrontBudgetDesired는 희망 착수비, agencyBudgetDesired·agencyBudgetMax는 희망·최대 수고비(원)이며 둘 다 입력하면 희망 금액은 최대 금액 이하여야 합니다. 세 금액은 선택 입력이며 최종 합의·결제 금액과 별개입니다. requestedQuantity는 양의 정수 매수, locationNote는 선택 공연장·위치입니다. platformId 또는 otherPlatformName 중 하나만 입력합니다. 활성 예매처는 정책 미입력도 요청 가능하며 BLOCK인 예매처는 진행할 수 없습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자 본인인증(VERIFIED)이 필요하며 미인증은 403입니다. 내용 검사 PASS는 ALLOWED로 도우미 전달, REJECT는 BLOCKED로 저장·보류, 불확실·AI 미사용/미설정/장애는 PENDING 수동 검토입니다. data.contentReview={decision,issues,message,source}와 policyGateStatus를 확인하세요. 저장 성공이 곧 도우미 전달 성공은 아닙니다. 인증·예매처 등 기존 검증 실패는 오류입니다. applicationOpenDate/Time 및 scheduledUseDate/Time은 한국 현지 시각, expiresAt은 UTC입니다. 도우미의 본인·계좌 인증 및 게시 프로필, 지원 분야·신청처, 이용자 연락처·동의가 필요합니다. 요청은 내용 검사 결과에 따라 전달 또는 수동 검토·보류됩니다. upfrontBudgetDesired는 희망 착수비, agencyBudgetDesired·agencyBudgetMax는 희망·최대 수고비(원)이며 둘 다 입력하면 희망 금액은 최대 금액 이하여야 합니다. 희망 수고비는 필수(0원 허용), 희망 착수비와 최대 수고비는 선택이며 최종 합의·결제 금액과 별개입니다. requestedQuantity는 양의 정수 매수, locationNote는 선택 공연장·위치입니다. platformId 또는 otherPlatformName 중 하나만 입력합니다. 활성 예매처는 정책 미입력도 요청 가능하며 BLOCK인 예매처는 진행할 수 없습니다.
          */
         post: operations["create"];
         delete?: never;
@@ -3708,7 +3708,7 @@ export interface components {
              * Format: int64
              * @description 희망 수고비(원). 최대 수고비 이하여야 합니다.
              */
-            agencyBudgetDesired?: number;
+            agencyBudgetDesired: number;
             /**
              * Format: int64
              * @description 희망 착수비(원). 선택 입력이며 최종 합의 금액·결제 금액과는 별개입니다.
