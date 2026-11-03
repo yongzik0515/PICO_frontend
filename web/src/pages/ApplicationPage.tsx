@@ -603,6 +603,11 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
           <Field label="상세 소개" required className={fl('bio')} helper="경험과 진행 방식을 직접 소개해 주세요. 직접 작성한 경력은 검증된 실적으로 표시되지 않아요.">
             <textarea rows={5} required maxLength={10000} value={p.bio} onChange={(e) => set({ bio: e.target.value })} />
           </Field>
+          {edit && (
+            <Field label="활동 경력 (선택)" helper="직접 작성한 경력으로 공개 프로필에 표시돼요. 최대 3,000자">
+              <textarea rows={3} maxLength={3000} value={p.careerDescription ?? ''} onChange={(e) => set({ careerDescription: e.target.value })} placeholder="예: 2022년부터 콘서트·뮤지컬 예매를 도와 왔어요." />
+            </Field>
+          )}
           <fieldset className={`account-fieldset ${fl('platformIds')}`}>
             <legend>
               가능한 예매처 <small className="account-required">필수 · 복수 선택</small>

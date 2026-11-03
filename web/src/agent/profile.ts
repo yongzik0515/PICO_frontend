@@ -249,13 +249,13 @@ export const banks: [string, string][] = [
   ['045', '새마을금고'],
 ];
 
-/** Public-only edits retain the existing career approval and publish immediately. */
+/** Public edits, including self-written career text, retain review history and publish immediately. */
 export async function savePublicProfile(body: ProfileBody, expectedProfileId: number, image?: File) {
   let imageStorageKey: string | undefined;
   if (image) {
     const target = await unwrap<Raw>(api.POST('/api/files/upload-url', { body: { purpose: 'PROFILE_IMAGE', originalName: image.name, mimeType: image.type, sizeBytes: image.size } }));
     imageStorageKey = await putFile(target, image);
   }
-  const { activityName, headline, bio, primaryCategory, contactHoursNote, upfrontFeeKrw, successFeeMin, successFeeMax, platformIds, categories } = body;
-  return unwrap(api.PUT('/api/me/agent/public-profile', { body: { expectedProfileId, activityName, headline, bio, primaryCategory, contactHoursNote, upfrontFeeKrw, successFeeMin, successFeeMax, platformIds, categories, imageStorageKey } }));
+  const { activityName, headline, bio, primaryCategory, contactHoursNote, careerDescription, upfrontFeeKrw, successFeeMin, successFeeMax, platformIds, categories } = body;
+  return unwrap(api.PUT('/api/me/agent/public-profile', { body: { expectedProfileId, activityName, headline, bio, primaryCategory, contactHoursNote, careerDescription, upfrontFeeKrw, successFeeMin, successFeeMax, platformIds, categories, imageStorageKey } }));
 }

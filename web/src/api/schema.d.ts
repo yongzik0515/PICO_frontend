@@ -174,7 +174,7 @@ export interface paths {
         get?: never;
         /**
          * 승인 상태를 유지하며 공개 프로필 수정
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 게시된 도우미 프로필의 공개 정보만 수정하는 전체 입력 API입니다. expectedProfileId는 현재 게시 프로필 ID이며 필수입니다. activityName·headline·bio·primaryCategory·platformIds·categories 등 PublicProfile 입력을 받으며, imageStorageKey는 선택입니다. 기존 경력 소개·증빙·사업자 정보가 있으면 재입력하거나 재심사하지 않고 유지합니다. 경력 증빙이 없어도 수정할 수 있습니다. 이전 프로필은 ARCHIVED, 새 버전은 즉시 PUBLISHED이며 저장된 초안의 공개 정보도 동기화합니다. 게시 프로필이 바뀌었거나 심사 중인 프로필이 있으면 409입니다. 경력 변경은 별도의 프로필 초안·심사 API를 사용합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 게시된 도우미 프로필의 공개 정보만 수정하는 전체 입력 API입니다. expectedProfileId는 현재 게시 프로필 ID이며 필수입니다. activityName·headline·bio·primaryCategory·platformIds·categories 등 PublicProfile 입력을 받으며, imageStorageKey는 선택입니다. careerDescription으로 본인 작성 활동 경력(최대 3,000자)을 즉시 수정합니다. 생략/null은 유지, 빈 문자열은 삭제하며 입력한 경력은 저장된 초안에도 동기화합니다. 기존 경력 증빙·사업자 정보와 활동 시작일은 유지합니다. 경력 증빙이 없어도 수정할 수 있습니다. 이전 프로필은 ARCHIVED, 새 버전은 즉시 PUBLISHED이며 저장된 초안의 공개 정보도 동기화합니다. 게시 프로필이 바뀌었거나 심사 중인 프로필이 있으면 409입니다.
          */
         put: operations["updatePublic"];
         post?: never;
@@ -3772,6 +3772,8 @@ export interface components {
             platformIds: number[];
             categories: components["schemas"]["ServiceCategory"][];
             imageStorageKey?: string;
+            /** @description 본인 작성 활동 경력. 생략 또는 null은 기존 값 유지, 빈 문자열은 삭제 */
+            careerDescription?: string;
         };
         Business: {
             registrationNumber?: string;

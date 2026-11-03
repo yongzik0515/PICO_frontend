@@ -54,12 +54,14 @@ function names(v: unknown): string[] {
 }
 
 function careerText(raw: Raw) {
+  const description = str(pick(raw, 'careerDescription', 'profile.careerDescription', 'career'));
+  if (description?.trim()) return description;
   const started = str(pick(raw, 'careerStartedOn', 'profile.careerStartedOn'));
   if (started) {
     const years = Math.floor((Date.now() - new Date(started).getTime()) / (365.25 * 864e5));
     return years >= 1 ? `${years}년` : '1년 미만';
   }
-  return str(pick(raw, 'careerDescription', 'profile.careerDescription', 'career')) || '미입력';
+  return '미입력';
 }
 
 /**
