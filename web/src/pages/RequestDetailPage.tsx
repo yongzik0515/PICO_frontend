@@ -896,7 +896,7 @@ export function RequestDetailPage() {
               수락하려면 이용자에게 공개할 대표 연락처가 필요해요. <Link to="/user-profile">연락처 등록</Link> 후 수락해 주세요.
             </Notice>
           )}
-          <p className="record-note">수락하면 이 거래의 이용자에게 대표 연락처와 본인인증 이름을 제공하는 데 동의해요. 이름은 송금 전 예금주 비교에 사용돼요. <a className="text-link" href={findPolicy(policies, 'CONTACT_SHARING').url} target="_blank" rel="noreferrer">연락처·도우미 실명 제공 동의문 보기</a></p>
+          <p className="record-note">수락하면 이 거래의 이용자에게 대표 연락처와 본인인증 이름을 제공하는 데 동의해요. 이름은 송금 전 예금주 비교에 사용돼요. <a className="text-link" href={findPolicy(policies, 'CONTACT_SHARING').url} target="_blank" rel="noreferrer">연락처 및 도우미 실명 제공 동의 보기</a></p>
         </ConfirmModal>
         </BookingTermsNotice>
       )}

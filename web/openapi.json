@@ -11629,7 +11629,7 @@
           "request"
         ],
         "summary": "동의한 거래 상대방 연락처 공개",
-        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 활성 연락처 중 isPrimary=true인 선택 연락처만 공개합니다. 요청 수락은 verifiedNameSharingAgreed=true가 필수이며 구 클라이언트의 미전송·false는 400입니다. verifiedName은 이용자에게만 제공하는 도우미 본인인증 이름입니다. 도우미가 실명 제공을 포함한 CONTACT_SHARING 2026-11-03.2에 해당 거래별로 동의한 경우에만 반환하며 기존 동의·미인증·도우미 조회에서는 null입니다. 양측 동의, 거래 참여 권한, 공개 기간과 철회 조건은 연락처와 동일합니다. 공개 프로필·일반 요청 상세에는 이름을 추가하지 않습니다. Cache-Control: no-store. ",
+        "description": "구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 활성 연락처 중 isPrimary=true인 선택 연락처만 공개합니다. 요청 수락은 verifiedNameSharingAgreed=true가 필수이며 구 클라이언트의 미전송·false는 400입니다. verifiedName은 이용자에게만 제공하는 도우미 본인인증 이름입니다. 도우미가 실명 제공을 포함한 CONTACT_SHARING 2026-11-03.2 또는 2026-11-03.3에 해당 거래별로 동의한 경우에만 반환하며 기존 동의·미인증·도우미 조회에서는 null입니다. 양측 동의, 거래 참여 권한, 공개 기간과 철회 조건은 연락처와 동일합니다. 공개 프로필·일반 요청 상세에는 이름을 추가하지 않습니다. Cache-Control: no-store. ",
         "operationId": "contacts_1",
         "parameters": [
           {
