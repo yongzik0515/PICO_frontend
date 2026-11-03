@@ -57,7 +57,3 @@ function PromoImage({ image, active }: { image: string; active: boolean }) {
   );
 }
 
-// 검색창 아래 빈 자리를 채우는 인사말 이미지(1024px 이상에서만 보인다).
-export function HomeNote() {
-  return <img className="home-note" src="/banners/note-pc.png" alt="와주셔서 감사합니다. 이제 막 문을 열어서 저희도 많이 떨려요. 불편한 점은 편하게 알려 주세요." width="306" height="120" draggable={false} />;
-}

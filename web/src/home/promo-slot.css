@@ -1,4 +1,4 @@
-/* 홈 이벤트·광고 자리(PromoSlot)와 인사말 이미지(HomeNote).
+/* 홈 이벤트·광고 자리(PromoSlot).
    배너는 이미지라서 크기만 맞춘다: 검색창 옆 306×114, 검색창 아래 343×60(화면 폭에 맞춰 늘어남). */
 .home-promo {
   position: relative;
@@ -61,9 +61,6 @@
   }
 }
 
-.home-note {
-  display: none;
-}
 @media (min-width: 1024px) {
   .home-promo-link {
     aspect-ratio: 306 / 114;
@@ -76,16 +73,5 @@
   }
   .home-promo-dots {
     bottom: 6px;
-  }
-  /* 인사말 높이도 검색 영역에 포함해 다음 안내·목록 영역을 덮지 않게 한다. */
-  .home .pc-search-row > .home-note {
-    display: block;
-    grid-column: 2;
-    grid-row: 3;
-    width: 100%;
-    max-width: 306px;
-    height: auto;
-    margin: 16px 0 0;
-    pointer-events: none;
   }
 }

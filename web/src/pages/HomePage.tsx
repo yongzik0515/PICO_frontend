@@ -6,7 +6,7 @@ import { useAgentSearch } from '../discovery/agent';
 import { AgentCard } from '../discovery/AgentCard';
 import { FilterModal, QuickFilter } from '../discovery/FilterControls';
 import { emptyFilters, filterLabels, removeFilter, sortOptions, type Filters, type Sort } from '../discovery/filters';
-import { HomeNote, PromoSlot } from '../home/PromoSlot';
+import { PromoSlot } from '../home/PromoSlot';
 import { TicketCarousel } from '../home/TicketCarousel';
 import { correctKeyword } from '../home/aiKeyword';
 import { loadPopularSearch, recordSearch, type PopularKeyword } from '../home/popularSearch';
@@ -186,7 +186,6 @@ export function HomePage() {
         {/* 검색창 오른쪽 빈 자리(1024px 이상) 또는 검색창 아래(그보다 좁을 때)를 이벤트·광고 이미지 자리로 쓴다.
             배너 이미지와 기간은 home/promos.ts, 이미지 파일은 public/banners에 있다. */}
         <PromoSlot />
-        <HomeNote />
         <Link className="service-guide-banner" to="/service-guide">
           <span className="service-guide-banner-icon"><Icon name="file" size={22} /></span>
           <span className="service-guide-banner-copy">

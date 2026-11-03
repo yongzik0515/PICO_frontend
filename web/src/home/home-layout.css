@@ -251,7 +251,7 @@ main.page.home {
   color: var(--primary-500);
 }
 
-/* 운영 안내와 인사말은 같은 그리드 행에 둬 서로 덮지 않고 높이를 함께 확보한다. */
+/* 운영 안내는 검색 줄 아래 3번째 그리드 행에 둬 배너·목록과 겹치지 않게 한다. */
 .home .pc-search-row > .service-guide-banner {
   margin: 24px 0 0;
 }
