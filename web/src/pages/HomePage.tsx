@@ -191,7 +191,7 @@ export function HomePage() {
           <span className="service-guide-banner-icon"><Icon name="file" size={22} /></span>
           <span className="service-guide-banner-copy">
             <strong>피코 서비스 운영 안내</strong>
-            <span>서비스 관련 검토 사항 및 운영 기준</span>
+            <span>사기 피해 예방과 안전한 이용을 위한 안내</span>
           </span>
           <span className="service-guide-banner-action">안내 보기 <Icon name="arrow" size={17} /></span>
         </Link>

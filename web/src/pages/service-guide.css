@@ -35,6 +35,8 @@
 .service-guide-notice h2{display:flex;gap:14px;font-size:18px;font-weight:650;line-height:1.7}
 .service-guide-notice h2 span{flex-shrink:0;color:var(--ink-400);font-size:13px;padding-top:4px}
 .service-guide-notice p{margin:14px 0 0 32px;font-size:14px;line-height:1.9;color:var(--ink-600)}
+.service-guide-notice p+p{margin-top:4px}
+.service-guide-notice a{text-decoration:underline;text-underline-offset:3px}
 .service-guide-banner:focus-visible{outline:2px solid var(--primary-500);outline-offset:4px}
 @media(max-width:640px){.service-guide-notice section{padding:24px 0}.service-guide-notice h2{font-size:16px}.service-guide-notice p{font-size:13px}}
 .service-guide-intro,.service-guide-closing{font-size:15px;line-height:2;color:var(--ink-600);word-break:keep-all;overflow-wrap:anywhere}
