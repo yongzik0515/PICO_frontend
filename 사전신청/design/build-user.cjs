@@ -3,7 +3,7 @@ const L = require('./build-lib.cjs');
 const { scrollCue, profileFeedback, doc, write, svg, header, AVATAR_USER, nav, halo, bubble, cardOpen, card, rows, notice, statusBadge, nextStep, detailHeader, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, DIRECT_CARD, MASCOT } = L;
 
 const TOTAL = 13; // 이용자 함께 해 보기 단계 수
-const SIGNUP_URL = 'https://pico-kr.app/login';
+const HOME_URL = 'https://pico-kr.app/';
 const USER_NAV = ['find', 'activity', 'my'];
 const userHeader = (progress = true) => header({ avatar: AVATAR_USER, progress, total: TOTAL });
 const prog = (n) => `progN: ${n},\n      progW: ${n} / ${TOTAL} * 100 + '%',`;
@@ -399,7 +399,7 @@ class Component extends DCLogic {
   write('U4-request.dc.html', doc('요청 상세 · 조건 확정 · 이용자', body, script));
 }
 
-// ── U5 함께 해 보기 마침: 혼자 해 보기로 ─────────────────────────────
+// ── U5 함께 해 보기 마침: 홈페이지와 혼자 해 보기로 ─────────────────────────────
 {
   const body = `${userHeader(false)}
   <div class="pk-pop" style="position: absolute; top: 56px; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; padding: 0 24px 24px; background: #FFFFFF; box-sizing: border-box">
@@ -408,8 +408,8 @@ class Component extends DCLogic {
       <h1 style="margin: 18px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.6px">함께 해 보기를 마쳤어요</h1>
       <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: #4B5160">도우미를 고르고 요청을 보내<br>매칭까지 해 봤어요.<br>이번엔 표시 없이 혼자 해 봐요.</p>
     </div>
-    <a href="U6-practice.dc.html" style="${BTN}">혼자 해 보기</a>
-    <a href="${SIGNUP_URL}" style="${BTN_GHOST}; color: #16181D; text-decoration: none">회원가입하기</a>
+    <a href="${HOME_URL}" style="${BTN}">피코 홈페이지로 이동</a>
+    <a href="U6-practice.dc.html" style="${BTN_GHOST}; color: #16181D; text-decoration: none">혼자 해 보기</a>
     <a href="U0-role.dc.html" style="${BTN_GHOST}; color: #16181D; text-decoration: none">첫 화면으로</a>
   </div>`;
   const script = `
