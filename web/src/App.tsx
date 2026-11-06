@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { AppStateProvider } from './AppState';
+import { Analytics } from './analytics';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { RequireAuth } from './auth/RequireAuth';
 import { AgentCard } from './discovery/AgentCard';
@@ -137,6 +138,7 @@ export default function App() {
         <ToastProvider>
           <FavoritesProvider>
           <BrowserRouter>
+            <Analytics />
             <Routes>
               {/* 관리자 화면은 이용자·도우미 헤더 없이 관리자 전용 셸로 보여 준다. */}
               <Route element={<AdminLayout />}>
