@@ -416,10 +416,20 @@ fieldset.account-flagged,.account-image-picker.account-flagged,.account-career-u
   .footer-top>div{justify-content:flex-start}
   .footer-trust strong{white-space:nowrap}
 }
-.pc-card-price > .pc-card-request-note {
-  margin: 6px 0 0;
+/* 카드 하단 안내와 프로필 링크는 좁은 화면에서 줄을 나눌 수 있다. */
+.pc-agent-card .agent-bottom {
+  flex-wrap: wrap;
+}
+.pc-card-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 12px;
+  margin-left: auto;
+}
+.pc-card-request-note {
   color: #2452bf;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  white-space: nowrap;
 }

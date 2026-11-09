@@ -86,7 +86,6 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
             {money(a.fee)}
             <small>원부터</small>
           </strong>
-          {a.acceptsRequests && <span className="pc-card-request-note">요청은 무료!</span>}
         </div>
       </div>
       <div className="agent-bottom">
@@ -102,9 +101,14 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
             </span>
           )}
         </div>
-        <Link className="pc-profile-link" to={`/agents/${a.id}`}>
-          프로필 보기 <Icon name="arrow" size={16} />
-        </Link>
+        <div className="pc-card-profile-actions">
+          {a.acceptsRequests && (
+            <strong className="pc-card-request-note">요청은 무료!</strong>
+          )}
+          <Link className="pc-profile-link" to={`/agents/${a.id}`}>
+            프로필 보기 <Icon name="arrow" size={16} />
+          </Link>
+        </div>
       </div>
     </article>
   );
