@@ -86,6 +86,7 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
             {money(a.fee)}
             <small>원부터</small>
           </strong>
+          {a.acceptsRequests && <span className="pc-card-request-note">요청은 무료!</span>}
         </div>
       </div>
       <div className="agent-bottom">

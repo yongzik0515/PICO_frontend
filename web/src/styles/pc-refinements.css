@@ -416,3 +416,10 @@ fieldset.account-flagged,.account-image-picker.account-flagged,.account-career-u
   .footer-top>div{justify-content:flex-start}
   .footer-trust strong{white-space:nowrap}
 }
+.pc-card-price > .pc-card-request-note {
+  margin: 6px 0 0;
+  color: #2452bf;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
