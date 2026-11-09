@@ -429,10 +429,7 @@ fieldset.account-flagged,.account-image-picker.account-flagged,.account-career-u
   margin-left: auto;
 }
 .pc-card-request-note {
-  color: var(--ink-600);
-  font-size: 12px;
-}
-.pc-card-request-note strong {
   color: #2452bf;
+  font-size: 12px;
   font-weight: 700;
 }

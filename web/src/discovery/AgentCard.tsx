@@ -103,9 +103,7 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
         </div>
         <div className="pc-card-profile-actions">
           {a.acceptsRequests && (
-            <span className="pc-card-request-note">
-              <strong>요청은 무료!</strong> 프로필 둘러보기
-            </span>
+            <strong className="pc-card-request-note">요청은 무료!</strong>
           )}
           <Link className="pc-profile-link" to={`/agents/${a.id}`}>
             프로필 보기 <Icon name="arrow" size={16} />
