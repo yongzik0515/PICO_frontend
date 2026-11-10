@@ -33,6 +33,7 @@ import { SocialCallbackPage } from './pages/SocialCallbackPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SignupPage } from './pages/SignupPage';
+import { RegistrationReturnPage } from './pages/RegistrationReturnPage';
 import { Icon } from './ui/Icon';
 import { PageTitle, type Crumb } from './ui/PageTitle';
 import { ToastProvider } from './ui/Toast';
@@ -152,6 +153,7 @@ export default function App() {
                 <Route path="login" element={<LoginPage />} />
                 <Route path="auth/social/callback" element={<SocialCallbackPage />} />
                 <Route path="signup" element={<SignupPage />} />
+                <Route path="auth/registration/return" element={<RegistrationReturnPage />} />
                 <Route path="dev/api" element={<ApiCheckPage />} />
                 <Route path="favorites" element={auth(<FavoritesPage />)} />
                 <Route path="quote/:id" element={auth(<QuotePage />)} />
