@@ -782,6 +782,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
                       </button>
                     </div>
                     <small className="field-helper">{payoutChecking ? '요청이 많으면 최대 2분 정도 걸릴 수 있어요. 잠시 기다려 주세요.' : state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
+                    <small className="field-helper">매일 23:30~00:30(한국시간)에는 정기 점검으로 계좌 확인을 이용할 수 없어요.</small>
                   </div>
                 </>
               )}
