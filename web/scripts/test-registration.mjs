@@ -119,3 +119,21 @@ test('social transport/non-JSON failures report ambiguous outcome; HTTP session 
   }
   await assert.rejects(h.socialModule(async () => ({ ok: false, status: 401, json: async () => ({ success: false, message: 'expired' }) })).socialRequest('/api/auth/social/register', {}), { status: 401 });
 });
+
+test('request draft return path survives identity navigation without storing passwords', async () => {
+  const h = harness();
+  const value = { ...input, returnTo: '/request/start', password: 'never-persist-this' };
+  const draft = await h.start(value);
+  assert.equal(h.draft.readRegistrationDraft().draft.input.returnTo, '/request/start');
+  assert.equal(h.values.get(h.draft.registrationKey).includes('never-persist-this'), false);
+  await h.identity.finishRegistration(draft, value, 'fresh-password');
+  assert.equal('returnTo' in h.requests.at(-1).body, false);
+});
+
+test('registration only persists the known request return path', async () => {
+  for (const returnTo of ['https://example.com', '//example.com', '/admin']) {
+    const h = harness();
+    await h.start({ ...input, returnTo });
+    assert.equal(h.draft.readRegistrationDraft().draft.input.returnTo, undefined);
+  }
+});

@@ -1,10 +1,11 @@
+import { useAuth } from '../auth/AuthContext';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
-import { num, pick } from '../api/pick';
+import { num, pick, list, type Raw } from '../api/pick';
 import { useAgentActive } from '../agent/active';
 import { isApprovedAgent } from '../agent/profile';
-import { fetchRequests, roughStage, stageNames, useLoad, type TxRequest } from '../transactions/model';
+import { fetchRequests, toRequest, roughStage, stageNames, useLoad, type TxRequest } from '../transactions/model';
 import { Notice, kstDay } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
 import { PageTitle } from '../ui/PageTitle';
@@ -104,11 +105,41 @@ function Loading({ state, retry }: { state: { status: string; message?: string }
   );
 }
 
+async function fetchUserGroups() {
+  const groups: Raw[] = [];
+  for (let page = 0; ; page++) {
+    const batch = list(await unwrap(api.GET('/api/request-groups', { params: { query: { page, size: 100 } } })));
+    groups.push(...batch);
+    if (batch.length < 100) return groups;
+  }
+}
+async function fetchUserRequests() {
+  const requests: TxRequest[] = [];
+  for (let page = 0; ; page++) {
+    const batch = list(await unwrap(api.GET('/api/requests', { params: { query: { role: 'REQUESTER', page, size: 100 } } })));
+    requests.push(...batch.map(toRequest));
+    if (batch.length < 100) return requests;
+  }
+}
+const toRequestForGroup = (group: Raw) => toRequest(group.request as Raw);
+
 export function UserActivityPage() {
+  const { userKey } = useAuth();
+  return <UserActivity key={userKey} />;
+}
+
+function UserActivity() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('all');
-  const [load, reload] = useLoad(() => fetchRequests('REQUESTER'), [], { refreshOnFocus: true });
-  const all = load.status === 'done' ? load.data : [];
+  const [load, reload] = useLoad(async () => {
+    const [requests, groups] = await Promise.all([
+      fetchUserRequests(),
+      fetchUserGroups(),
+    ]);
+    return { requests: requests.filter(r => !r.raw.requestGroupId), groups };
+  }, [], { refreshOnFocus: true });
+  const all = load.status === 'done' ? load.data.requests : [];
+  const groups = load.status === 'done' ? load.data.groups.filter(g => tab === 'all' || (tab === 'request' ? g.status === 'PENDING' : tab === 'progress' ? g.status === 'CONNECTED' && !isEnded(toRequestForGroup(g)) : g.status === 'CLOSED' || (g.status === 'CONNECTED' && isEnded(toRequestForGroup(g))))) : [];
   const shown = all.filter((r) => tab === 'all' || (tab === 'request' ? r.status === 'PENDING' : tab === 'progress' ? !isEnded(r) && r.status !== 'PENDING' : isEnded(r)));
   return (
     <>
@@ -128,8 +159,15 @@ export function UserActivityPage() {
         <section className="activity-tickets">
           {load.status !== 'done' ? (
             <Loading state={load} retry={reload} />
-          ) : shown.length ? (
-            shown.map((r) => <Ticket key={r.id} r={r} agent={false} />)
+          ) : shown.length || groups.length ? (
+            <>{groups.map(g => {
+              const r = toRequestForGroup(g);
+              const label = g.status === 'CLOSED' || isEnded(r) ? (closedNames[r.status] || '요청 종료') : g.status === 'CONNECTED' ? '도우미 한 명 연결' : r.policyStatus === 'ALLOWED' ? `도우미 ${list(g.recipients).length}명에게 요청` : '요청 내용 검토';
+              return <article className="activity-ticket" key={`group-${g.id}`}>
+                <header><strong>여러 도우미에게 보낸 요청</strong><time>{r.createdAt ? kstDay(r.createdAt) : ''}</time></header>
+                <Link className="activity-ticket-body" to={`/request-groups/${g.id}`}><div><h2>{r.targetName || '보낸 요청'}</h2><p>{label} · 상태 확인하기</p></div><Icon name="chevron" size={18} /></Link>
+              </article>;
+            })}{shown.map((r) => <Ticket key={r.id} r={r} agent={false} />)}</>
           ) : (
             <Empty>
               <button className="btn secondary" onClick={() => navigate('/')}>

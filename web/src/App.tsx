@@ -1,3 +1,5 @@
+import { RequestGroupPage } from './pages/RequestGroupPage';
+import './pages/broadcast.css';
 import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { AppStateProvider } from './AppState';
@@ -156,6 +158,8 @@ export default function App() {
                 <Route path="auth/registration/return" element={<RegistrationReturnPage />} />
                 <Route path="dev/api" element={<ApiCheckPage />} />
                 <Route path="favorites" element={auth(<FavoritesPage />)} />
+                <Route path="request/start" element={<QuotePage />} />
+                <Route path="request-groups/:id" element={auth(<RequestGroupPage />)} />
                 <Route path="quote/:id" element={auth(<QuotePage />)} />
                 <Route path="request-sent/:id" element={auth(<RequestSentPage />)} />
                 <Route path="requests" element={auth(<UserActivityPage />)} />

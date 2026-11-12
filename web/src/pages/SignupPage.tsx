@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { finishRegistration, registrationErrorMessage, startRegistrationIdentity } from '../auth/registrationIdentity';
 import { readRegistrationDraft, type RegistrationDraft, type RegistrationInput } from '../auth/registrationDraft';
 import { useRegistrationDraft } from '../auth/useRegistrationDraft';
@@ -22,6 +23,8 @@ export function SignupPage() {
   const policies = usePolicies();
   const location = useLocation();
   const { draft, setDraft, notice, setNotice, cancel } = useRegistrationDraft('email', typeof location.state?.registrationNotice === 'string' ? location.state.registrationNotice : '');
+  const [from] = useState(() => location.state?.from === '/request/start' || draft?.input.returnTo === '/request/start' ? '/request/start' : '/');
+  const { login } = useAuth();
   const [error, setError] = useState('');
   const [opening, setOpening] = useState(false);
   const active = useRef(false);
@@ -40,7 +43,8 @@ export function SignupPage() {
     if (!termsDocumentId || !privacyDocumentId) { setError('약관 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'); return null; }
     const data = new FormData(form);
     return { kind: 'email', email: String(data.get('email')).trim().toLowerCase(),
-      nickname: String(data.get('nickname')).trim(), termsDocumentId, privacyDocumentId, adultConfirmed: true };
+      nickname: String(data.get('nickname')).trim(), termsDocumentId, privacyDocumentId, adultConfirmed: true,
+      ...(from === '/request/start' ? { returnTo: '/request/start' as const } : {}) };
   }
 
   async function complete(form: HTMLFormElement, saved: RegistrationDraft) {
@@ -51,7 +55,15 @@ export function SignupPage() {
     try {
       // Re-read the password from the current form; never retain it across navigation.
       await finishRegistration(saved, input, String(new FormData(form).get('password')));
-      setDraft(null); setDone(input.nickname);
+      setDraft(null);
+      if (from === '/request/start' && input.kind === 'email') {
+        try {
+          await login(input.email, String(new FormData(form).get('password')));
+          navigate(from, { replace: true });
+          return;
+        } catch { /* 가입은 완료됨: 완료 화면에서 기존 계정 로그인으로 이어간다. */ }
+      }
+      setDone(input.nickname);
     } catch (err) { setError(registrationErrorMessage(err)); }
     finally { active.current = false; setPending(false); }
   }
@@ -92,9 +104,9 @@ export function SignupPage() {
           <h1>
             {done}님 반가워요.
             <br />
-            로그인하고 티켓 도우미를 찾아볼까요?
+            {from === '/request/start' ? '로그인하고 작성한 요청서를 이어서 보내세요.' : '로그인하고 티켓 도우미를 찾아볼까요?'}
           </h1>
-          <button type="button" className="btn primary full" onClick={() => navigate('/login', { replace: true })}>
+          <button type="button" className="btn primary full" onClick={() => navigate('/login', { replace: true, state: { from } })}>
             로그인하기
           </button>
         </section>
@@ -162,7 +174,7 @@ export function SignupPage() {
           <div className="account-form-error" aria-live="polite">
             {error}
           </div>
-          <p className="prose">이미 가입하셨나요? <a className="text-link" href="/login">기존 계정으로 로그인하기</a></p>
+          <p className="prose">이미 가입하셨나요? <Link className="text-link" to="/login" state={{ from }}>기존 계정으로 로그인하기</Link></p>
           <AccountNote><strong>현재 카카오 본인인증은 이용할 수 없어요.</strong> 다른 인증 수단을 이용해 주세요.</AccountNote>
           <div className="account-form-footer">
             <button className="btn primary" type="submit" disabled={pending || (opening && !draft)}>

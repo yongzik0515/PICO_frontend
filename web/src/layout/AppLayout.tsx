@@ -309,7 +309,7 @@ export function AppLayout() {
               인증 정보와 플랫폼 거래 후기를 함께 확인하고 선택하세요.
             </span>
           </div>
-          <div>
+          <nav className="footer-links" aria-label="사이트 안내">
             <Link to="/notices">공지·이벤트</Link>
             <button onClick={() => navigate('/guide')}>이용 방법</button>
             <button onClick={() => navigate('/inquiries')}>고객센터</button>
@@ -317,7 +317,7 @@ export function AppLayout() {
             <button className="footer-privacy" onClick={() => navigate('/privacy')}>
               개인정보처리방침
             </button>
-          </div>
+          </nav>
         </div>
         <p>PICO는 만 19세 이상의 이용자와 도우미를 연결하며 예매 성공이나 티켓을 보증하지 않습니다.</p>
         <ul className="footer-biz">

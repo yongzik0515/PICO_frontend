@@ -33,3 +33,13 @@
 .footer-biz li > span + span::before { content: '|'; margin-right: 10px; color: var(--line-200); }
 /* 개인정보처리방침은 다른 항목보다 눈에 띄게 표기해야 한다. */
 .footer-privacy { font-weight: 700; color: var(--ink-900); }
+
+/* 푸터 메뉴는 글자를 쪼개지 않고 항목 단위로 다음 줄에 배치한다. */
+.footer-top { flex-wrap: wrap; gap: 16px 24px; }
+.footer-top > .footer-brand-row { flex: 1 1 320px; min-width: 0; }
+.footer-links { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 18px; max-width: 100%; }
+.footer-links > a, .footer-links > button { display: inline-flex; align-items: center; flex: 0 0 auto; white-space: nowrap; min-height: 32px; }
+@media (max-width: 767px) {
+  .footer-top > .footer-brand-row { flex-basis: auto; }
+  .footer-links { gap: 4px 16px; }
+}

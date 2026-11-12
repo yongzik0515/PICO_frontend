@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
+import { GROUP_DRAFT_KEY, readGroupDraft, saveGroupDraft, pendingGroupSubmission, submitGroup } from '../transactions/groupDraft';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, pick, str, type Raw } from '../api/pick';
@@ -74,16 +75,21 @@ const toUtc = (local: string) => new Date(local).toISOString().slice(0, 19);
 
 export function QuotePage() {
   const { id } = useParams();
-  const agentId = Number(id);
+  const agentId = id === undefined ? 0 : Number(id);
   const [params] = useSearchParams();
-  const editId = Number(params.get('edit')) || 0;
+  const editId = agentId === 0 ? 0 : Number(params.get('edit')) || 0;
   const { userKey } = useAuth();
   return <QuoteEditor key={`${userKey}:${agentId}:${editId}`} userKey={userKey} agentId={agentId} editId={editId} />;
 }
 
 function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: number; editId: number }) {
-  const storageKey = draftKey(userKey, agentId, editId);
-  const [restored, setRestored] = useState(() => readDraft(storageKey));
+  const broadcast = agentId === 0;
+  const { loggedIn, loading: authLoading } = useAuth();
+  const storageKey = broadcast ? GROUP_DRAFT_KEY : draftKey(userKey, agentId, editId);
+  const [restored, setRestored] = useState(() => broadcast ? readGroupDraft(userKey) : readDraft(storageKey));
+  const [candidateValues, setCandidateValues] = useState(restored);
+  const [singleConfirmed, setSingleConfirmed] = useState(false);
+  const [uncertain, setUncertain] = useState(() => pendingGroupSubmission(userKey));
   const navigate = useNavigate();
   const policies = usePolicies();
   const platforms = usePlatforms();
@@ -102,15 +108,30 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
   const [saveFailed, setSaveFailed] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const toast = useToast();
-  const [identity, reloadIdentity] = useLoad(() => unwrap(api.GET('/api/me/identity')), [], { refreshOnFocus: true });
+  const [identity, reloadIdentity] = useLoad(() => loggedIn ? unwrap(api.GET('/api/me/identity')) : Promise.resolve({ verified: false }), [userKey], { refreshOnFocus: true });
   const [load] = useLoad(async () => {
     const [agent, contacts, edit] = await Promise.all([
-      unwrap<Raw>(api.GET('/api/agents/{agentId}', { params: { path: { agentId } } })).then((raw) => ({ ...toAgent(raw), id: agentId, raw })),
-      unwrap<unknown>(api.GET('/api/me/contacts')).then(list, () => [] as Raw[]),
+      broadcast ? Promise.resolve({ ...toAgent({ activityName: '조건에 맞는 도우미' }), id: 0, raw: {} as Raw }) : unwrap<Raw>(api.GET('/api/agents/{agentId}', { params: { path: { agentId } } })).then((raw) => ({ ...toAgent(raw), id: agentId, raw })),
+      loggedIn ? unwrap<unknown>(api.GET('/api/me/contacts')).then(list) : Promise.resolve([] as Raw[]),
       editId ? fetchDetail(editId).then((d) => d.request) : Promise.resolve(null),
     ]);
     return { agent, contacts, edit };
-  }, [agentId, editId]);
+  }, [agentId, editId, userKey]);
+  const candidateCategory = candidateValues.serviceCategory ?? 'CONCERT';
+  const candidatePlatform = platformChoice ?? (platforms[0] ? String(platforms[0].id) : '');
+  const [candidates, reloadCandidates] = useLoad(async () => {
+    if (!broadcast || !candidateCategory || !candidatePlatform || candidatePlatform === 'other') return [] as Raw[];
+    return list(await unwrap(api.GET('/api/request-groups/candidates', { params: { query: {
+      category: candidateCategory as NonNullable<RequestBody['serviceCategory']>, platformId: Number(candidatePlatform),
+      applicationOpenDate: candidateValues.applicationOpenDate || undefined,
+      applicationOpenTime: candidateValues.applicationOpenTime || undefined,
+      agencyBudgetDesired: candidateValues.agencyBudgetDesired ? Number(candidateValues.agencyBudgetDesired) : undefined,
+      upfrontBudgetDesired: candidateValues.upfrontBudgetDesired ? Number(candidateValues.upfrontBudgetDesired) : undefined,
+    } } })));
+  }, [broadcast, userKey, candidateCategory, candidatePlatform, candidateValues.applicationOpenDate,
+    candidateValues.applicationOpenTime, candidateValues.agencyBudgetDesired, candidateValues.upfrontBudgetDesired], { resetOnLoad: true });
+  const candidateRows = candidates.status === 'done' ? candidates.data : [];
+  const candidatesReady = candidates.status === 'done' && candidateRows.length > 0;
 
   if (load.status === 'loading')
     return (
@@ -169,10 +190,14 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
 
   function persistDraft(values: Record<string, string>, manual = false) {
     try {
-      localStorage.setItem(storageKey, JSON.stringify(values));
+      if (broadcast) {
+        saveGroupDraft(userKey, values);
+        setCandidateValues(values);
+        setSingleConfirmed(false);
+      } else localStorage.setItem(storageKey, JSON.stringify(values));
       setSavedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
       setSaveFailed(false);
-      if (manual) toast('작성 중인 내용을 이 브라우저에 저장했어요.');
+      if (manual) toast(broadcast ? '작성 중인 내용을 현재 탭에 24시간 동안 저장했어요.' : '작성 중인 내용을 이 브라우저에 저장했어요.');
     } catch {
       setSaveFailed(true);
       if (manual) toast('임시저장에 실패했어요.');
@@ -180,19 +205,24 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
   }
 
   function clearDraft() {
-    try { localStorage.removeItem(storageKey); } catch { /* 저장소 오류로 전송 성공을 실패 처리하지 않는다. */ }
+    try { (broadcast ? sessionStorage : localStorage).removeItem(storageKey); } catch { /* 저장소 오류로 전송 성공을 실패 처리하지 않는다. */ }
   }
 
   // 불러오기: 현재 계정으로 이 브라우저에 저장한 초안만 보여 준다.
   function openLoad() {
     try {
-      const prefix = `pico_quote_draft_${userKey}_`;
       const drafts: DraftSource[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key?.startsWith(prefix) || !/^(agent|edit)-\d+$/.test(key.slice(prefix.length))) continue;
-        const values = readDraft(key);
-        if (Object.keys(values).length) drafts.push({ key, values });
+      if (broadcast) {
+        const values = readGroupDraft(userKey);
+        if (Object.keys(values).length) drafts.push({ key: storageKey, values });
+      } else {
+        const prefix = `pico_quote_draft_${userKey}_`;
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key?.startsWith(prefix) || !/^(agent|edit)-\d+$/.test(key.slice(prefix.length))) continue;
+          const values = readDraft(key);
+          if (Object.keys(values).length) drafts.push({ key, values });
+        }
       }
       setSources(drafts);
       setPicked('');
@@ -206,7 +236,13 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
   function applyLoad() {
     const src = sources.find((r) => r.key === picked);
     if (!src) return;
-    const values = Object.fromEntries(DRAFT_FIELDS.map((name) => [name, src.values[name] ?? '']));
+    const saved = broadcast ? readGroupDraft(userKey) : src.values;
+    if (!Object.keys(saved).length) {
+      setLoadOpen(false);
+      toast('불러올 임시저장 내용이 없어요. 저장 기간이 지났거나 삭제됐을 수 있어요.');
+      return;
+    }
+    const values = Object.fromEntries(DRAFT_FIELDS.map((name) => [name, saved[name] ?? '']));
     // 다른 도우미의 초안이라 지원하지 않는 예매처면 다시 선택받는다.
     if (platforms.length > 0 && values.platform !== 'other' && !options.some((p) => String(p.id) === values.platform)) values.platform = '';
     setRestored(values);
@@ -222,7 +258,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
 
   function deleteDraft() {
     try {
-      localStorage.removeItem(picked);
+      (broadcast ? sessionStorage : localStorage).removeItem(picked);
       setSources((all) => all.filter((r) => r.key !== picked));
       if (picked === storageKey) setSavedAt('');
       setPicked('');
@@ -244,11 +280,20 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (identity.status !== 'done' || !identity.data.verified) {
+    if (!(broadcast && !loggedIn) && (identity.status !== 'done' || !identity.data.verified)) {
       setError('계정 화면에서 본인인증을 완료한 뒤 요청을 보내 주세요.');
       return;
     }
     const form = e.currentTarget;
+    if (broadcast && uncertain) {
+      await run(async () => {
+        try {
+          const result = await submitGroup(userKey, uncertain.request, uncertain.allowSingle ?? false);
+          navigate(`/request-groups/${result.id}`, { replace: true });
+        } finally { setUncertain(pendingGroupSubmission(userKey)); reloadCandidates(); }
+      });
+      return;
+    }
     // 브라우저 기본 풍선 대신, 비었거나 형식이 틀린 칸을 모아 각 칸 아래에 이유를 적는다.
     const found: Record<string, string> = {};
     for (const el of form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('[name]')) {
@@ -273,12 +318,22 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
     if (d.agencyBudgetDesired && d.agencyBudgetMax && Number(d.agencyBudgetDesired) > Number(d.agencyBudgetMax)) {
       return fail(form, { agencyBudgetMax: '최대 수고비는 희망 수고비 이상이어야 해요.' });
     }
-    const contactSharingDocumentId = findPolicy(policies, 'CONTACT_SHARING').id;
-    if (!contactSharingDocumentId) return setError('연락처 공유 동의 문서를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
     if (new Date(d.expiresAt) <= new Date()) return fail(form, { expiresAt: '응답 기한은 지금보다 뒤여야 해요.' });
     // 가이드 6-2: 수락 기한은 신청(티켓) 오픈 시각 이전이어야 한다. 오픈 날짜·시각은 한국 시간.
     const openAt = new Date(`${d.applicationOpenDate}T${d.applicationOpenTime || '00:00'}:00+09:00`);
     if (new Date(d.expiresAt) >= openAt) return fail(form, { expiresAt: '도우미 응답 기한은 티켓 오픈 시각보다 앞서야 해요.' });
+    if (broadcast) {
+      if (!candidatesReady) return setError('조건에 맞는 도우미를 확인한 뒤 다시 시도해 주세요.');
+      if (candidateRows.length === 1 && !singleConfirmed) return setError('현재 도우미 1명에게 보내기에 동의해 주세요.');
+      if (!loggedIn) {
+        saveDraft();
+        navigate('/signup', { state: { from: '/request/start' } });
+        return;
+      }
+    }
+    if (!allAgreed) return setError('필수 약관과 연락처 제공에 동의해 주세요.');
+    const contactSharingDocumentId = findPolicy(policies, 'CONTACT_SHARING').id;
+    if (!contactSharingDocumentId) return setError('연락처 공유 동의 문서를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
     setError('');
     setErrors({});
     const optionalNumber = (v: string) => (v ? Number(v) : undefined);
@@ -308,10 +363,23 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
     await run(async () => {
       // 명세: 요청에는 이용자 연락처가 필요하다. 없으면 먼저 저장한다.
       if (!hasContact) await unwrap(api.PUT('/api/me/contacts', { body: { kind: d.contactKind as 'PHONE', value: d.contactValue, primary: true } }));
-      if (edit) {
+      if (broadcast) {
+        saveDraft();
+        try {
+          const result = await submitGroup(userKey, {
+            targetName: body.targetName!, serviceCategory: body.serviceCategory!, applicationOpenDate: body.applicationOpenDate!,
+            applicationOpenTime: body.applicationOpenTime, scheduledUseDate: body.scheduledUseDate, scheduledUseTime: body.scheduledUseTime,
+            platformId: Number(platform), locationNote: body.locationNote, requestedQuantity: Number(d.requestedQuantity),
+            requirements: body.requirements!, successConditions: body.successConditions!, agencyBudgetDesired: Number(d.agencyBudgetDesired),
+            agencyBudgetMax: body.agencyBudgetMax, upfrontBudgetDesired: body.upfrontBudgetDesired, additionalNote: body.additionalNote,
+            applicationRound: body.applicationRound, expiresAt: body.expiresAt!, contactSharingDocumentId,
+          }, candidateRows.length === 1 && singleConfirmed);
+          navigate(`/request-groups/${result.id}`, { replace: true });
+        } finally { setUncertain(pendingGroupSubmission(userKey)); reloadCandidates(); }
+      } else if (edit) {
         await unwrap(api.PUT('/api/requests/{requestId}', { params: { path: { requestId: edit.id } }, body }));
         clearDraft();
-        navigate(`/requests/${edit.id}`, { replace: true });
+        navigate(edit.raw.requestGroupId ? `/request-groups/${edit.raw.requestGroupId}` : `/requests/${edit.id}`, { replace: true });
       } else {
         const created = await unwrap<Raw>(api.POST('/api/requests', { body }));
         clearDraft();
@@ -323,17 +391,21 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
 
   return (
     <>
-      <PageTitle title={edit ? '요청 내용 수정' : '요청 보내기'} crumbs={edit ? [{ label: '요청 상세', to: `/requests/${edit.id}` }] : [{ label: '도우미 프로필', to: `/agents/${agentId}` }]} />
-      {identity.status === 'loading' ? <Notice>본인인증 상태를 확인하고 있어요.</Notice> : identity.status === 'error' ? (
+      <PageTitle title={edit ? '요청 내용 수정' : broadcast ? '내 요청서 작성하기' : '요청 보내기'} crumbs={edit ? [{ label: '요청 상세', to: `/requests/${edit.id}` }] : broadcast ? [] : [{ label: '도우미 프로필', to: `/agents/${agentId}` }]} />
+      {broadcast && <Notice>지금부터 실제 요청서를 작성해요. 조건에 맞는 도우미 최대 3명에게 전달하고, 먼저 수락한 1명과 조건을 협의해요. 나머지 요청은 자동 종료돼요.</Notice>}
+      {!!edit?.raw.requestGroupId && <Notice>수정 내용은 아직 응답 대기 중인 도우미의 요청 전체에 적용돼요. 이미 거절하거나 종료한 요청에는 다시 보내지 않아요.</Notice>}
+      {uncertain && broadcast && <Notice>지난 전송 결과를 확인하지 못했어요. 아래 버튼으로 같은 요청의 결과를 확인해 주세요.</Notice>}
+      {broadcast && <p className="prose">작성 내용은 현재 탭에서 24시간 동안 이어 쓸 수 있어요.</p>}
+      {(!broadcast || loggedIn) && (identity.status === 'loading' ? <Notice>본인인증 상태를 확인하고 있어요.</Notice> : identity.status === 'error' ? (
         <Notice tone="error">본인인증 상태를 확인하지 못했어요. <button type="button" className="text-link" onClick={reloadIdentity}>다시 확인하기</button></Notice>
       ) : !identity.data.verified ? (
         <Notice>요청을 보내려면 본인인증이 필요해요. 작성한 내용은 임시저장할 수 있어요. <Link to="/account" onClick={() => saveDraft(false)}>계정에서 본인인증하기</Link></Notice>
-      ) : null}
+      ) : null)}
       <form id="tx-quote-form" ref={formRef} className="detail-layout tx-layout" noValidate onSubmit={submit} onChange={(e) => {
         const name = (e.target as HTMLElement).getAttribute('name');
         if (DRAFT_FIELDS.some((field) => field === name)) saveDraft(false, name === 'platform' && e.target instanceof HTMLSelectElement ? e.target.value : platform);
       }}>
-        <div>
+        <div inert={broadcast && (!!uncertain || pending)}>
           <TxCard
             key={formRevision}
             title="요청서"
@@ -397,7 +469,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
                     {p.name}
                   </option>
                 ))}
-                <option value="other">기타</option>
+                {!broadcast && <option value="other">기타</option>}
               </select>
             </Field>
             {platform === 'other' && (
@@ -437,7 +509,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
           <p className="record-note" id="tx-save-status" role="status">
             {saveFailed ? '자동 임시저장에 실패했어요. 화면을 떠나기 전에 작성 내용을 복사해 주세요.' : savedAt ? `${savedAt}에 자동 임시저장했어요. 이 브라우저에서 이어 쓸 수 있어요.` : '입력한 내용은 이 브라우저에 자동 임시저장돼요. 연락처와 동의 체크는 저장하지 않아요.'}
           </p>
-          {!hasContact && (
+          {loggedIn && !hasContact && (
             <TxCard title="연락처">
               <Notice>요청을 보내려면 상대방에게 공개할 연락처가 필요해요. 수락한 도우미에게만 공개돼요.</Notice>
               <div className="form-grid">
@@ -458,7 +530,33 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
           )}
         </div>
         <aside className="tx-side">
-          <section className="content-card quote-submit-card">
+          <section className={`content-card quote-submit-card${broadcast ? ' broadcast-submit-card' : ''}`}>
+            {broadcast ? <>
+              <span className="tiny-label">맞춤 요청</span>
+              <div className="broadcast-heading">
+                <h2>요청받을 도우미</h2>
+                <span className="broadcast-count">최대 3명</span>
+              </div>
+              <p className="broadcast-intro">분야·예매처·제안 비용에 맞춰 추천해요.</p>
+              {candidates.status === 'loading' ? <p className="broadcast-hint" role="status">도우미를 확인하고 있어요.</p> : candidates.status === 'error' ?
+                <Notice tone="error">도우미를 확인하지 못했어요. <button type="button" className="text-link" onClick={reloadCandidates}>다시 확인</button></Notice> :
+                candidateRows.length ? <>
+                  <ul className="broadcast-candidates">{candidateRows.map(c => <li key={String(c.agentId)}>
+                    <Link className="mini-profile broadcast-candidate" to={`/agents/${c.agentId}`} target="_blank" rel="noreferrer" aria-label={`${String(c.activityName)} 프로필 새 창에서 보기`}>
+                      <span className="avatar small blue" aria-hidden="true"><Icon name="user" size={18} /></span>
+                      <div><strong>{String(c.activityName)}</strong><span>분야·예매처 일치</span></div>
+                      <Icon name="chevron" size={16} />
+                    </Link>
+                  </li>)}</ul>
+                  <p className="broadcast-hint">전송 시 도우미가 달라질 수 있어요.</p>
+                </> : <div className="broadcast-empty">
+                  <Icon name="search" size={22} />
+                  <strong>{candidateCategory && candidatePlatform ? '조건에 맞는 도우미가 없어요' : '요청 조건을 먼저 선택해 주세요'}</strong>
+                  <p>{candidateCategory && candidatePlatform ? '예매처나 제안 비용을 바꾸거나, 도우미를 직접 찾아보세요.' : '분야와 예매처를 선택하면 가능한 도우미를 보여드려요.'}</p>
+                  {candidateCategory && candidatePlatform && <Link className="text-link" to="/">도우미 직접 찾기 <Icon name="arrow" size={14} /></Link>}
+                </div>}
+              {candidateRows.length === 1 && <label className="check-row"><input type="checkbox" checked={singleConfirmed} disabled={!!uncertain} onChange={e => setSingleConfirmed(e.target.checked)} />현재 가능한 도우미 1명에게 보내는 데 동의해요.</label>}
+            </> : <>
             <span className="tiny-label">선택한 도우미</span>
             <h2>{agent.name}</h2>
             <p className="prose">{agent.intro}</p>
@@ -472,8 +570,9 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
                 <strong>최종 조건에서 확정</strong>
               </div>
             </div>
-            <Notice>PICO에서는 결제하지 않아요. 도우미가 보낸 최종 조건을 확정하면 매칭이 완료되고, 비용은 도우미와 직접 정산해요.</Notice>
-            <div className="quote-agreements">
+            </>}
+            {!broadcast && <Notice>PICO에서는 결제하지 않아요. 도우미가 보낸 최종 조건을 확정하면 매칭이 완료되고, 비용은 도우미와 직접 정산해요.</Notice>}
+            {loggedIn && <div className="quote-agreements" inert={broadcast && (!!uncertain || pending)}>
               <label className="check-row quote-agree-all">
                 <input type="checkbox" checked={allAgreed} onChange={(e) => setAgreed({ terms: e.target.checked, privacy: e.target.checked, contact: e.target.checked })} />
                 전체 동의
@@ -496,19 +595,26 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
                 </div>
               ))}
             </div>
-            <BookingTermsNotice />
+            }
+            {!broadcast && <BookingTermsNotice />}
             <div className="account-form-error" aria-live="polite">
               {error}
             </div>
-            <button type="submit" className="btn primary full" disabled={!allAgreed || pending || identity.status !== 'done' || !identity.data.verified}>
-              {pending ? '보내는 중…' : edit ? '수정 내용 저장' : '요청 보내기'}
+            {broadcast && !loggedIn && <p className="broadcast-hint broadcast-auth-hint">작성 내용은 가입 후에도 유지돼요.<br />본인인증·연락처 확인 후 전송할 수 있어요.</p>}
+            <button type="submit" className="btn primary full" disabled={pending || authLoading || (broadcast ? !uncertain && (!candidatesReady || (candidateRows.length === 1 && !singleConfirmed) || (loggedIn && (!allAgreed || identity.status !== 'done' || !identity.data.verified))) : !allAgreed || identity.status !== 'done' || !identity.data.verified)}>
+              {pending ? '보내는 중…' : broadcast && uncertain ? '전송 결과 다시 확인하기' : broadcast && !loggedIn ? '회원가입 후 요청서 보내기' : edit ? '수정 내용 저장' : broadcast ? '동의하고 요청서 보내기' : '요청 보내기'}
             </button>
+            {broadcast && !loggedIn && <p className="broadcast-login"><span>이미 계정이 있나요?</span><Link to="/login" state={{ from: '/request/start' }} onClick={() => saveDraft()}>로그인</Link></p>}
+            {broadcast && <div className="broadcast-support">
+              <p><Icon name="info" size={15} /><span><strong>PICO 내 결제는 없어요</strong>최종 조건 확정 후 도우미와 직접 정산해요.</span></p>
+              <BookingTermsNotice />
+            </div>}
           </section>
         </aside>
       </form>
       {loadOpen && (
-        <Modal title="임시저장 불러오기" onClose={() => setLoadOpen(false)}>
-          <p className="prose">이 브라우저에서 내 계정으로 임시저장한 요청서예요. 선택한 내용을 불러오면 작성 중인 요청서를 덮어써요. 요청을 받을 도우미는 바뀌지 않아요.</p>
+        <Modal title="임시저장 불러오기" className={broadcast ? 'broadcast-draft-modal' : ''} onClose={() => setLoadOpen(false)}>
+          <p className="prose">{broadcast ? '현재 탭의 요청서 1개를 마지막 저장부터 24시간 동안 보관해요. 수정 내용은 자동 저장되고, 다시 방문하면 이어서 작성할 수 있어요. 불러오면 현재 작성 내용을 덮어쓰며 연락처와 동의는 다시 확인해야 해요.' : '이 브라우저에서 내 계정으로 임시저장한 요청서예요. 선택한 내용을 불러오면 작성 중인 요청서를 덮어써요. 요청을 받을 도우미는 바뀌지 않아요.'}</p>
           {sources.length ? (
             <div className="tx-load-list">
               {sources.map((r) => (

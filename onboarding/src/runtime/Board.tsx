@@ -78,6 +78,12 @@ function toReact(node: Node, ctx: Ctx, key: number, root = false): ReactNode {
   // 휴대폰 화면을 꽉 채우도록 보드 바깥 틀(390×844)만 늘린다.
   if (root) props.style = { ...(props.style as CSSProperties), width: '100%', height: '100%' }
 
+  // 로컬 통합 테스트에서는 메인 앱 링크도 지정한 개발 서버로 연결한다.
+  const appOrigin = import.meta.env.DEV ? import.meta.env.VITE_PICO_APP_ORIGIN : undefined
+  if (el.localName === 'a' && appOrigin && typeof props.href === 'string' && props.href.startsWith('https://pico-kr.app/')) {
+    props.href = new URL(props.href.slice('https://pico-kr.app'.length), appOrigin).href
+  }
+
   // 보드끼리 잇는 링크는 앱 안 주소로 바꾼다.
   const target = el.localName === 'a' ? ctx.hrefOf(String(props.href ?? '')) : undefined
   if (target) {

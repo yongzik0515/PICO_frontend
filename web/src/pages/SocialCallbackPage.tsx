@@ -129,16 +129,16 @@ export function SocialCallbackPage() {
   const restored = draft?.input.kind === 'social' && draft.input.flowSecret === flow?.flowSecret ? draft.input : null;
   return <div className="account-contained"><section className="content-card">
     <h1>{result?.status === 'REGISTRATION_REQUIRED' ? '가입 마무리' : result?.status === 'REAUTHENTICATED' ? '회원 탈퇴 확인' : '소셜 로그인'}</h1>
-    {failed || !flow || expired ? <><p role="alert">{error || '소셜 인증이 취소되었거나 만료됐어요. 소셜 로그인부터 다시 시작해 주세요.'}</p><Link to="/login">로그인으로 돌아가기</Link></> : <>
+    {failed || !flow || expired ? <><p role="alert">{error || '소셜 인증이 취소되었거나 만료됐어요. 소셜 로그인부터 다시 시작해 주세요.'}</p><Link to="/login" state={{ from: flow?.from ?? '/' }}>로그인으로 돌아가기</Link></> : <>
       {error && <p className="account-form-error" role="alert">{error}</p>}
       {!result && !error && <p role="status">인증 결과를 확인하고 있어요…</p>}
-      {!result && error && <><button className="btn secondary" onClick={() => { setError(''); setRetry(value => value + 1); }}>인증 결과 다시 확인</button> <Link to="/login">로그인으로 돌아가기</Link></>}
+      {!result && error && <><button className="btn secondary" onClick={() => { setError(''); setRetry(value => value + 1); }}>인증 결과 다시 확인</button> <Link to="/login" state={{ from: flow?.from ?? '/' }}>로그인으로 돌아가기</Link></>}
       {result?.status === 'REGISTRATION_REQUIRED' && policies !== null && <form onSubmit={register} aria-busy={pending}>
         {restored && <AccountNote><strong>진행 중인 가입이 있어요.</strong> 본인인증을 마쳤다면 가입 이어하기를 눌러 주세요.</AccountNote>}
         {notice && <p className="prose" role="status">{notice}</p>}
         <p className="prose">{socialNames[result.provider]} 인증을 완료했어요. 닉네임과 필수 약관 동의를 입력한 뒤 본인인증으로 가입을 마쳐 주세요.</p>
         <AccountNote>이미 PICO 계정이 있다면 기존 계정으로 로그인한 뒤 프로필에서 소셜 로그인을 연결해 주세요. 이미 가입된 본인정보로는 새 계정을 만들 수 없어요.</AccountNote>
-        <Link className="text-link" to="/login" onClick={() => { clearSocialFlow(); if (draft) clearRegistrationDraft(draft.identityVerificationToken); }}>기존 계정으로 로그인하기</Link>
+        <Link className="text-link" to="/login" state={{ from: flow?.from ?? '/' }} onClick={() => { clearSocialFlow(); if (draft) clearRegistrationDraft(draft.identityVerificationToken); }}>기존 계정으로 로그인하기</Link>
         <AccountInput name="nickname" defaultValue={restored?.nickname} label="닉네임" required maxLength={50} />
         <p className="prose">PICO는 만 19세 이상만 가입할 수 있어요. 본인인증을 마쳐야 가입이 완료되며, 한 사람당 하나의 계정만 만들 수 있어요.</p>
         <div className="account-agreements">

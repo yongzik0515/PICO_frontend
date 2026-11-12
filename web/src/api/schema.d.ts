@@ -3661,6 +3661,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/request-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 작성자의 요청 그룹 목록 */
+        get: operations["listRequestGroups"];
+        put?: never;
+        /** 적합한 도우미에게 요청서 전달 */
+        post: operations["submitRequestGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/request-groups/{groupId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 작성자의 요청 그룹 상세 */
+        get: operations["getRequestGroup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/request-groups/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 요청 조건에 맞는 도우미 최대 3명 조회 */
+        get: operations["requestGroupCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6618,6 +6670,43 @@ export interface components {
             success?: boolean;
             data?: components["schemas"]["AdminReportIdentityResponse"];
             message?: string;
+        };
+        RequestGroupDraft: {
+            targetName: string;
+            serviceCategory: components["schemas"]["ServiceCategory"];
+            /** Format: date */
+            applicationOpenDate: string;
+            /** Format: time-local */
+            applicationOpenTime?: string;
+            /** Format: date */
+            scheduledUseDate?: string;
+            /** Format: time-local */
+            scheduledUseTime?: string;
+            /** Format: int64 */
+            platformId: number;
+            locationNote?: string;
+            /** Format: int32 */
+            requestedQuantity: number;
+            requirements: string;
+            successConditions: string;
+            /** Format: int64 */
+            agencyBudgetDesired: number;
+            /** Format: int64 */
+            agencyBudgetMax?: number;
+            /** Format: int64 */
+            upfrontBudgetDesired?: number;
+            additionalNote?: string;
+            applicationRound?: components["schemas"]["ApplicationRound"];
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: int64 */
+            contactSharingDocumentId: number;
+        };
+        RequestGroupSubmit: {
+            /** Format: uuid */
+            submissionId: string;
+            request: components["schemas"]["RequestGroupDraft"];
+            allowSingle?: boolean;
         };
     };
     responses: never;
@@ -20701,6 +20790,192 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    listRequestGroups: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    submitRequestGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestGroupSubmit"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    getRequestGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                groupId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    requestGroupCandidates: {
+        parameters: {
+            query: {
+                category: components["schemas"]["ServiceCategory"];
+                platformId: number;
+                applicationOpenDate?: string;
+                applicationOpenTime?: string;
+                agencyBudgetDesired?: number;
+                upfrontBudgetDesired?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListMapStringObject"];
                 };
             };
             /** @description 서버 오류가 발생했습니다. */

@@ -18097,6 +18097,290 @@
           }
         }
       }
+    },
+    "/api/request-groups": {
+      "get": {
+        "tags": [
+          "request-group-controller"
+        ],
+        "summary": "작성자의 요청 그룹 목록",
+        "operationId": "listRequestGroups",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListMapStringObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "request-group-controller"
+        ],
+        "summary": "적합한 도우미에게 요청서 전달",
+        "operationId": "submitRequestGroup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestGroupSubmit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMapStringObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/request-groups/{groupId}": {
+      "get": {
+        "tags": [
+          "request-group-controller"
+        ],
+        "summary": "작성자의 요청 그룹 상세",
+        "operationId": "getRequestGroup",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMapStringObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요 (Bearer JWT)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "접근 권한이 없습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/request-groups/candidates": {
+      "get": {
+        "tags": [
+          "request-group-controller"
+        ],
+        "summary": "요청 조건에 맞는 도우미 최대 3명 조회",
+        "operationId": "requestGroupCandidates",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ServiceCategory"
+            }
+          },
+          {
+            "name": "platformId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "exclusiveMinimum": 0
+            }
+          },
+          {
+            "name": "applicationOpenDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "applicationOpenTime",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "time-local"
+            }
+          },
+          {
+            "name": "agencyBudgetDesired",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "upfrontBudgetDesired",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListMapStringObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "서버 오류가 발생했습니다.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseError"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
     }
   },
   "components": {
@@ -24457,6 +24741,123 @@
             "type": "string"
           }
         }
+      },
+      "RequestGroupDraft": {
+        "type": "object",
+        "properties": {
+          "targetName": {
+            "type": "string",
+            "maxLength": 250,
+            "minLength": 0
+          },
+          "serviceCategory": {
+            "$ref": "#/components/schemas/ServiceCategory"
+          },
+          "applicationOpenDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "applicationOpenTime": {
+            "type": "string",
+            "format": "time-local"
+          },
+          "scheduledUseDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "scheduledUseTime": {
+            "type": "string",
+            "format": "time-local"
+          },
+          "platformId": {
+            "type": "integer",
+            "format": "int64",
+            "exclusiveMinimum": 0
+          },
+          "locationNote": {
+            "type": "string",
+            "maxLength": 250,
+            "minLength": 0
+          },
+          "requestedQuantity": {
+            "type": "integer",
+            "format": "int32",
+            "exclusiveMinimum": 0
+          },
+          "requirements": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 0
+          },
+          "successConditions": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 0
+          },
+          "agencyBudgetDesired": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "agencyBudgetMax": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "upfrontBudgetDesired": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "additionalNote": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 0
+          },
+          "applicationRound": {
+            "$ref": "#/components/schemas/ApplicationRound"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "contactSharingDocumentId": {
+            "type": "integer",
+            "format": "int64",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "agencyBudgetDesired",
+          "applicationOpenDate",
+          "contactSharingDocumentId",
+          "expiresAt",
+          "platformId",
+          "requestedQuantity",
+          "requirements",
+          "serviceCategory",
+          "successConditions",
+          "targetName"
+        ]
+      },
+      "RequestGroupSubmit": {
+        "type": "object",
+        "properties": {
+          "submissionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "request": {
+            "$ref": "#/components/schemas/RequestGroupDraft"
+          },
+          "allowSingle": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "request",
+          "submissionId"
+        ]
       }
     },
     "securitySchemes": {

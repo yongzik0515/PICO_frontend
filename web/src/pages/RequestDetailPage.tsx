@@ -634,6 +634,7 @@ export function RequestDetailPage() {
   return (
     <>
       <PageTitle title="요청 상세" crumbs={[back]} />
+      {!!r.raw.requestGroupId && <Notice>여러 도우미에게 함께 보낸 요청이에요. 먼저 수락한 한 명만 연결되며, 다른 요청은 매칭권 사용 없이 종료돼요. 이용자가 수락 전에 내용을 수정하거나 취소하면 대기 중인 요청 전체에 적용돼요.{!agent && <> <Link to={`/request-groups/${r.raw.requestGroupId}`}>전체 응답 보기</Link></>}</Notice>}
       <div className="detail-layout tx-layout">
         <div>
           <section className="content-card tx-detail-header">

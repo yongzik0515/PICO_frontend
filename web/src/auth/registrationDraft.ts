@@ -1,6 +1,7 @@
 // Same-tab recovery only. Passwords and provider identity data never enter this store.
 export type RegistrationInput = {
   nickname: string; termsDocumentId: number; privacyDocumentId: number; adultConfirmed: boolean;
+  returnTo?: '/request/start';
 } & ({ kind: 'email'; email: string } | { kind: 'social'; flowSecret: string });
 export type RegistrationDraft = {
   version: 1; input: RegistrationInput; identityVerificationToken: string;
@@ -44,6 +45,7 @@ export function readRegistrationDraft(): { draft: RegistrationDraft | null; noti
     if (!draft) return { draft: null, notice: '' };
     const input = draft.input;
     if (draft.version !== 1 || !input || !['email', 'social'].includes(input.kind)
+      || (input.returnTo !== undefined && input.returnTo !== '/request/start')
       || typeof input.nickname !== 'string' || input.nickname.length > 50
       || !Number.isSafeInteger(input.termsDocumentId) || input.termsDocumentId <= 0
       || !Number.isSafeInteger(input.privacyDocumentId) || input.privacyDocumentId <= 0
@@ -72,6 +74,7 @@ export function saveRegistrationDraft(draft: RegistrationDraft) {
   // Explicit allowlist: even an accidental password property passed by a caller is never serialized.
   const safeInput: RegistrationInput = { nickname: input.nickname, termsDocumentId: input.termsDocumentId,
     privacyDocumentId: input.privacyDocumentId, adultConfirmed: input.adultConfirmed,
+    ...(input.returnTo === '/request/start' ? { returnTo: input.returnTo } : {}),
     ...(input.kind === 'email' ? { kind: 'email', email: input.email } : { kind: 'social', flowSecret: input.flowSecret }) };
   try {
     sessionStorage.setItem(registrationKey, JSON.stringify({ version: 1, input: safeInput,

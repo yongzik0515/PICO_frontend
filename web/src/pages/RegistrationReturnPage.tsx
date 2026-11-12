@@ -23,7 +23,7 @@ export function RegistrationReturnPage() {
       : '가입 이어하기를 눌러 본인인증 결과를 확인하고 가입을 마쳐 주세요.');
     // Replace the callback entry, dropping all provider parameters (including unknown ones).
     navigate(draft?.input.kind === 'social' ? '/auth/social/callback' : '/signup',
-      { replace: true, state: { registrationNotice: message } });
+      { replace: true, state: { registrationNotice: message, from: draft?.input.returnTo } });
   }, [navigate]);
   return <div className="account-contained"><section className="content-card">
     <p role="status">가입 화면으로 돌아가고 있어요…</p>

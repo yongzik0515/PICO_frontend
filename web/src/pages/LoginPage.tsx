@@ -73,7 +73,7 @@ export function LoginPage() {
               아이디 · 비밀번호 찾기
             </button>
             <span aria-hidden="true">|</span>
-            <button type="button" className="text-link" onClick={() => navigate('/signup')}>
+            <button type="button" className="text-link" onClick={() => navigate('/signup', { state: { from } })}>
               회원가입
             </button>
           </div>
