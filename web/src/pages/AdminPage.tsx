@@ -11,7 +11,8 @@ import { requestRows } from '../transactions/requestRows';
 import { EvidenceFileNames, Field, MoneyInput, Notice, useAction, utcToLocal, won } from '../transactions/ui';
 import { kstLastDay } from '../ui/format';
 import { Modal } from '../ui/Modal';
-import { ImagePreview, ImageViewer } from '../ui/ImagePreview';
+import { ImageViewer } from '../ui/ImagePreview';
+import { ReviewPhotos } from '../ui/ReviewMedia';
 import { isImageFile } from '../ui/imageFile';
 import { PageTitle } from '../ui/PageTitle';
 
@@ -2140,11 +2141,7 @@ function ReviewsTab() {
                   ['내용', s(row, 'comment')],
                   [
                     '사진',
-                    s(row, 'imageUrl') ? (
-                      <ImagePreview key="photo" src={s(row, 'imageUrl')} alt="후기 인증 사진" className="review-photo" />
-                    ) : (
-                      ''
-                    ),
+                    <ReviewPhotos key="photos" review={row} />,
                   ],
                   ['작성', utcToLocal(s(row, 'reviewedAt'))],
                 ]}

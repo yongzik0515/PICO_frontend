@@ -3,11 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { useAppState } from '../AppState';
 import { toAgent, type Agent } from '../discovery/agent';
-import { resultNames, type RequestResult } from '../transactions/model';
+import { type RequestResult } from '../transactions/model';
 import { kstDay } from '../transactions/ui';
 import { Avatar, Badges, FavoriteButton } from '../discovery/AgentCard';
 import { Icon } from '../ui/Icon';
-import { ImagePreview } from '../ui/ImagePreview';
+import { ReviewPhotos, ReviewResultBadge } from '../ui/ReviewMedia';
 import { PageTitle } from '../ui/PageTitle';
 import { money, responseTime, successRate, successRateBasis } from '../ui/format';
 import { useToast } from '../ui/Toast';
@@ -19,6 +19,7 @@ interface Review {
   rating: number;
   text: string;
   bookingResult?: RequestResult;
+  imageUrls?: unknown;
   imageUrl?: string;
 }
 
@@ -28,6 +29,7 @@ function toReview(r: Record<string, unknown>): Review {
     date: kstDay(String(r.reviewedAt ?? '')),
     rating: Math.max(0, Math.min(5, Math.round(Number(r.rating) || 0))),
     text: typeof r.comment === 'string' ? r.comment : '',
+    imageUrls: r.imageUrls,
     imageUrl: typeof r.imageUrl === 'string' ? r.imageUrl : undefined,
     bookingResult: ['SUCCESS', 'PARTIAL', 'FAILURE'].includes(String(r.bookingResult)) ? r.bookingResult as RequestResult : undefined,
   };
@@ -100,9 +102,9 @@ function ReviewList({ rows }: { rows: Review[] }) {
               </span>
               <time dateTime={r.date}>{r.date.replaceAll('-', '.')}</time>
             </div>
-            {r.bookingResult && <p className="record-note">이용자 후기 결과: {resultNames[r.bookingResult]}</p>}
+            <ReviewResultBadge result={r.bookingResult} />
             <p>{r.text}</p>
-            {r.imageUrl && <ImagePreview src={r.imageUrl} alt="후기 인증 사진" className="review-photo" />}
+            <ReviewPhotos review={r} />
           </article>
         ))}
       </div>

@@ -1,0 +1,12 @@
+.badge.review-result{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;line-height:20px;margin-top:10px;white-space:nowrap}
+.badge.review-result-success{color:var(--primary-500);background:var(--primary-50)}
+.badge.review-result-partial{color:#9a5700;background:#fff3df}
+.badge.review-result-failure{color:#b93838;background:#fff0f0}
+.review-photos,.review-item>.review-photos{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:flex-start;gap:12px;margin-top:12px}
+.review-photos .image-preview.review-photo{width:160px;height:120px;margin:0}
+.review-upload-photo{display:flex;flex-direction:column;gap:6px;width:160px;max-width:100%}
+.review-upload-photo>small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:767px){.review-photos{gap:8px}.review-photos .image-preview.review-photo{width:140px;height:105px}.review-upload-photo{width:140px}}
+
+.review-upload-thumbnail{display:block;width:100%;height:120px;object-fit:cover;border-radius:10px;background:var(--canvas)}
+@media(max-width:767px){.review-upload-thumbnail{height:105px}}

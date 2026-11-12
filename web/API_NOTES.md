@@ -218,3 +218,9 @@ CSS는 이미 메인에 있어 그대로 쓴다(`.signup-field-action` 6건, `.s
 일반·소셜 신규 가입은 본인인증 후에만 완료됩니다. 일반 가입은 `/api/auth/registration/identity-session`에 이메일, 소셜 가입은 `/api/auth/social/identity-session`에 flowSecret을 보냅니다. 발급받은 ID·storeId·channelKey로 PortOne 인증 후 `identityVerificationToken`을 register 본문에 추가합니다. 토큰은 이메일/소셜 흐름에 결속되며 10분간 한 번만 사용할 수 있습니다. 서버가 실제 결과와 만 19세 이상을 확인하고 VERIFIED 회원을 만듭니다. 이미 가입된 CI는 409와 기존 계정 로그인 안내를 반환합니다.
 
 - KG이니시스 본인인증은 `bypass.inicisUnified.flgFixedUser=N`을 전달한다. 가입 인증은 PC·모바일 모두 POPUP으로 열어 입력 중인 비밀번호를 브라우저 저장소에 보관하지 않는다. 팝업 차단 시 해당 사이트의 팝업 허용이 필요하다. 복구 화면은 기존 모바일 redirect 복귀도 지원한다.
+
+## 후기 사진과 결과 배지 (2026-11-12)
+
+후기 사진은 JPG·PNG, 파일당 20MB, 최대 5장이다. 선택 순서대로 미리보기·개별 삭제를 제공하고 파일별 업로드 후 `imageKeys` 배열로 제출한다. 조회의 `imageUrls`를 순서대로 표시하며 이전 응답의 `imageUrl`도 지원한다. 관리자 후기와 거래 상세에도 모든 사진을 표시한다. 결과 배지는 성공=피코 파랑, 부분 성공=주황, 실패=빨강이며 결과를 선택하지 않은 후기는 배지를 표시하지 않는다.
+
+프런트 반영 전 백엔드 V66 마이그레이션과 다중 사진 API를 먼저 배포해야 한다. 이번 타입 갱신은 후기 경로와 `ReviewCreateRequest`·`ReviewResponse` 계약에 한정한다.

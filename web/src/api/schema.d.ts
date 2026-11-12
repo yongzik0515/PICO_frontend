@@ -465,18 +465,18 @@ export interface paths {
         };
         /**
          * 후기 개별 조회
-         * @description 인증된 사용자가 requestId로 VISIBLE 후기와 imageUrl을 조회합니다. 후기 없음·숨김·삭제는 404입니다. 사진이 없거나 미지원 형식·재인코딩 실패이거나 공개 주소가 설정되지 않았으면 imageUrl=null이며 본문은 조회할 수 있습니다.
+         * @description 인증된 사용자가 requestId로 VISIBLE 후기와 선택 순서의 imageUrls 및 첫 사진 imageUrl을 조회합니다. 후기 없음·숨김·삭제는 404입니다. 사진이 없거나 미지원 형식·재인코딩 실패이거나 공개 주소가 설정되지 않았으면 imageUrls=[], imageUrl=null이며 본문은 조회할 수 있습니다.
          */
         get: operations["getReview"];
         put?: never;
         /**
          * 후기 작성
-         * @description 안전거래 COMPLETED 또는 직접 거래 MATCHING_COMPLETED의 요청자만 작성할 수 있습니다. bookingResult는 선택이며 이용자가 기록한 후기 결과로만 저장하고 거래 확정 결과·결제·정산을 바꾸지 않습니다. requests의 후기 컬럼을 사용하며 별도 리뷰 ID를 만들지 않습니다. 직접 거래는 티켓 예매 오픈 시각(opensAt, UTC)부터 작성할 수 있고 그 전에는 REVIEW_NOT_YET_OPEN(409)입니다. opensAt이 없는 기존 거래는 시간 제한이 없습니다. 공연 이용 예정일과는 무관합니다. 거래 1건당 1개이며 삭제한 후기도 다시 작성할 수 없습니다(409). 요청자가 아니면 403, 없는 거래는 404입니다. imageKey는 purpose=REVIEW_IMAGE로 본인이 업로드한 파일만 허용하며 소유권·MIME·파일 시그니처를 검증한 뒤 서버 전용 경로에 비공개로 보관합니다. JPEG·PNG는 서버가 최대 2048px JPEG로 재인코딩(EXIF 제거)한 공개본을 만들어 imageUrl로 제공합니다. WebP·HEIC·손상 파일은 후기는 저장되지만 imageUrl=null입니다. 프런트 사진 입력은 accept="image/jpeg,image/png"로 두세요(아이폰 웹은 HEIC를 JPEG로 변환해 올립니다). 작성·삭제는 거래·결제·정산 상태를 바꾸지 않습니다.
+         * @description 안전거래 COMPLETED 또는 직접 거래 MATCHING_COMPLETED의 요청자만 작성할 수 있습니다. bookingResult는 선택이며 이용자가 기록한 후기 결과로만 저장하고 거래 확정 결과·결제·정산을 바꾸지 않습니다. requests의 후기 컬럼을 사용하며 별도 리뷰 ID를 만들지 않습니다. 직접 거래는 티켓 예매 오픈 시각(opensAt, UTC)부터 작성할 수 있고 그 전에는 REVIEW_NOT_YET_OPEN(409)입니다. opensAt이 없는 기존 거래는 시간 제한이 없습니다. 공연 이용 예정일과는 무관합니다. 거래 1건당 1개이며 삭제한 후기도 다시 작성할 수 없습니다(409). 요청자가 아니면 403, 없는 거래는 404입니다. imageKeys는 선택 순서대로 최대 5장이며 중복·빈 키를 허용하지 않습니다. 기존 imageKey도 지원하지만 imageKeys와 동시에 보낼 수 없습니다. purpose=REVIEW_IMAGE로 본인이 업로드한 파일만 허용하며 소유권·MIME·파일 시그니처를 검증한 뒤 서버 전용 경로에 비공개로 보관합니다. JPEG·PNG는 서버가 최대 2048px JPEG로 재인코딩(EXIF 제거)한 공개본을 만들어 imageUrls 배열로 제공합니다. 기존 imageUrl은 첫 공개 사진 URL입니다. WebP·HEIC·손상 파일은 후기는 저장되지만 공개 사진 목록에서 제외됩니다. 공개 사진이 없으면 imageUrls=[], imageUrl=null입니다. 프런트 사진 입력은 accept="image/jpeg,image/png"로 두세요(아이폰 웹은 HEIC를 JPEG로 변환해 올립니다). 작성·삭제는 거래·결제·정산 상태를 바꾸지 않습니다.
          */
         post: operations["createReview"];
         /**
          * 내 후기 삭제
-         * @description 거래 요청자 본인 후기(VISIBLE·HIDDEN)만 DELETED 처리합니다. 요청 행 자체를 삭제하지 않습니다. 공개 사진이 있으면 저장소의 공개본도 함께 지우며, 저장소 삭제에 실패하면 후기 삭제도 되돌립니다. 요청자가 아니면 403, 없는 거래·후기 없음·이미 삭제는 404입니다. 성공 응답은 기존 ApiResponse<Void> 형식으로 data=null입니다.
+         * @description 거래 요청자 본인 후기(VISIBLE·HIDDEN)만 DELETED 처리합니다. 요청 행 자체를 삭제하지 않습니다. 모든 공개 사진을 지우며, 저장소 삭제 실패 시 DB의 후기 삭제는 되돌립니다. 이미 지운 사진은 복원되지 않으므로 실패 시 재시도해야 합니다. 요청자가 아니면 403, 없는 거래·후기 없음·이미 삭제는 404입니다. 성공 응답은 기존 ApiResponse<Void> 형식으로 data=null입니다.
          */
         delete: operations["deleteReview"];
         options?: never;
@@ -2693,7 +2693,7 @@ export interface paths {
         };
         /**
          * 도우미 후기 목록
-         * @description agentId는 requests.agent_user_id가 참조하는 users.id입니다. 인증된 사용자가 VISIBLE 후기만 작성 시각 내림차순, 동일 시각은 requestId 내림차순으로 조회합니다. 후기가 없거나 없는 회원이면 빈 배열입니다. imageKey 대신 안전 검사된 공개 사진의 imageUrl을 포함하고 사진 없음·미지원 형식·재인코딩 실패이거나 공개 주소가 설정되지 않았으면 null입니다.
+         * @description agentId는 requests.agent_user_id가 참조하는 users.id입니다. 인증된 사용자가 VISIBLE 후기만 작성 시각 내림차순, 동일 시각은 requestId 내림차순으로 조회합니다. 후기가 없거나 없는 회원이면 빈 배열입니다. 선택 순서의 공개 사진 imageUrls(최대 5장)와 첫 사진 imageUrl을 포함합니다. 공개 가능한 사진이 없거나 공개 주소 미설정이면 imageUrls=[], imageUrl=null입니다.
          */
         get: operations["getReviews"];
         put?: never;
@@ -4001,12 +4001,14 @@ export interface components {
              */
             comment?: string | null;
             /**
-             * @description requests.requester_review_image_key. 선택 인증 사진 최대 1장; 파일 소유권 검증 필요
+             * @description 기존 클라이언트용 단일 사진 키. imageKeys와 동시 사용 불가; 본인 REVIEW_IMAGE 파일만 허용
              * @example reviews/example.png
              */
             imageKey?: string | null;
             /** @description 이용자가 후기에 기록하는 예매 결과(선택). 거래 확정 결과·결제·정산과 무관 */
             bookingResult?: components["schemas"]["RequestResult"];
+            /** @description 선택한 순서의 후기 사진 키, 최대 5장. imageKey와 동시 사용 불가; 중복·빈 키 불가 */
+            imageKeys?: string[] | null;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseReviewResponse: {
@@ -4046,7 +4048,7 @@ export interface components {
              */
             comment?: string | null;
             /**
-             * @description 재인코딩을 통과한 공개 후기 사진(JPEG)의 HTTPS URL. 사진 없음·미지원 형식·재인코딩 실패·공개 주소 미설정이면 null; DB 컬럼 아님
+             * @description 기존 클라이언트용 첫 공개 사진 URL(imageUrls의 첫 항목). 사진 없음·미지원 형식·재인코딩 실패·공개 주소 미설정이면 null; DB 컬럼 아님
              * @example https://cdn.example.com/public/review/0b7c2f1e-3a4d-4e8f-9a51-6d2c8b1e7f40.jpg
              */
             imageUrl?: string | null;
@@ -4063,6 +4065,8 @@ export interface components {
             reviewedAt: string;
             /** @description 이용자가 후기에 기록한 예매 결과. 미선택·기존 후기는 null; 거래 확정 결과가 아님 */
             bookingResult?: components["schemas"]["RequestResult"];
+            /** @description 선택 순서의 공개 후기 사진 HTTPS URL, 최대 5장. 공개할 수 없는 사진은 제외하며 사진이 없으면 빈 배열 */
+            imageUrls: string[];
         };
         /**
          * @description requests.requester_review_status의 DDL CHECK 허용값

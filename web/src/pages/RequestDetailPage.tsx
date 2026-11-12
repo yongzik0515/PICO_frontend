@@ -29,7 +29,7 @@ import {
 } from '../transactions/model';
 import { EvidenceFileNames, Field, NextStep, Notice, Progress, Rows, StatusBadge, TxCard, useAction, utcToLocal } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
-import { ImagePreview } from '../ui/ImagePreview';
+import { ReviewPhotos, ReviewResultBadge } from '../ui/ReviewMedia';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
 import { money } from '../ui/format';
@@ -848,9 +848,9 @@ export function RequestDetailPage() {
                 </span>
                 <time>{utcToLocal(d.review.reviewedAt)}</time>
               </div>
-              {d.review.bookingResult && <p className="record-note">이용자가 후기에 남긴 예매 결과: {resultNames[d.review.bookingResult]}</p>}
+              <ReviewResultBadge result={d.review.bookingResult} />
               {d.review.comment && <p className="prose">{d.review.comment}</p>}
-              {d.review.imageUrl && <ImagePreview src={d.review.imageUrl} alt="후기 인증 사진" className="review-photo" />}
+              <ReviewPhotos review={d.review} />
             </TxCard>
           )}
 

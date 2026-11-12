@@ -303,7 +303,7 @@ export function installDemoMode() {
     if (method === 'POST' && /\/api\/requests\/\d+\/review$/.test(path)) {
       if (rid && (await readState())[rid]?.reviewWritten) return new Response(JSON.stringify({ success: false, message: '이 거래의 후기는 이미 작성했어요.' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
       const b = await body();
-      const reviewData = { requestId: Number(rid), rating: Number(b.rating) || 5, comment: b.comment ?? null, imageUrl: null, status: 'VISIBLE', reviewedAt: new Date().toISOString().slice(0, 19), bookingResult: b.bookingResult ?? null };
+      const reviewData = { requestId: Number(rid), rating: Number(b.rating) || 5, comment: b.comment ?? null, imageUrl: null, imageUrls: [], status: 'VISIBLE', reviewedAt: new Date().toISOString().slice(0, 19), bookingResult: b.bookingResult ?? null };
       await setFields(rid, { reviewData, reviewWritten: true });
       return json(reviewData);
     }

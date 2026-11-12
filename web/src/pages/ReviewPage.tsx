@@ -1,5 +1,5 @@
 import { isReviewOpen } from '../transactions/reviewAvailability';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
 import type { Raw } from '../api/pick';
@@ -8,13 +8,29 @@ import { Notice, useAction, utcToLocal } from '../transactions/ui';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
 import { Icon } from '../ui/Icon';
+import '../ui/review-media.css';
 import { PageTitle } from '../ui/PageTitle';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 discovery.js의 review()와 pc-interactions.js의 starField().
-// 명세: POST /api/requests/{id}/review {rating 1~5, comment ≤400, imageKey?} — COMPLETED 거래의 이용자만, 한 번.
+// 명세: POST /api/requests/{id}/review {rating 1~5, comment ≤400, imageKeys? (최대 5장)} — COMPLETED 거래의 이용자만, 한 번.
 // 사진은 서버가 JPEG·PNG만 공개본으로 다시 만든다(WebP·HEIC는 업로드는 되지만 후기에 보이지 않음). 그래서 JPG·PNG만 받는다.
 const REVIEW_IMAGE_TYPES = ['image/jpeg', 'image/png'];
+const MAX_REVIEW_IMAGES = 5;
+
+function SelectedReviewPhoto({ file, disabled, onRemove }: { file: File; disabled: boolean; onRemove: () => void }) {
+  const preview = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const next = URL.createObjectURL(file);
+    if (preview.current) preview.current.src = next;
+    return () => URL.revokeObjectURL(next);
+  }, [file]);
+  return <div className="review-upload-photo">
+    <img ref={preview} alt={file.name} className="review-upload-thumbnail" />
+    <small title={file.name}>{file.name}</small>
+    <button type="button" className="btn ghost" disabled={disabled} onClick={onRemove} aria-label={`${file.name} 삭제`}>삭제</button>
+  </div>;
+}
 const bookingResults: [RequestResult, string][] = [
   ['SUCCESS', '성공'],
   ['PARTIAL', '부분 성공'],
@@ -51,7 +67,7 @@ export function ReviewPage() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [bookingResult, setBookingResult] = useState<RequestResult | ''>('');
-  const [image, setImage] = useState<File | null>(null);
+  const [images, setImages] = useState<File[]>([]);
   const { pending, run } = useAction();
 
   if (load.status === 'loading')
@@ -89,16 +105,17 @@ export function ReviewPage() {
     e.preventDefault();
     if (!rating) return toast('별점을 선택해 주세요.');
     const ok = await run(async () => {
-      let imageKey: string | undefined;
-      if (image) {
-        // 인증 사진 1장: POST /api/files/upload-url(REVIEW_IMAGE) → 업로드 → imageKey로 전달
+      const imageKeys: string[] = [];
+      for (const image of images) {
+        // 파일별로 업로드하고 선택 순서대로 키를 전달한다.
         const target = await unwrap(api.POST('/api/files/upload-url', { body: { purpose: 'REVIEW_IMAGE', originalName: image.name, mimeType: mimeOf(image), sizeBytes: image.size } }));
         const res = await fetch(target.uploadUrl!, { method: target.method || 'PUT', headers: target.requiredHeaders, body: image });
         if (!res.ok) throw new Error('사진을 올리지 못했어요.');
-        imageKey = target.storageKey;
+        if (!target.storageKey) throw new Error('사진 업로드 정보를 받지 못했어요.');
+        imageKeys.push(target.storageKey);
       }
       try {
-        await unwrap(api.POST('/api/requests/{requestId}/review', { params: { path: { requestId } }, body: { rating, comment: comment.trim() || null, imageKey: imageKey ?? null, bookingResult: bookingResult || undefined } }));
+        await unwrap(api.POST('/api/requests/{requestId}/review', { params: { path: { requestId } }, body: { rating, comment: comment.trim() || null, imageKeys, bookingResult: bookingResult || undefined } }));
       } catch (err) {
         // 409는 이미 후기를 썼거나(삭제·숨김 포함, 재작성 불가) 티켓 예매 오픈 전인 경우다. 서버 메시지를 그대로 보여 주고,
         // 이미 쓴 거래로 확인될 때만 다시 쓰기를 막는다.
@@ -147,35 +164,33 @@ export function ReviewPage() {
             </label>
             <div className="field">
               <span>
-                인증 사진 <small>선택 · 1장</small>
+                인증 사진 <small>선택 · 최대 5장 ({images.length}/5)</small>
               </span>
               <div className="account-inline">
                 <label className="btn secondary account-file-label">
-                  {image ? '사진 변경' : '사진 선택'}
+                  {images.length ? '사진 추가' : '사진 선택'}
                   <input
                     type="file"
+                    multiple
+                    disabled={pending || images.length >= MAX_REVIEW_IMAGES}
                     accept={REVIEW_IMAGE_TYPES.join(',')}
                     onChange={(e) => {
-                      const f = e.target.files?.[0] ?? null;
+                      const selected = Array.from(e.target.files ?? []);
                       e.target.value = '';
-                      if (!f) return;
-                      // 브라우저가 형식을 비워 두는 파일도 확장자로 판정한다(빈 형식을 그대로 보내면 서버가 400).
-                      if (!REVIEW_IMAGE_TYPES.includes(mimeOf(f))) return toast('후기 사진은 JPG·PNG만 올릴 수 있어요.');
-                      if (f.size > 20 * 1024 * 1024) return toast('사진은 20MB까지 올릴 수 있어요.');
-                      setImage(f);
+                      if (!selected.length) return;
+                      if (images.length + selected.length > MAX_REVIEW_IMAGES) return toast('사진은 최대 5장까지 올릴 수 있어요.');
+                      if (selected.some((file) => !REVIEW_IMAGE_TYPES.includes(mimeOf(file)))) return toast('후기 사진은 JPG·PNG만 올릴 수 있어요.');
+                      if (selected.some((file) => !file.size || file.size > 20 * 1024 * 1024)) return toast('사진은 파일당 0바이트 초과, 20MB까지 올릴 수 있어요.');
+                      const all = [...images, ...selected];
+                      const identities = all.map((file) => `${file.name}:${file.size}:${file.lastModified}`);
+                      if (new Set(identities).size !== identities.length) return toast('같은 사진은 한 번만 선택해 주세요.');
+                      setImages(all);
                     }}
                   />
                 </label>
-                {image && (
-                  <>
-                    <span className="field-helper">{image.name}</span>
-                    <button type="button" className="btn ghost" onClick={() => setImage(null)}>
-                      삭제
-                    </button>
-                  </>
-                )}
               </div>
-              <small className="field-helper">JPG·PNG, 20MB까지. 예매 내역이나 좌석 사진을 올릴 수 있어요. 개인정보는 가려 주세요.</small>
+              <div className="review-photos">{images.map((file, index) => <SelectedReviewPhoto key={`${file.name}:${file.size}:${file.lastModified}`} file={file} disabled={pending} onRemove={() => setImages((current) => current.filter((_, i) => i !== index))} />)}</div>
+              <small className="field-helper">선택한 순서대로 표시돼요. JPG·PNG, 파일당 20MB까지. 예매 내역이나 좌석 사진을 올릴 수 있어요. 개인정보는 가려 주세요.</small>
             </div>
             <Notice>{stage === 'matching_completed' ? '직접 거래는 플랫폼 매칭 내역을 바탕으로 후기를 남겨요. 예매 결과는 이용자가 기록한 정보예요.' : '완료한 안전거래에 대한 경험을 남겨 주세요.'}</Notice>
             <div className="account-form-footer">
