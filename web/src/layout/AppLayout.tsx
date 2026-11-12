@@ -106,7 +106,7 @@ export function AppLayout() {
   const active = (route === 'detail' && detailNavigation?.path === pathname) ? detailNavigation.key : ['my', 'favorites', 'help', 'inquiries', 'terms', 'privacy', 'guide', 'user-profile', 'helper-profile', 'account', 'history', 'application', 'credits', 'reports'].includes(route) ? 'my' : helper ? (route === 'matches' || route === 'availability' ? 'matches' : 'leads') : route === 'requests' ? 'requests' : 'home';
 
   useEffect(() => {
-    document.title = `${titles[route] || '티켓팅 매칭'} · PICO`;
+    document.title = route === 'home' ? 'PICO 피코 | 대리티켓팅 매칭 플랫폼' : `${titles[route] || '티켓팅 매칭'} · PICO`;
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [route, pathname]);
 
