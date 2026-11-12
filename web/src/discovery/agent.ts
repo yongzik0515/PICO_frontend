@@ -185,8 +185,14 @@ function searchQuery(query: string, sort: Sort, f: Filters, platforms: Platform[
 
 type SearchPage = { items?: Raw[]; totalCount?: number };
 
-export async function searchAgents(query: string, sort: Sort, f: Filters, platforms: Platform[], alias?: string) {
-  const page = await unwrap<SearchPage>(api.GET('/api/agents', { params: { query: searchQuery(query, sort, f, platforms, alias) } }));
+export async function searchAgents(query: string, sort: Sort, f: Filters, platforms: Platform[], alias?: string, matchedPlatformIds?: number[]) {
+  const params = searchQuery(query, sort, f, platforms, alias);
+  if (matchedPlatformIds) {
+    params.platformIds = params.platformIds
+      ? matchedPlatformIds.filter((id) => params.platformIds?.includes(id)) : matchedPlatformIds;
+    if (!params.platformIds.length) return { items: [], total: 0 };
+  }
+  const page = await unwrap<SearchPage>(api.GET('/api/agents', { params: { query: params } }));
   const items = (page.items ?? []).map(toAgent);
   return { items: sort === 'high' ? items.reverse() : items, total: page.totalCount ?? items.length };
 }
@@ -194,16 +200,16 @@ export async function searchAgents(query: string, sort: Sort, f: Filters, platfo
 export type SearchState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'done'; items: Agent[]; total: number };
 
 /** 검색 조건이 바뀌면 250ms 뒤에 다시 조회한다. 늦게 도착한 이전 응답은 버린다. */
-export function useAgentSearch(query: string, sort: Sort, f: Filters, reload = 0, alias?: string): SearchState {
+export function useAgentSearch(query: string, sort: Sort, f: Filters, reload = 0, alias?: string, matchedPlatformIds?: number[]): SearchState {
   const platforms = usePlatforms();
-  const [state, setState] = useState<SearchState>({ status: 'loading' });
-  const key = JSON.stringify([query, sort, f, platforms, reload, alias]);
+  const [result, setResult] = useState<{ key: string; state: SearchState }>();
+  const key = JSON.stringify([query, sort, f, platforms, reload, alias, matchedPlatformIds]);
   useEffect(() => {
     let alive = true;
     const timer = setTimeout(() => {
-      searchAgents(query, sort, f, platforms, alias).then(
-        (r) => alive && setState({ status: 'done', ...r }),
-        (e) => alive && setState({ status: 'error', message: e instanceof Error ? e.message : '도우미를 불러오지 못했어요.' }),
+      searchAgents(query, sort, f, platforms, alias, matchedPlatformIds).then(
+        (r) => alive && setResult({ key, state: { status: 'done', ...r } }),
+        (e) => alive && setResult({ key, state: { status: 'error', message: e instanceof Error ? e.message : '도우미를 불러오지 못했어요.' } }),
       );
     }, 250);
     return () => {
@@ -213,5 +219,5 @@ export function useAgentSearch(query: string, sort: Sort, f: Filters, reload = 0
     // key에 모든 입력이 들어 있다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
-  return state;
+  return result?.key === key ? result.state : { status: 'loading' };
 }

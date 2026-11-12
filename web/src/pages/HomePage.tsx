@@ -2,12 +2,14 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
-import { useAgentSearch } from '../discovery/agent';
+import { loadPlatforms, useAgentSearch, usePlatforms, type Platform } from '../discovery/agent';
 import { AgentCard } from '../discovery/AgentCard';
 import { FilterModal, QuickFilter } from '../discovery/FilterControls';
 import { emptyFilters, filterLabels, removeFilter, sortOptions, type Filters, type Sort } from '../discovery/filters';
 import { PromoSlot } from '../home/PromoSlot';
 import { TicketCarousel } from '../home/TicketCarousel';
+import { getPerformance } from '../home/banners';
+import { bookingPlatforms, fallbackPlatforms, findPerformances, type PerformanceCandidate } from '../home/performanceSearch';
 import { correctKeyword } from '../home/aiKeyword';
 import { loadPopularSearch, recordSearch, type PopularKeyword } from '../home/popularSearch';
 import '../home/home-layout.css';
@@ -121,26 +123,71 @@ export function HomePage() {
   // Enter·검색 버튼으로 확정한 검색어를 AI가 고친 결과. 다른 검색어를 확정하면(query가 달라지면) 더 쓰지 않는다.
   const [aiAlias, setAiAlias] = useState<{ query: string; keyword: string } | null>(null);
   const alias = aiAlias && aiAlias.query === query.trim() ? aiAlias.keyword : undefined;
-  const result = useAgentSearch(query, sort, filters, reload, alias);
+  const platforms = usePlatforms();
+  const searchRequest = useRef<AbortController | null>(null);
+  const [lookup, setLookup] = useState<{
+    keyword: string;
+    candidates?: PerformanceCandidate[];
+    sites?: Platform[];
+    loading?: boolean;
+    title?: string;
+    suggested?: boolean;
+  }>();
+  useEffect(() => () => searchRequest.current?.abort(), []);
+  const current = lookup?.keyword === query.trim() ? lookup : undefined;
+  const result = useAgentSearch(current?.sites ? '' : query, sort, filters, reload, current?.sites ? undefined : alias, current?.sites?.map((site) => site.id));
   const list = result.status === 'done' ? result.items : [];
   const total = result.status === 'done' ? result.total : 0;
   const labels = filterLabels(filters);
   const search = !!query || labels.length > 0;
   const setFilters = (f: Filters) => setState((s) => ({ ...s, filters: f }));
+  function clearLookup() {
+    searchRequest.current?.abort();
+    setLookup(undefined);
+  }
   const reset = () => {
-    setInput('');
+    clearLookup();
     setState((s) => ({ ...s, query: '', filters: emptyFilters() }));
   };
-  /** ai=false: 인기 검색어 칩처럼 이미 정리된 이름은 AI를 부르지 않는다. */
+  function beginLookup(keyword: string) {
+    searchRequest.current?.abort();
+    const controller = new AbortController();
+    searchRequest.current = controller;
+    setLookup({ keyword, loading: true });
+    return controller.signal;
+  }
   function submitSearch(keyword = input, ai = true) {
     setInput(keyword);
+    setAiAlias(null);
     setState((s) => ({ ...s, query: keyword }));
     setReload((n) => n + 1);
     void recordSearch(keyword);
-    if (ai && loggedIn && keyword.trim()) {
-      const asked = keyword.trim();
-      void correctKeyword(asked).then((fixed) => setAiAlias(fixed ? { query: asked, keyword: fixed } : null));
-    }
+    const text = keyword.trim();
+    if (!text || text.length > 100) { clearLookup(); return; }
+    const signal = beginLookup(text);
+    void (async () => {
+      const items = await findPerformances(text, signal, ai).catch(() => []);
+      if (signal.aborted) return;
+      if (items.length) { setLookup({ keyword: text, candidates: items }); return; }
+      const available = await loadPlatforms().catch(() => []);
+      if (signal.aborted) return;
+      const sites = fallbackPlatforms(text, available);
+      setLookup(sites.length ? { keyword: text, sites, suggested: true } : undefined);
+      if (!sites.length && ai && loggedIn) {
+        const fixed = await correctKeyword(text).catch(() => null);
+        if (!signal.aborted && fixed) setAiAlias({ query: text, keyword: fixed });
+      }
+    })();
+  }
+
+  async function selectPerformance(item: PerformanceCandidate) {
+    const keyword = query.trim();
+    const signal = beginLookup(keyword);
+    const [detail, available] = await Promise.all([
+      getPerformance(item.kopisId, signal).catch(() => undefined),
+      loadPlatforms().catch(() => []),
+    ]);
+    if (!signal.aborted) setLookup({ keyword, title: item.name, sites: bookingPlatforms(detail?.bookingLinks, available) });
   }
 
   function saveAlert(e: FormEvent<HTMLFormElement>) {
@@ -195,6 +242,28 @@ export function HomePage() {
           <span className="service-guide-banner-action">안내 보기 <Icon name="arrow" size={17} /></span>
         </Link>
       </div>
+      {current && <section className="pc-applied-filters" aria-label="공연과 예매처 검색">
+        {current.loading && <span role="status">공연과 예매처를 찾는 중이에요.</span>}
+        {current.candidates && <span>공연을 선택하면 해당 예매처의 도우미를 보여드려요.</span>}
+        {current.candidates?.map((item) => (
+          <button type="button" key={item.kopisId} onClick={() => void selectPerformance(item)}>
+            {[item.name, item.venueName, item.startsOn].filter(Boolean).join(' · ')}
+          </button>
+        ))}
+        {current.sites && (current.sites.length ? (
+          <span>{current.title && `${current.title} · `}{current.suggested ? '추천 예매처' : '지원 예매처'} · {current.sites.map((site) => site.name).join(', ')}</span>
+        ) : <label>
+          {current.title}의 예매처를 직접 선택해 주세요.{' '}
+          <select aria-label="예매처 직접 선택" value="" onChange={(e) => {
+            const site = platforms.find((p) => p.id === Number(e.target.value));
+            if (site) setLookup({ ...current, sites: [site] });
+          }}>
+            <option value="">예매처 선택</option>
+            {platforms.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
+          </select>
+        </label>)}
+        <button type="button" onClick={clearLookup}>이름으로 검색</button>
+      </section>}
       <div className="pc-discovery-header">
         <div>
           <span className="tiny-label">{search ? '나에게 맞는 조건으로' : '함께할 순간을 기다리는'}</span>
