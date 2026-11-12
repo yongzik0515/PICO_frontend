@@ -7,8 +7,15 @@ import { fetchRequests } from '../transactions/model';
 // 알림: GET /api/notifications, 개별 조회 시 자동 읽음(GET /api/notifications/{id}), PATCH /api/notifications/read-all
 export type Notification = components['schemas']['NotificationResponse'];
 
-/** 알림을 눌렀을 때 갈 곳. 운영팀이 보낸 안내(ANNOUNCEMENT)는 길 수 있어 문의 현황에서 이어 본다(문의 API 연결 전, USER_FLOW.md 7번). */
+/**
+ * 알림을 눌렀을 때 갈 곳. 서버가 고른 서비스 내 경로(linkPath)가 있으면 그대로 쓴다(외부·프로토콜 상대 주소는 버린다).
+ * 없으면 kind와 requestId로 고른다. 운영팀이 보낸 안내(ANNOUNCEMENT)는 길 수 있어 문의 현황에서 이어 본다(USER_FLOW.md 7번).
+ */
 export function notificationTarget(n: Notification) {
+  const link = n.linkPath?.trim();
+  if (link && link.startsWith('/') && !link.startsWith('//')) return link;
+  if (n.kind === 'APPLICATION') return '/application';
+  if (n.kind === 'PAYMENT' && !n.requestId) return '/credits';
   if (n.kind === 'ANNOUNCEMENT') return `/inquiries/history?notification=${n.notificationId}`;
   return n.requestId ? `/requests/${n.requestId}` : undefined;
 }

@@ -13,7 +13,12 @@ export interface Agent {
   rating: number;
   reviews: number;
   trades: number;
-  success: number;
+  /** 성공률(%). 공개 후기 중 예매 결과를 고른 후기의 성공 비율. 그런 후기가 없으면 null */
+  success: number | null;
+  /** 성공률을 계산한 후기 수(예매 결과를 남긴 공개 후기) */
+  successReviews: number;
+  /** 새 요청 받기. 서버가 값을 주지 않으면 받는 것으로 본다 */
+  acceptsRequests: boolean;
   /** 평균 응답(분). 응답에 없으면 null */
   reply: number | null;
   fee: number;
@@ -49,12 +54,14 @@ function names(v: unknown): string[] {
 }
 
 function careerText(raw: Raw) {
+  const description = str(pick(raw, 'careerDescription', 'profile.careerDescription', 'career'));
+  if (description?.trim()) return description;
   const started = str(pick(raw, 'careerStartedOn', 'profile.careerStartedOn'));
   if (started) {
     const years = Math.floor((Date.now() - new Date(started).getTime()) / (365.25 * 864e5));
     return years >= 1 ? `${years}년` : '1년 미만';
   }
-  return str(pick(raw, 'careerDescription', 'profile.careerDescription', 'career')) || '미입력';
+  return '미입력';
 }
 
 /**
@@ -83,7 +90,9 @@ export function toAgent(raw: Raw): Agent {
     rating: num(pick(raw, 'averageRating', 'ratingAverage', 'rating', 'stats.averageRating')) ?? 0,
     reviews: num(pick(raw, 'reviewCount', 'reviewsCount', 'stats.reviewCount')) ?? 0,
     trades: num(pick(raw, 'completedCount', 'completedRequestCount', 'completedTradeCount', 'tradeCount', 'stats.completedCount')) ?? 0,
-    success: num(pick(raw, 'successRate', 'stats.successRate')) ?? 0,
+    success: num(pick(raw, 'successRate', 'stats.successRate')) ?? null,
+    successReviews: num(pick(raw, 'successRateReviewCount', 'stats.successRateReviewCount')) ?? 0,
+    acceptsRequests: pick(raw, 'acceptsRequests') !== false,
     reply: num(pick(raw, 'averageResponseMinutes', 'responseMinutes', 'avgResponseMinutes', 'stats.averageResponseMinutes')) ?? null,
     fee: num(pick(raw, 'upfrontFeeKrw', 'profile.upfrontFeeKrw', 'upfrontFee')) ?? 0,
     successMin: num(pick(raw, 'successFeeMin', 'profile.successFeeMin')),
@@ -152,14 +161,16 @@ const sortParam: Record<Sort, string> = {
   success: 'SUCCESS_RATE',
 };
 
-/** 검색어·필터를 GET /api/agents 쿼리로 바꾼다. 목록에 없는 예매처(기타 직접 입력)는 q로 검색한다(q가 예매처명도 검색함). */
-function searchQuery(query: string, sort: Sort, f: Filters, platforms: Platform[]) {
+/** 검색어·필터를 GET /api/agents 쿼리로 바꾼다. 목록에 없는 예매처(기타 직접 입력)는 q로 검색한다(q가 예매처명도 검색함).
+ *  alias는 AI가 고친 검색어로, q와 둘 중 하나라도 맞는 도우미를 함께 찾는다(q가 있을 때만 쓰인다). */
+function searchQuery(query: string, sort: Sort, f: Filters, platforms: Platform[], alias?: string) {
   const byName = new Map(platforms.map((p) => [p.name.trim().toLowerCase(), p.id]));
   const platformIds = f.sites.map((s) => byName.get(s.trim().toLowerCase())).filter((id): id is number => !!id);
   const unknownSites = f.sites.filter((s) => !byName.has(s.trim().toLowerCase()));
   const q = [query.trim(), ...unknownSites].filter(Boolean).join(' ');
   return {
     q: q || undefined,
+    alias: q && alias?.trim() ? alias.trim() : undefined,
     upfrontMin: f.min || undefined,
     upfrontMax: f.max || undefined,
     ratingMin: f.rating || undefined,
@@ -174,8 +185,8 @@ function searchQuery(query: string, sort: Sort, f: Filters, platforms: Platform[
 
 type SearchPage = { items?: Raw[]; totalCount?: number };
 
-export async function searchAgents(query: string, sort: Sort, f: Filters, platforms: Platform[], matchedPlatformIds?: number[]) {
-  const params = searchQuery(query, sort, f, platforms);
+export async function searchAgents(query: string, sort: Sort, f: Filters, platforms: Platform[], alias?: string, matchedPlatformIds?: number[]) {
+  const params = searchQuery(query, sort, f, platforms, alias);
   if (matchedPlatformIds) {
     params.platformIds = params.platformIds
       ? matchedPlatformIds.filter((id) => params.platformIds?.includes(id)) : matchedPlatformIds;
@@ -189,14 +200,14 @@ export async function searchAgents(query: string, sort: Sort, f: Filters, platfo
 export type SearchState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'done'; items: Agent[]; total: number };
 
 /** 검색 조건이 바뀌면 250ms 뒤에 다시 조회한다. 늦게 도착한 이전 응답은 버린다. */
-export function useAgentSearch(query: string, sort: Sort, f: Filters, reload = 0, matchedPlatformIds?: number[]): SearchState {
+export function useAgentSearch(query: string, sort: Sort, f: Filters, reload = 0, alias?: string, matchedPlatformIds?: number[]): SearchState {
   const platforms = usePlatforms();
   const [result, setResult] = useState<{ key: string; state: SearchState }>();
-  const key = JSON.stringify([query, sort, f, platforms, reload, matchedPlatformIds]);
+  const key = JSON.stringify([query, sort, f, platforms, reload, alias, matchedPlatformIds]);
   useEffect(() => {
     let alive = true;
     const timer = setTimeout(() => {
-      searchAgents(query, sort, f, platforms, matchedPlatformIds).then(
+      searchAgents(query, sort, f, platforms, alias, matchedPlatformIds).then(
         (r) => alive && setResult({ key, state: { status: 'done', ...r } }),
         (e) => alive && setResult({ key, state: { status: 'error', message: e instanceof Error ? e.message : '도우미를 불러오지 못했어요.' } }),
       );

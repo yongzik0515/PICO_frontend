@@ -202,8 +202,8 @@ const DONE = `<sc-if value="{{onDone}}" hint-placeholder-val="{{ false }}">
         <h1 style="margin: 18px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.6px">혼자서도 해냈어요</h1>
         <p style="margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: #4B5160">요청 수락부터 매칭 완료까지 마쳤어요.</p>
       </div>
-      <a href="M11-apply.dc.html" style="${BTN}">사전 신청하러 가기</a>
-      <a href="M2-welcome-character.dc.html" style="${BTN_GHOST}; color: #16181D; text-decoration: none">처음부터 다시 보기</a>
+      <a href="https://pico-kr.app/login" style="${BTN}">회원가입하기</a>
+      <a href="U0-role.dc.html" style="${BTN_GHOST}; color: #16181D; text-decoration: none">첫 화면으로</a>
     </div>
   </sc-if>`;
 

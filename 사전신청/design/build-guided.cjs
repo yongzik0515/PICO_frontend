@@ -1,6 +1,6 @@
 // 함께 해 보기 보드(M3·M5·M7·M8)를 실제 화면 구조대로 만든다. node build-guided.cjs
 const L = require('./build-lib.cjs');
-const { TOTAL, doc, write, svg, header, nav, navButton, halo, bubble, pageTitle, cardOpen, card, rows, notice, statusBadge, nextStep, detailHeader, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, ACCEPT_BODY, DIRECT_CARD, REFUND_HELPER, TERMS_NOTICE, contactCard } = L;
+const { scrollCue, TOTAL, doc, write, svg, header, nav, navButton, halo, bubble, pageTitle, cardOpen, card, rows, notice, statusBadge, nextStep, detailHeader, progressList, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, ACCEPT_BODY, DIRECT_CARD, REFUND_HELPER, TERMS_NOTICE, contactCard } = L;
 
 const TITLE = '레드 하트 앙코르 콘서트';
 const DATE = '요청 2026. 10. 10. 오후 2:10';
@@ -49,7 +49,6 @@ ${L.scroller(`    <sc-if value="{{pending}}" hint-placeholder-val="{{ true }}">
     </sc-if>
     <div style="position: relative; margin-top: 16px; border-radius: 16px">
       ${card('이용자가 보낸 요청', rows(REQUEST), 0)}
-      <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">${halo(20)}</sc-if>
     </div>
     <sc-if value="{{pending}}" hint-placeholder-val="{{ true }}">${contactCard(false)}</sc-if>
     <sc-if value="{{accepted}}" hint-placeholder-val="{{ false }}">${contactCard(true)}</sc-if>
@@ -75,6 +74,7 @@ ${L.scroller(`    <sc-if value="{{pending}}" hint-placeholder-val="{{ true }}">
     ${DISCLAIMER}`)}
 
 ${nav(HELPER_NAV, 'leads')}
+  ${scrollCue('read')}
 
   <sc-if value="{{sheet}}" hint-placeholder-val="{{ false }}">
     ${sheet({ label: '요청 수락 확인', title: '요청을 수락할까요?', body: ACCEPT_BODY(TITLE), cancel: '{{cancelSheet}}', confirmBtn: `<div style="position: relative; flex: 1; border-radius: 10px"><button type="button" onClick="{{confirm}}" style="${BTN}">수락하기</button>${halo(14)}</div>` })}
@@ -121,7 +121,7 @@ const sumRow = (k, v) => `<div style="display: flex; justify-content: space-betw
 ${L.scroller(`    ${pageTitle('요청 상세', '최종 조건 작성')}
     <p role="status" style="margin: -6px 0 0; font-size: 12px; line-height: 1.6; color: #6B7180">작성 내용은 이 탭에 자동으로 임시저장돼요. 요청 상세를 확인하고 돌아와도 이어 쓸 수 있어요.</p>
     <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">
-      <div style="margin-top: 16px">${bubble({ title: '조건을 확인해요', sub: '요청서 내용이 미리 들어 있어요', justify: 'flex-start', arrow: 'down', at: { left: 30 } })}</div>
+      <div style="margin-top: 16px">${bubble({ title: '조건을 확인해요', sub: '아래로 내리며 끝까지 봐요', justify: 'flex-start', arrow: 'down', at: { left: 30 } })}</div>
     </sc-if>
     ${card('진행 조건', `<p style="margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: #6B7180">최초 요청이나 최근 합의안을 바탕으로 조건을 조정해 서로에게 제안할 수 있어요.</p>
   ${label('희망 좌석·요청 내용', true)}${box(TERMS.requirements, true)}
@@ -152,7 +152,8 @@ ${L.scroller(`    ${pageTitle('요청 상세', '최종 조건 작성')}
     </section>
     ${card('이용자의 최초 요청', rows([['공연명', TITLE], ['티켓 오픈', '2026-11-20 20:00'], ['예매처', 'NOL 티켓'], ['희망 좌석·요청 내용', TERMS.requirements], ['성공 요건', TERMS.success], ['희망 수고비', '25,000원'], ['최대 수고비', '30,000원'], ['기타 사항', TERMS.note]]))}`)}
 
-${nav(HELPER_NAV, 'leads')}`;
+${nav(HELPER_NAV, 'leads')}
+  ${scrollCue('read')}`;
   const script = `
 class Component extends DCLogic {
   constructor(props) {
@@ -184,12 +185,11 @@ class Component extends DCLogic {
 ${L.scroller(`    ${pageTitle('매칭 관리', '요청 상세')}
     ${detailHeader({ date: DATE, badge: statusBadge('직접 거래 매칭 완료', 'muted'), title: TITLE, sub: SUB, next: nextStep('직접 거래 매칭을 마쳤어요', '착수·결과 등록 없이 이용자와 직접 진행해 주세요.', '', true) })}
     <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">
-      <div style="margin-top: 16px">${bubble({ title: '매칭이 완료됐어요', sub: '확정된 조건과 연락처를 확인해요', justify: 'flex-start', arrow: 'down', at: { left: 30 } })}</div>
+      <div style="margin-top: 16px">${bubble({ title: '매칭이 완료됐어요', sub: '아래로 내리며 조건·연락처를 봐요', justify: 'flex-start', arrow: 'down', at: { left: 30 } })}</div>
     </sc-if>
     <div style="position: relative; margin-top: 16px; border-radius: 16px">
       ${card('확정된 최종 조건', `${notice('양측이 1차 제안에 동의해 확정됐어요. (2026. 10. 10. 오후 3:20)', 'success')}
   ${rows(AGREEMENT)}`, 0)}
-      <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">${halo(20)}</sc-if>
     </div>
     ${card('이용자가 보낸 요청', rows(REQUEST))}
     ${contactCard(true)}
@@ -207,7 +207,8 @@ ${L.scroller(`    ${pageTitle('매칭 관리', '요청 상세')}
     </section>
     ${DISCLAIMER}`)}
 
-${nav(HELPER_NAV, 'matches')}`;
+${nav(HELPER_NAV, 'matches')}
+  ${scrollCue('read')}`;
   const script = `
 class Component extends DCLogic {
   constructor(props) {

@@ -6,11 +6,11 @@ import type { PerformanceDetail } from './banners';
 export type PerformanceCandidate = { kopisId: string; name: string; venueName?: string; startsOn?: string; endsOn?: string };
 type PerformanceResults = { items?: PerformanceCandidate[] };
 
-export async function findPerformances(query: string, signal: AbortSignal) {
+export async function findPerformances(query: string, signal: AbortSignal, useAi = true) {
   const direct = await unwrap<PerformanceResults>(api.GET('/api/performances', {
     params: { query: { keyword: query, size: 20 } }, signal,
   }));
-  if (direct.items?.length || !getTokens()?.accessToken || signal.aborted) return direct.items ?? [];
+  if (direct.items?.length || !useAi || !getTokens()?.accessToken || signal.aborted) return direct.items ?? [];
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
   const url = new URL(`${baseUrl}/api/ai/performances/search`, location.origin);

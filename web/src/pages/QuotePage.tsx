@@ -6,7 +6,7 @@ import { findPolicy, policyPaths, usePolicies } from '../api/policies';
 import { BookingTermsNotice } from '../transactions/BookingTermsNotice';
 import { useAuth } from '../auth/AuthContext';
 import { categoryCodes, categoryNames, toAgent, usePlatforms } from '../discovery/agent';
-import { fetchDetail, useLoad, type RequestBody } from '../transactions/model';
+import { fetchDetail, policyBlockMessage, toRequest, useLoad, type RequestBody } from '../transactions/model';
 import { Field, Notice, TxCard, useAction } from '../transactions/ui';
 import { Modal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
@@ -41,7 +41,11 @@ const DRAFT_FIELDS = [
   'otherPlatformName',
   'requirements',
   'successConditions',
+  'locationNote',
+  'requestedQuantity',
+  'upfrontBudgetDesired',
   'agencyBudgetDesired',
+  'agencyBudgetMax',
   'additionalNote',
   'expiresAt',
 ] as const;
@@ -98,7 +102,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
   const [saveFailed, setSaveFailed] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const toast = useToast();
-  const [identity] = useLoad(() => unwrap(api.GET('/api/me/identity')), [], { refreshOnFocus: true });
+  const [identity, reloadIdentity] = useLoad(() => unwrap(api.GET('/api/me/identity')), [], { refreshOnFocus: true });
   const [load] = useLoad(async () => {
     const [agent, contacts, edit] = await Promise.all([
       unwrap<Raw>(api.GET('/api/agents/{agentId}', { params: { path: { agentId } } })).then((raw) => ({ ...toAgent(raw), id: agentId, raw })),
@@ -240,6 +244,10 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (identity.status !== 'done' || !identity.data.verified) {
+      setError('계정 화면에서 본인인증을 완료한 뒤 요청을 보내 주세요.');
+      return;
+    }
     const form = e.currentTarget;
     // 브라우저 기본 풍선 대신, 비었거나 형식이 틀린 칸을 모아 각 칸 아래에 이유를 적는다.
     const found: Record<string, string> = {};
@@ -262,6 +270,9 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
     }
     if (Object.keys(found).length) return fail(form, found);
     const d = Object.fromEntries([...new FormData(form)].map(([k, v]) => [k, String(v).trim()]));
+    if (d.agencyBudgetDesired && d.agencyBudgetMax && Number(d.agencyBudgetDesired) > Number(d.agencyBudgetMax)) {
+      return fail(form, { agencyBudgetMax: '최대 수고비는 희망 수고비 이상이어야 해요.' });
+    }
     const contactSharingDocumentId = findPolicy(policies, 'CONTACT_SHARING').id;
     if (!contactSharingDocumentId) return setError('연락처 공유 동의 문서를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
     if (new Date(d.expiresAt) <= new Date()) return fail(form, { expiresAt: '응답 기한은 지금보다 뒤여야 해요.' });
@@ -281,13 +292,14 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
       scheduledUseTime: d.scheduledUseTime || undefined,
       platformId: platform && platform !== 'other' ? Number(platform) : undefined,
       otherPlatformName: platform === 'other' ? d.otherPlatformName : undefined,
-      locationNote: edit?.locationNote,
-      requestedQuantity: edit?.requestedQuantity,
+      locationNote: d.locationNote || undefined,
+      requestedQuantity: optionalNumber(d.requestedQuantity),
       requirements: d.requirements,
       successConditions: d.successConditions,
       purchaseBudgetMax: edit?.purchaseBudgetMax,
-      agencyBudgetDesired: optionalNumber(d.agencyBudgetDesired),
-      agencyBudgetMax: edit?.agencyBudgetMax,
+      agencyBudgetDesired: Number(d.agencyBudgetDesired),
+      agencyBudgetMax: optionalNumber(d.agencyBudgetMax),
+      upfrontBudgetDesired: optionalNumber(d.upfrontBudgetDesired),
       additionalNote: d.additionalNote || undefined,
       applicationRound: (d.applicationRound || undefined) as RequestBody['applicationRound'],
       expiresAt: toUtc(d.expiresAt),
@@ -312,6 +324,11 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
   return (
     <>
       <PageTitle title={edit ? '요청 내용 수정' : '요청 보내기'} crumbs={edit ? [{ label: '요청 상세', to: `/requests/${edit.id}` }] : [{ label: '도우미 프로필', to: `/agents/${agentId}` }]} />
+      {identity.status === 'loading' ? <Notice>본인인증 상태를 확인하고 있어요.</Notice> : identity.status === 'error' ? (
+        <Notice tone="error">본인인증 상태를 확인하지 못했어요. <button type="button" className="text-link" onClick={reloadIdentity}>다시 확인하기</button></Notice>
+      ) : !identity.data.verified ? (
+        <Notice>요청을 보내려면 본인인증이 필요해요. 작성한 내용은 임시저장할 수 있어요. <Link to="/account" onClick={() => saveDraft(false)}>계정에서 본인인증하기</Link></Notice>
+      ) : null}
       <form id="tx-quote-form" ref={formRef} className="detail-layout tx-layout" noValidate onSubmit={submit} onChange={(e) => {
         const name = (e.target as HTMLElement).getAttribute('name');
         if (DRAFT_FIELDS.some((field) => field === name)) saveDraft(false, name === 'platform' && e.target instanceof HTMLSelectElement ? e.target.value : platform);
@@ -357,6 +374,12 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
                 <input name="applicationOpenTime" type="time" defaultValue={restored.applicationOpenTime ?? edit?.applicationOpenTime} />
               </Field>
             </div>
+            <Field label="공연장·위치" helper="같은 공연의 지역·회차를 구분할 수 있도록 공연장 이름이나 지역을 적어 주세요. 선택 항목이에요." error={errors.locationNote}>
+              <input name="locationNote" maxLength={250} defaultValue={restored.locationNote ?? edit?.locationNote} placeholder="예: 서울 KSPO DOME" />
+            </Field>
+            <Field label="매수" required error={errors.requestedQuantity}>
+              <input name="requestedQuantity" type="number" required min={1} max={2147483647} step={1} defaultValue={restored.requestedQuantity ?? edit?.requestedQuantity} placeholder="예: 2" />
+            </Field>
             <Field label="예매 회차" error={errors.applicationRound}>
               <select name="applicationRound" defaultValue={restored.applicationRound ?? edit?.applicationRound ?? ''}>
                 {rounds.map(([v, t]) => (
@@ -385,12 +408,20 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
             <Field label="희망 좌석·요청 내용" required error={errors.requirements} helper="원하는 좌석과 요청 사항을 적어 주세요. 도우미가 어떻게 진행할지 참고하는 내용이에요.">
               <textarea name="requirements" rows={3} required maxLength={10000} defaultValue={restored.requirements ?? edit?.requirements} placeholder="예: 1층 지정석, 연석 2매" />
             </Field>
-            <Field label="성공 요건" required error={errors.successConditions} helper="어디까지 잡아야 성공으로 볼지 적어 주세요. 성공 요건은 수고비 지급의 최소 기준이 됩니다.">
-              <textarea name="successConditions" rows={3} required maxLength={10000} defaultValue={restored.successConditions ?? edit?.successConditions} placeholder="예: 1층 A~C구역 연석 2매를 확보하면 성공" />
+            <Field label="성공 요건" required error={errors.successConditions} helper="희망 좌석을 확보하지 못해도 성공으로 인정할 최소 조건과, 그 경우 지급할 최소 수고비를 함께 적어 주세요.">
+              <textarea name="successConditions" rows={3} required maxLength={10000} defaultValue={restored.successConditions ?? edit?.successConditions} placeholder="예: 1층 B~C구역 연석 2매 확보 시 성공으로 인정하며, 이 경우 수고비는 최소 30,000원" />
             </Field>
-            <Field label="희망 수고비" helper="도우미에게 제안하고 싶은 수고비예요. 최종 금액은 서로 합의해요." error={errors.agencyBudgetDesired}>
-              <input name="agencyBudgetDesired" type="number" min={0} step={100} defaultValue={restored.agencyBudgetDesired ?? edit?.agencyBudgetDesired} />
+            <Field label="희망 착수비 (원)" helper="예매 시도에 대해 제안하는 금액이에요. 0원도 입력할 수 있고, 비워 두면 미정으로 전달돼요." error={errors.upfrontBudgetDesired}>
+              <input name="upfrontBudgetDesired" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.upfrontBudgetDesired ?? edit?.upfrontBudgetDesired} placeholder="예: 5000" />
             </Field>
+            <div className="form-grid">
+              <Field label="희망 수고비 (원)" required helper="희망 좌석을 확보했을 때 지급하고 싶은 수고비예요. 최종 금액은 서로 합의해요." error={errors.agencyBudgetDesired}>
+                <input name="agencyBudgetDesired" type="number" required min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.agencyBudgetDesired ?? edit?.agencyBudgetDesired} placeholder="예: 30000" />
+              </Field>
+              <Field label="최대 수고비 (원)" helper="희망 좌석 확보 시 지급할 수 있는 최대 수고비예요." error={errors.agencyBudgetMax}>
+                <input name="agencyBudgetMax" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} defaultValue={restored.agencyBudgetMax ?? edit?.agencyBudgetMax} placeholder="예: 50000" />
+              </Field>
+            </div>
             <Field label="기타 사항" error={errors.additionalNote}>
               <textarea name="additionalNote" rows={3} maxLength={10000} defaultValue={restored.additionalNote ?? edit?.additionalNote} />
             </Field>
@@ -441,7 +472,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
                 <strong>최종 조건에서 확정</strong>
               </div>
             </div>
-            <Notice>{identity.status === 'done' && !identity.data.verified && <>요청을 보내려면 먼저 마이페이지에서 본인인증을 완료해 주세요. </>}PICO에서는 결제하지 않아요. 도우미가 보낸 최종 조건을 확정하면 매칭이 완료되고, 비용은 도우미와 직접 정산해요.</Notice>
+            <Notice>PICO에서는 결제하지 않아요. 도우미가 보낸 최종 조건을 확정하면 매칭이 완료되고, 비용은 도우미와 직접 정산해요.</Notice>
             <div className="quote-agreements">
               <label className="check-row quote-agree-all">
                 <input type="checkbox" checked={allAgreed} onChange={(e) => setAgreed({ terms: e.target.checked, privacy: e.target.checked, contact: e.target.checked })} />
@@ -469,7 +500,7 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
             <div className="account-form-error" aria-live="polite">
               {error}
             </div>
-            <button type="submit" className="btn primary full" disabled={!allAgreed || pending}>
+            <button type="submit" className="btn primary full" disabled={!allAgreed || pending || identity.status !== 'done' || !identity.data.verified}>
               {pending ? '보내는 중…' : edit ? '수정 내용 저장' : '요청 보내기'}
             </button>
           </section>
@@ -520,19 +551,44 @@ function QuoteEditor({ userKey, agentId, editId }: { userKey: string; agentId: n
 export function RequestSentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  // 보낸 요청의 정책 검토 결과(policyGateStatus)로 안내를 나눈다. 불러오지 못하면 기존 안내를 보인다.
+  const [load] = useLoad(() => unwrap<Raw>(api.GET('/api/requests/{requestId}', { params: { path: { requestId: Number(id) } } })).then(toRequest), [id]);
+  const r = load.status === 'done' ? load.data : null;
+  const gate = r?.policyStatus.toUpperCase() ?? '';
+  const blocked = gate === 'BLOCKED';
+  const [title, body]: [string, string[]] =
+    load.status === 'loading'
+      ? ['요청 상태를 확인하고 있어요', []]
+      : gate === 'ALLOWED'
+        ? ['도우미에게 요청이 도착했어요', ['도우미가 수락하면 알림으로 알려드릴게요.']]
+        : gate === 'PENDING'
+          ? ['운영팀이 요청 내용을 확인하고 있어요', ['확인이 끝나면 도우미에게 전달하고 알림으로 알려드릴게요.']]
+          : blocked && r
+            ? ['요청을 도우미에게 보낼 수 없어요', [policyBlockMessage(r) || '요청 내용을 확인하고 고쳐 주세요.']]
+            : ['도우미에게 마음이 도착했어요', ['요청 내용을 자동으로 확인한 뒤 도우미에게 전달해요. 추가 확인이 필요하면 운영팀이 검토해요.', '수락과 최종 조건 도착 소식은 알림으로 알려드릴게요.']];
   return (
     <section className="tx-success">
       <div className="success-circle">
-        <Icon name="check" size={34} />
+        <Icon name={blocked ? 'info' : 'check'} size={34} />
       </div>
-      <span className="tiny-label">요청 전송 완료</span>
-      <h1>도우미에게 마음이 도착했어요</h1>
-      <p>
-        <span>요청 내용을 자동으로 확인한 뒤 도우미에게 전달해요. 추가 확인이 필요하면 운영팀이 검토해요.</span>
-        <span>수락과 최종 조건 도착 소식은 알림으로 알려드릴게요.</span>
-      </p>
+      <span className="tiny-label">{blocked ? '요청 확인 필요' : '요청 전송 완료'}</span>
+      <h1>{title}</h1>
+      {body.length > 0 && (
+        <p>
+          {body.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </p>
+      )}
+      {r?.status === 'PENDING' && <p>도우미가 수락하기 전에는 보낸 요청에서 내용을 수정하거나 취소할 수 있어요.</p>}
       <div>
-        <button type="button" className="btn primary" onClick={() => navigate(`/requests/${id}`)}>
+        {blocked && r?.agentId ? (
+          // 수락 전 요청을 고치는 기존 진입점(요청 상세의 '요청 고치기'와 같다)
+          <button type="button" className="btn primary" onClick={() => navigate(`/quote/${r.agentId}?edit=${r.id}`)}>
+            요청 고치기
+          </button>
+        ) : null}
+        <button type="button" className={`btn ${blocked && r?.agentId ? 'secondary' : 'primary'}`} onClick={() => navigate(`/requests/${id}`)}>
           보낸 요청 확인
         </button>
         <button type="button" className="btn secondary" onClick={() => navigate('/requests')}>

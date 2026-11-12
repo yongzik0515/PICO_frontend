@@ -1,19 +1,25 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { useLoad } from '../transactions/model';
 import { Notice, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
 import { PageTitle } from '../ui/PageTitle';
+import './credits-bonus.css';
+import { PassPurchaseStatus, PassPurchaseRefundSummary } from '../transactions/PassPurchaseSummary';
+import { passPaymentNames } from '../transactions/passPaymentNames';
 import { useToast } from '../ui/Toast';
 
 // 도우미가 요청을 수락할 때 매칭권 1장이 차감된다. 판매 상품은 그로블 결제창의 10장 5,000원 하나다.
 // 결제는 그로블 결제창에서 하고, 서버가 그로블의 서명된 결제 완료 알림(웹훅)을 받아 매칭권을 지급한다.
+const promotionNames: Record<string, string> = { FOUNDING_HELPER: '창립 도우미 혜택', APPROVAL_TRIAL: '승인 체험권', FIRST_PURCHASE: '첫 구매 보너스', ADMIN_GRANT: '운영팀 지급' };
+const promotionStatuses: Record<string, string> = { AVAILABLE: '사용 가능', USED: '모두 사용', EXPIRED: '기간 만료', REVOKED_OR_REFUND_PENDING: '원구매 환불로 사용 불가' };
 const PRODUCT = { units: 10, price: 5000 };
 const PENDING_KEY = 'pico.pendingGroblePass';
 const CONFIRM_LIMIT_MS = 180_000;
 
-type Pending = { purchaseId: number; units: number };
+/** orderNumber: 그로블 주문번호. 결제가 확인되지 않을 때 문의에 적도록 안내한다(이전 버전에서 저장한 값에는 없을 수 있다). */
+type Pending = { purchaseId: number; units: number; orderNumber?: string };
 const savePending = (p: Pending | null) => {
   try {
     if (p) sessionStorage.setItem(PENDING_KEY, JSON.stringify(p));
@@ -31,15 +37,16 @@ const loadPending = (): Pending | null => {
   }
 };
 
-const STATUS_NAMES: Record<string, string> = { FAILED: '결제 실패', EXPIRED: '결제 만료', CANCELLED: '결제 취소', PROCESSING: '결제 확인 중', REFUNDED: '환불 완료', PARTIALLY_REFUNDED: '부분 환불' };
+
 
 export function CreditsPage() {
   const [load, reload] = useLoad(async () => {
-    const [balance, purchases] = await Promise.all([
+    const [balance, purchases, promotions] = await Promise.all([
       unwrap(api.GET('/api/matching-passes/balance')).then((b) => num(pick(b, 'remainingUnits')) ?? 0),
       unwrap<unknown>(api.GET('/api/matching-passes/purchases', { params: { query: { page: 0, size: 20 } } })).then(list, () => [] as Raw[]),
+      unwrap<Raw>(api.GET('/api/matching-passes/promotions')),
     ]);
-    return { balance, purchases };
+    return { balance, purchases, promotions };
   }, []);
   const { pending, run } = useAction();
   const toast = useToast();
@@ -48,6 +55,8 @@ export function CreditsPage() {
   // 그로블에서 돌아온 뒤 결제 완료 알림을 기다리는 구매(이 탭에서 시작한 주문)
   const [waiting, setWaiting] = useState<Pending | null>(() => loadPending());
   const [charged, setCharged] = useState<number | null>(null);
+  // 서버 시각과 전체 결제 이력으로 대상 여부를 확인한다.
+  const bonus = load.status === 'done' && load.data.promotions.firstPurchaseEligible === true;
 
   // 결제 확인을 기다리는 동안 4초마다 다시 불러온다(최대 3분). 지급되면 안내를 바꾸고, 만료·실패면 기다림을 멈춘다.
   useEffect(() => {
@@ -57,7 +66,7 @@ export function CreditsPage() {
       clearInterval(timer);
       setWaiting(null);
       savePending(null);
-      toast('결제 확인이 늦어지고 있어요. 결제를 마쳤다면 잠시 후 충전 내역에서 확인해 주세요.');
+      toast(`결제 확인이 늦어지고 있어요. 결제를 마쳤다면 잠시 후 충전 내역에서 확인해 주세요.${waiting.orderNumber ? ` 주문번호: ${waiting.orderNumber}` : ''}`);
     }, CONFIRM_LIMIT_MS);
     return () => {
       clearInterval(timer);
@@ -84,7 +93,7 @@ export function CreditsPage() {
 
   async function buy() {
     setCharged(null);
-    const target = { url: '', purchaseId: 0 };
+    const target = { url: '', purchaseId: 0, orderNumber: '' };
     const ok = await run(async () => {
       const checkout = await unwrap<Raw>(api.POST('/api/matching-passes/groble-checkouts'));
       const purchaseId = num(pick(checkout, 'purchaseId'));
@@ -92,10 +101,11 @@ export function CreditsPage() {
       if (!purchaseId || !url || !url.startsWith('https://')) throw new Error('결제 주문을 만들지 못했어요.');
       target.url = url;
       target.purchaseId = purchaseId;
+      target.orderNumber = str(pick(checkout, 'payment.orderNumber', 'orderNumber')) ?? '';
     });
     if (!ok) return;
     // 결제를 마치면 그로블 결제 완료 화면의 '매칭권 확인하기'로 이 화면에 돌아온다. 돌아오면 이 주문의 지급을 확인한다.
-    savePending({ purchaseId: target.purchaseId, units: PRODUCT.units });
+    savePending({ purchaseId: target.purchaseId, units: PRODUCT.units, orderNumber: target.orderNumber || undefined });
     window.location.assign(target.url);
   }
 
@@ -120,10 +130,10 @@ export function CreditsPage() {
             </div>
             {load.status === 'error' && <Notice tone="error">{load.message}</Notice>}
             <p className="record-note">
-              매칭권 {PRODUCT.units}장 {won(PRODUCT.price)}(1장당 500원) · 결제 완료 확인 후 지급일부터 330일간 사용 · 요청을 수락할 때 1장씩 사용해요. 수락에 쓴 매칭권은 거래가 취소돼도 돌아오지 않고, 공식 공연·예매 취소나 예매처·플랫폼 장애일 때만 운영팀이 확인한 뒤 복원해요.
+              매칭권 {PRODUCT.units}장 {won(PRODUCT.price)}(1장당 500원) · 결제 완료 확인 후 지급일부터 330일간 사용 · 요청을 수락할 때 1장씩 사용해요. 수락에 쓴 매칭권은 거래가 취소돼도 돌아오지 않고, 공식 공연·예매 취소나 예매처·PICO 장애일 때만 <Link to="/inquiries?type=PASS_RESTORATION">매칭권 복원 요청</Link>을 받아 운영팀이 확인한 뒤 복원해요.
             </p>
             <p className="record-note">
-              사용하지 않은 매칭권은 유효기간 안에 남은 장수 × 500원으로 환불돼요. 구매 후 7일 안에는 그로블 주문조회에서 취소를 요청하고, 그 뒤에는 고객센터로 요청해 주세요.
+              사용하지 않은 매칭권은 유효기간 안에 구매 당시 장당 가격을 기준으로 환불돼요. 구매 후 7일 안에는 그로블 주문조회에서 취소를 요청하고, 그 뒤에는 <Link to="/inquiries?type=PASS_REFUND">매칭권 환불 요청</Link>으로 요청해 주세요.
             </p>
             {charged !== null && (
               <Notice tone="success">
@@ -139,17 +149,43 @@ export function CreditsPage() {
               </Notice>
             )}
           </TxCard>
+          <TxCard title="이벤트 매칭권">
+            <p className="record-note">도우미 승인 혜택과 첫 구매 보너스는 각각 계정당 한 번만 지급돼요. 무료권은 지급일부터 330일간 사용할 수 있고 현금 환불되지 않아요. 첫 구매를 전액 또는 일부 환불하면 남은 보너스도 회수돼요. 환불 처리 중에는 보너스를 사용할 수 없어요.</p>
+            {load.status === 'done' && list(load.data.promotions.grants).length ? (
+              <div className="tx-history">
+                {list(load.data.promotions.grants).map((g) => (
+                  <article key={String(g.purchaseId)} className="content-card">
+                    <div>
+                      <h3>{promotionNames[str(g.code) ?? ''] ?? '이벤트 매칭권'} {num(g.units)}장</h3>
+                      <p>{utcToLocal(str(g.grantedAt) ?? '')} 지급 · {utcToLocal(str(g.expiresAt) ?? '')} 만료</p>
+                      <small>{promotionStatuses[str(g.status) ?? ''] ?? ''}</small>
+                    </div>
+                    <strong>남은 {num(g.remainingUnits) ?? 0}장</strong>
+                  </article>
+                ))}
+              </div>
+            ) : <p className="tx-file-empty">아직 지급된 이벤트 매칭권이 없어요.</p>}
+          </TxCard>
           <TxCard title="충전 내역">
             {load.status === 'done' && load.data.purchases.length ? (
               <div className="tx-history">
                 {load.data.purchases.map((p) => (
                   <article key={String(p.purchaseId)} className="content-card">
                     <div>
-                      <span className={`tx-status ${p.grantedAt ? 'blue' : 'amber'}`}>
-                        {STATUS_NAMES[str(pick(p, 'payment.status')) ?? ''] ?? (p.grantedAt ? '충전 완료' : '결제 대기')}
-                      </span>
+                      <PassPurchaseStatus purchase={p} />
                       <h3>매칭권 {num(p.purchasedUnits)}장</h3>
                       <p>{utcToLocal(str(p.createdAt) ?? '')}</p>
+                      <PassPurchaseRefundSummary purchase={p} />
+                      {(str(pick(p, 'payment.orderNumber')) || str(pick(p, 'payment.status'))) && (
+                        <small>
+                          {[
+                            str(pick(p, 'payment.orderNumber')) && `주문번호 ${str(pick(p, 'payment.orderNumber'))}`,
+                            str(pick(p, 'payment.status')) && `결제 상태: ${passPaymentNames[str(pick(p, 'payment.status')) ?? ''] ?? str(pick(p, 'payment.status'))}`,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </small>
+                      )}
                     </div>
                     <div>
                       <strong>{won(num(p.priceKrw))}</strong>
@@ -160,10 +196,14 @@ export function CreditsPage() {
             ) : (
               <p className="tx-file-empty">아직 충전 내역이 없어요.</p>
             )}
+            <p className="record-note">
+              결제했는데 매칭권이 들어오지 않았다면 주문번호를 적어 <Link to="/inquiries">문의</Link>해 주세요.
+            </p>
           </TxCard>
         </div>
         <aside className="tx-side">
-          <section className="content-card">
+          <section className="content-card pass-card">
+            {bonus && <span className="pass-ribbon">첫 구매 +5장</span>}
             <h2>충전 금액</h2>
             <div className="total-row">
               <span>
@@ -171,6 +211,11 @@ export function CreditsPage() {
               </span>
               <strong>{won(PRODUCT.price)}</strong>
             </div>
+            {bonus && (
+              <p className="record-note pass-bonus-note">
+                첫 구매 보너스 <b>+5장</b>은 결제 확인 후 계정당 한 번 지급돼요. 330일간 유효하며, 현금 환불되지 않아요. 구매를 환불하면 남은 보너스도 회수돼요.
+              </p>
+            )}
             <div className="quote-agreements">
               <label className="check-row">
                 <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
@@ -182,7 +227,8 @@ export function CreditsPage() {
             </button>
             {waiting ? (
               <Notice>
-                결제 결과를 확인하고 있어요. 그로블에서 결제를 마쳤다면 잠시 후 매칭권이 자동으로 충전돼요. 다시 결제하지 마세요.{' '}
+                결제 결과를 확인하고 있어요. 그로블에서 결제를 마쳤다면 잠시 후 매칭권이 자동으로 충전돼요. 다시 결제하지 마세요.
+                {waiting.orderNumber ? ` 주문번호: ${waiting.orderNumber}.` : ''}{' '}
                 <button type="button" className="text-link" onClick={stopWaiting}>
                   결제하지 않았어요
                 </button>

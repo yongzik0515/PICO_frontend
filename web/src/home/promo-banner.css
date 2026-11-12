@@ -1,0 +1,33 @@
+/* 실제 텍스트와 SVG를 쓰는 공통 배너. */
+.promo-banner {
+  --promo-accent: #79cbb8;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  min-height: 104px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(110deg, #effbf7, #d8f1e9);
+  color: #171c22;
+}
+.promo-founding { --promo-accent: #8999ec; background: linear-gradient(110deg, #fff9e9, #ffe9d8); }
+.promo-guide { --promo-accent: #9c86ec; background: linear-gradient(110deg, #f5f1ff, #e2dcff); }
+.promo-ad { --promo-accent: #8baee7; background: linear-gradient(110deg, #f1f7ff, #dce9ff); }
+.promo-banner-copy { min-width: 0; display: grid; gap: 5px; justify-items: start; }
+.promo-banner-badge { padding: 2px 7px; border-radius: 6px; background: #ffffffd9; font-size: 11px; font-weight: 650; line-height: 1.4; color: #4f596c; }
+.promo-banner-title { font-size: 16px; line-height: 1.4; letter-spacing: -.4px; font-weight: 750; overflow-wrap: anywhere; }
+.promo-banner-title em { color: #304be8; font-style: normal; white-space: nowrap; }
+.promo-banner-description { font-size: 12px; line-height: 1.5; color: #515d6e; overflow-wrap: anywhere; }
+.promo-banner-art { position: relative; width: 100%; filter: drop-shadow(0 7px 7px #38595324); }
+.promo-banner-art svg { display: block; width: 100%; height: auto; }
+.promo-banner-art>span { position: absolute; left: 13%; top: 49%; width: 49%; text-align: center; transform: rotate(-8deg); font-size: 16px; line-height: 1.3; font-weight: 800; color: #303744; }
+@media (max-width: 359px) {
+  .promo-banner { grid-template-columns: minmax(0, 1fr) 54px; gap: 8px; padding: 12px; }
+  .promo-banner-title { font-size: 14px; }
+  .promo-banner-art>span { font-size: 12px; }
+}
+@media (min-width: 1024px) {
+  .promo-banner { min-height: 138px; grid-template-columns: minmax(0, 1fr) 78px; }
+}

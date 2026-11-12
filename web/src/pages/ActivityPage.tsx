@@ -13,15 +13,18 @@ import { PageTitle } from '../ui/PageTitle';
 // 목록은 GET /api/requests?role=REQUESTER|AGENT. 목록에는 합의·결제 정보가 없어 요청 상태(RequestStatus)로만 나눈다.
 const closed = ['MATCHING_COMPLETED', 'COMPLETED', 'REJECTED', 'EXPIRED', 'CANCELLED'];
 const closedNames: Record<string, string> = { MATCHING_COMPLETED: '직접 거래 매칭 완료', COMPLETED: '거래 완료', REJECTED: '요청 거절', EXPIRED: '요청 만료', CANCELLED: '요청 취소' };
+/** 후기가 없고 이용 예정 시각 전인 직접 거래(BOOKING_UPCOMING)는 진행 중으로 본다. */
+const upcoming = (r: TxRequest) => roughStage(r) === 'booking_upcoming';
+const isEnded = (r: TxRequest) => closed.includes(r.status) && !upcoming(r);
 
 function Ticket({ r, agent }: { r: TxRequest; agent: boolean }) {
   const person = agent ? r.requesterName : r.agentName;
   const waiting = r.status === 'PENDING';
-  const ended = closed.includes(r.status);
+  const ended = isEnded(r);
   // 서버 stage가 있으면 지금 누구 차례인지 그대로 보여 준다(가이드 6-5).
   const stage = roughStage(r);
   const label = ended
-    ? closedNames[r.status]
+    ? r.status === 'MATCHING_COMPLETED' && r.reviewWritten ? '후기 작성 완료' : closedNames[r.status]
     : stage === 'policy_review'
       ? '검토 중'
       : stage === 'policy_blocked'
@@ -106,40 +109,40 @@ export function UserActivityPage() {
   const [tab, setTab] = useState('all');
   const [load, reload] = useLoad(() => fetchRequests('REQUESTER'), [], { refreshOnFocus: true });
   const all = load.status === 'done' ? load.data : [];
-  const shown = all.filter((r) => tab === 'all' || (tab === 'request' ? r.status === 'PENDING' : tab === 'progress' ? !closed.includes(r.status) && r.status !== 'PENDING' : closed.includes(r.status)));
+  const shown = all.filter((r) => tab === 'all' || (tab === 'request' ? r.status === 'PENDING' : tab === 'progress' ? !isEnded(r) && r.status !== 'PENDING' : isEnded(r)));
   return (
     <>
       <PageTitle title="내 활동" />
-      <div className="activity-layout">
-        <section>
-          <Tabs
-            label="내 활동 분류"
-            value={tab}
-            onChange={setTab}
-            tabs={[
-              ['all', '전체'],
-              ['request', '응답 대기중'],
-              ['progress', '진행중'],
-              ['closed', '지난 내역'],
-            ]}
-          />
-          <div className="activity-tickets">
-            {load.status !== 'done' ? (
-              <Loading state={load} retry={reload} />
-            ) : shown.length ? (
-              shown.map((r) => <Ticket key={r.id} r={r} agent={false} />)
-            ) : (
-              <Empty>
-                <button className="btn secondary" onClick={() => navigate('/')}>
-                  도우미 찾기
-                </button>
-              </Empty>
-            )}
-          </div>
+      <div className="activity-layout activity-layout-guided">
+        <Tabs
+          label="내 활동 분류"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            ['all', '전체'],
+            ['request', '응답 대기중'],
+            ['progress', '진행중'],
+            ['closed', '지난 내역'],
+          ]}
+        />
+        <section className="activity-tickets">
+          {load.status !== 'done' ? (
+            <Loading state={load} retry={reload} />
+          ) : shown.length ? (
+            shown.map((r) => <Ticket key={r.id} r={r} agent={false} />)
+          ) : (
+            <Empty>
+              <button className="btn secondary" onClick={() => navigate('/')}>
+                도우미 찾기
+              </button>
+            </Empty>
+          )}
         </section>
-        <aside className="activity-guide content-card">
-          <h2>요청 후에는 이렇게 진행해요</h2>
-          <p>최종 조건을 확정하면 매칭이 완료되고 후기를 남길 수 있어요.</p>
+        <aside className="activity-guide content-card" aria-labelledby="activity-guide-title">
+          <header className="activity-guide-heading">
+            <span className="activity-guide-label"><Icon name="ticket" size={16} /> 진행 안내</span>
+            <h2 id="activity-guide-title">요청 후에는 이렇게 진행해요</h2>
+          </header>
           <ol className="guide-steps">
             <li>
               <b>1</b>
@@ -163,6 +166,10 @@ export function UserActivityPage() {
               </div>
             </li>
           </ol>
+          <p className="activity-guide-note">
+            <Icon name="check" size={16} />
+            <span>최종 조건을 확정하면 매칭이 완료되고 후기를 남길 수 있어요.</span>
+          </p>
         </aside>
       </div>
     </>
@@ -195,7 +202,7 @@ export function AgentActivityPage({ kind }: { kind: 'leads' | 'matches' }) {
       ? tab === 'closed'
         ? r.status !== 'PENDING'
         : r.status === 'PENDING'
-      : tab === 'all' || (tab === 'progress' ? ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status) : closed.includes(r.status)),
+      : tab === 'all' || (tab === 'progress' ? ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status) || upcoming(r) : isEnded(r)),
   );
   const tabs: [string, string][] = received
     ? [
@@ -215,7 +222,7 @@ export function AgentActivityPage({ kind }: { kind: 'leads' | 'matches' }) {
         <div className="empty">
           <Icon name="info" size={38} />
           <h3>도우미 승인 후 이용할 수 있어요</h3>
-          <p>공개 프로필과 인증·경력 자료를 제출하고 심사를 받으면 요청을 받을 수 있어요.</p>
+          <p>공개 프로필을 작성하고 본인·계좌 확인과 심사를 마치면 요청을 받을 수 있어요.</p>
           <button type="button" className="btn primary" onClick={() => navigate('/application')}>
             도우미 신청 확인
           </button>
@@ -230,7 +237,7 @@ export function AgentActivityPage({ kind }: { kind: 'leads' | 'matches' }) {
         <div>
           <small>{received ? '답변할 요청' : '진행 중인 거래'}</small>
           <strong>
-            {received ? all.filter((r) => r.status === 'PENDING').length : all.filter((r) => ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status)).length}
+            {received ? all.filter((r) => r.status === 'PENDING').length : all.filter((r) => ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status) || upcoming(r)).length}
             <span>건</span>
           </strong>
         </div>

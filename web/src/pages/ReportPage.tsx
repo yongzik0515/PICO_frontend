@@ -22,6 +22,10 @@ const reasons: [Reason, string][] = [
 ];
 const reasonNames = Object.fromEntries(reasons) as Record<string, string>;
 const statusNames: Record<string, string> = { OPEN: '접수', INVESTIGATING: '조사 중', RESOLVED: '처리 완료', DISMISSED: '처리 안 함' };
+// 받은 신고(나를 대상으로 한 신고)의 상태·조치. 운영팀이 조사를 시작했거나 조치한 신고만 보인다.
+type ReceivedReport = components['schemas']['ReceivedReportResponse'];
+const receivedStatusNames: Record<string, string> = { INVESTIGATING: '운영팀 확인 중', RESOLVED: '처리 완료', DISMISSED: '처리하지 않음' };
+const receivedActionNames: Record<string, string> = { NONE: '조치 없음', RESTRICT_AGENT: '도우미 활동 제한', SUSPEND_USER: '이용 정지', HIDE_REVIEW: '후기 숨김' };
 
 export function ReportPage() {
   const navigate = useNavigate();
@@ -103,11 +107,39 @@ export function ReportPage() {
 }
 
 export function ReportsPage() {
+  // ?tab=received면 받은 신고 탭을 연다(알림에서 들어올 때). 탭을 바꾸면 주소의 tab도 바꾼다.
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'received' ? 'received' : 'mine';
+  const tabs: [typeof tab, string][] = [
+    ['mine', '내가 한 신고'],
+    ['received', '받은 신고'],
+  ];
+  return (
+    <>
+      <PageTitle title="신고 내역" crumbs={[{ label: '마이페이지', to: '/my' }]} />
+      <div className="request-tabs tx-tabs" role="tablist" aria-label="신고 내역 분류">
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            className={tab === key ? 'active' : ''}
+            onClick={() => setParams(key === 'received' ? { tab: 'received' } : {}, { replace: true })}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'received' ? <ReceivedReports /> : <MyReports />}
+    </>
+  );
+}
+
+function MyReports() {
   const navigate = useNavigate();
   const [load] = useLoad(() => unwrap<unknown>(api.GET('/api/reports/me', { params: { query: { page: 0, size: 50 } } })).then(list), []);
   return (
     <>
-      <PageTitle title="신고 내역" crumbs={[{ label: '마이페이지', to: '/my' }]} />
       <div className="tx-history">
         {load.status === 'loading' ? (
           <div className="empty" role="status">
@@ -146,6 +178,106 @@ export function ReportsPage() {
         )}
       </div>
     </>
+  );
+}
+
+/** 나를 대상으로 한 신고: 관련 거래·사유·상태·처리 결과·조치와 내가 남긴 소명. 운영팀이 확인 중이면 소명을 남길 수 있다. */
+function ReceivedReports() {
+  const navigate = useNavigate();
+  const [load, reload] = useLoad(() => unwrap<ReceivedReport[]>(api.GET('/api/reports/received', { params: { query: { page: 0, size: 50 } } })).then((d) => (Array.isArray(d) ? d : [])), []);
+  if (load.status === 'loading')
+    return (
+      <div className="empty" role="status">
+        <p>받은 신고를 불러오는 중이에요.</p>
+      </div>
+    );
+  if (load.status === 'error')
+    return (
+      <div className="empty">
+        <p>{load.message}</p>
+      </div>
+    );
+  if (!load.data.length)
+    return (
+      <div className="empty">
+        <p>나를 대상으로 한 신고가 없어요.</p>
+      </div>
+    );
+  return (
+    <div className="tx-history">
+      {load.data.map((x) => {
+        const status = x.status ?? '';
+        const ended = status === 'RESOLVED' || status === 'DISMISSED';
+        return (
+          <article key={String(x.reportId)} className="content-card">
+            <div>
+              <span className={`tx-status ${ended ? 'muted' : 'amber'}`}>{receivedStatusNames[status] ?? statusNames[status] ?? status}</span>
+              <h3>{reasonNames[x.reason ?? ''] ?? x.reason}</h3>
+              <p>
+                신고 #{x.reportId} · 관련 거래: {x.targetName || (x.requestId ? `#${x.requestId}` : '없음')}
+              </p>
+              {x.investigatedAt && <small>운영팀 확인 시작: {utcToLocal(x.investigatedAt)}</small>}
+              {x.resolutionNote && <small style={{ display: 'block', whiteSpace: 'pre-wrap' }}>처리 결과: {x.resolutionNote}</small>}
+              {ended && (
+                <small style={{ display: 'block' }}>
+                  조치: {receivedActionNames[x.actionTaken ?? 'NONE'] ?? x.actionTaken}
+                  {x.resolvedAt ? ` · 처리 ${utcToLocal(x.resolvedAt)}` : ''}
+                </small>
+              )}
+              {(x.statements ?? []).length > 0 && (
+                <div className="tx-file-list">
+                  {(x.statements ?? []).map((st) => (
+                    <div key={String(st.statementId)} className="tx-file-view">
+                      <div>
+                        <strong>내가 남긴 소명 · {utcToLocal(st.createdAt ?? '')}</strong>
+                        <small style={{ whiteSpace: 'pre-wrap' }}>{st.content}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {x.statementOpen && x.reportId != null && <StatementForm reportId={x.reportId} onDone={reload} />}
+              {ended && <p className="record-note">이의가 있으면 support@pico-kr.app로 알려 주세요.</p>}
+            </div>
+            <div>
+              {x.requestId != null && (
+                <button type="button" className="btn secondary" onClick={() => navigate(`/requests/${x.requestId}`)}>
+                  거래 상세 보기
+                </button>
+              )}
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 신고 대상의 소명(2000자 이하). 운영팀이 확인 중(INVESTIGATING)인 신고에만 남길 수 있다. */
+function StatementForm({ reportId, onDone }: { reportId: number; onDone: () => void }) {
+  const [content, setContent] = useState('');
+  const { pending, run } = useAction();
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!content.trim()) return;
+    const ok = await run(() => unwrap(api.POST('/api/reports/{reportId}/statements', { params: { path: { reportId } }, body: { content: content.trim() } })), '소명을 남겼어요.');
+    if (ok) {
+      setContent('');
+      onDone();
+    }
+  }
+  return (
+    <form noValidate onSubmit={submit}>
+      <Field label="소명" helper={`자료 파일은 신고 번호(#${reportId})를 적어 support@pico-kr.app로 보내 주세요.`}>
+        <textarea rows={3} maxLength={2000} value={content} onChange={(e) => setContent(e.target.value)} />
+      </Field>
+      <div className="tx-form-footer">
+        <span>{content.length}/2000</span>
+        <button type="submit" className="btn secondary" disabled={pending || !content.trim()}>
+          소명 남기기
+        </button>
+      </div>
+    </form>
   );
 }
 

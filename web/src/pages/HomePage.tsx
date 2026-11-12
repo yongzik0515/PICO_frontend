@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppState } from '../AppState';
+import { useAuth } from '../auth/AuthContext';
 import { loadPlatforms, useAgentSearch, usePlatforms, type Platform } from '../discovery/agent';
 import { AgentCard } from '../discovery/AgentCard';
 import { FilterModal, QuickFilter } from '../discovery/FilterControls';
 import { emptyFilters, filterLabels, removeFilter, sortOptions, type Filters, type Sort } from '../discovery/filters';
+import { PromoSlot } from '../home/PromoSlot';
 import { TicketCarousel } from '../home/TicketCarousel';
 import { getPerformance } from '../home/banners';
 import { bookingPlatforms, fallbackPlatforms, findPerformances, type PerformanceCandidate } from '../home/performanceSearch';
+import { correctKeyword } from '../home/aiKeyword';
 import { loadPopularSearch, recordSearch, type PopularKeyword } from '../home/popularSearch';
 import '../home/home-layout.css';
+import './service-guide.css';
 import { Icon } from '../ui/Icon';
 import { Modal } from '../ui/Modal';
 import { useToast } from '../ui/Toast';
@@ -93,6 +97,7 @@ function GuideTip() {
 
 export function HomePage() {
   const [state, setState] = useAppState();
+  const { loggedIn } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [filterOpen, setFilterOpen] = useState(false);
@@ -112,7 +117,12 @@ export function HomePage() {
     return () => { controller.abort(); window.clearInterval(timer); };
   }, []);
 
+  // query는 검색에 쓰는 확정 검색어다. 입력란 글자(input)는 Enter·돋보기·인기 검색 칩으로 확정할 때만 query가 된다.
   const { query, sort, filters } = state;
+  const [input, setInput] = useState(query);
+  // Enter·검색 버튼으로 확정한 검색어를 AI가 고친 결과. 다른 검색어를 확정하면(query가 달라지면) 더 쓰지 않는다.
+  const [aiAlias, setAiAlias] = useState<{ query: string; keyword: string } | null>(null);
+  const alias = aiAlias && aiAlias.query === query.trim() ? aiAlias.keyword : undefined;
   const platforms = usePlatforms();
   const searchRequest = useRef<AbortController | null>(null);
   const [lookup, setLookup] = useState<{
@@ -125,7 +135,7 @@ export function HomePage() {
   }>();
   useEffect(() => () => searchRequest.current?.abort(), []);
   const current = lookup?.keyword === query.trim() ? lookup : undefined;
-  const result = useAgentSearch(current?.sites ? '' : query, sort, filters, reload, current?.sites?.map((site) => site.id));
+  const result = useAgentSearch(current?.sites ? '' : query, sort, filters, reload, current?.sites ? undefined : alias, current?.sites?.map((site) => site.id));
   const list = result.status === 'done' ? result.items : [];
   const total = result.status === 'done' ? result.total : 0;
   const labels = filterLabels(filters);
@@ -146,7 +156,9 @@ export function HomePage() {
     setLookup({ keyword, loading: true });
     return controller.signal;
   }
-  function submitSearch(keyword = query) {
+  function submitSearch(keyword = input, ai = true) {
+    setInput(keyword);
+    setAiAlias(null);
     setState((s) => ({ ...s, query: keyword }));
     setReload((n) => n + 1);
     void recordSearch(keyword);
@@ -154,13 +166,17 @@ export function HomePage() {
     if (!text || text.length > 100) { clearLookup(); return; }
     const signal = beginLookup(text);
     void (async () => {
-      const items = await findPerformances(text, signal).catch(() => []);
+      const items = await findPerformances(text, signal, ai).catch(() => []);
       if (signal.aborted) return;
       if (items.length) { setLookup({ keyword: text, candidates: items }); return; }
       const available = await loadPlatforms().catch(() => []);
       if (signal.aborted) return;
       const sites = fallbackPlatforms(text, available);
       setLookup(sites.length ? { keyword: text, sites, suggested: true } : undefined);
+      if (!sites.length && ai && loggedIn) {
+        const fixed = await correctKeyword(text).catch(() => null);
+        if (!signal.aborted && fixed) setAiAlias({ query: text, keyword: fixed });
+      }
     })();
   }
 
@@ -194,15 +210,14 @@ export function HomePage() {
           <input
             id="search"
             type="search"
-            value={query}
+            value={input}
             placeholder="공연명, 도우미 이름, 예매처를 검색해 보세요"
             aria-label="도우미 검색"
-            onChange={(e) => {
-              clearLookup();
-              setState((s) => ({ ...s, query: e.target.value }));
-            }}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitSearch(); }}
+            onChange={(e) => setInput(e.target.value)}
+            // 한글 조합 중의 Enter는 건너뛴다. 조합이 끝난 마지막 글자까지 들어가도록 입력란의 현재 값으로 검색한다.
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitSearch(e.currentTarget.value); }}
           />
+          {/* 돋보기를 입력란 오른쪽 끝의 누를 수 있는 칩으로 둔다. 목록은 Enter나 이 버튼을 눌러야 검색어로 갱신된다. */}
           <button type="button" className="search-chip" aria-label="검색" onClick={() => submitSearch()}>
             <Icon name="search" size={20} />
           </button>
@@ -210,19 +225,21 @@ export function HomePage() {
         {popular.length > 0 && <div className="popular-shows">
           <span>인기 검색</span>
           {popular.map((p) => (
-            <button key={`${p.category}:${p.keyword}`} onClick={() => submitSearch(p.keyword)}>
+            <button key={`${p.category}:${p.keyword}`} onClick={() => submitSearch(p.keyword, false)}>
               {p.keyword}
             </button>
           ))}
         </div>}
-        {/* 검색창 오른쪽 빈 자리를 광고 자리로 쓴다(화면 1024px 이상에서만 보인다).
-            아직 실제 광고가 없어 광고 문의 안내를 띄운다. 광고가 생기면 문구와 이동 주소만 바꾸면 된다. */}
-        <Link className="home-ad" to="/inquiries">
-          <span className="home-ad-badge">광고</span>
-          <strong>공연·굿즈 소식을 팬들에게 알려 보세요</strong>
-          <span className="home-ad-more">
-            광고 문의 <Icon name="arrow" size={14} />
+        {/* 검색창 오른쪽 빈 자리(1024px 이상) 또는 검색창 아래(그보다 좁을 때)를 이벤트·광고 자리로 쓴다.
+            배너 문구와 기간은 home/promos.ts에서 관리한다. */}
+        <PromoSlot />
+        <Link className="service-guide-banner" to="/service-guide">
+          <span className="service-guide-banner-icon"><Icon name="file" size={22} /></span>
+          <span className="service-guide-banner-copy">
+            <strong>피코 서비스 운영 안내</strong>
+            <span>사기 피해 예방과 안전한 이용을 위한 안내</span>
           </span>
+          <span className="service-guide-banner-action">안내 보기 <Icon name="arrow" size={17} /></span>
         </Link>
       </div>
       {current && <section className="pc-applied-filters" aria-label="공연과 예매처 검색">
@@ -252,6 +269,7 @@ export function HomePage() {
           <span className="tiny-label">{search ? '나에게 맞는 조건으로' : '함께할 순간을 기다리는'}</span>
           <h2>{search ? '도우미 검색 결과' : '이번 주, 주목할 도우미'}</h2>
           <p>{search ? `${total}명의 도우미를 찾았어요` : '꼼꼼한 안내와 좋은 후기로 눈길을 끄는 도우미예요.'}</p>
+          {alias && <p className="record-note">AI가 고친 검색어 ‘{alias}’로 찾은 도우미도 함께 보여 드려요.</p>}
         </div>
       </div>
       <div className="pc-filterbar">

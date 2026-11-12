@@ -1,0 +1,68 @@
+/* 홈 이벤트·광고 자리. 모든 슬라이드를 같은 격자에 두어 전환 중 높이를 유지한다. */
+.home-promo {
+  position: relative;
+  margin-top: 12px;
+}
+.home-promo-link {
+  display: grid;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px #5478c71a;
+}
+.home-promo-slide {
+  grid-area: 1 / 1;
+  min-width: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s var(--ease-out, ease-out);
+}
+.home-promo-slide.is-active {
+  opacity: 1;
+  visibility: visible;
+}
+.home-promo-link:hover {
+  box-shadow: 0 8px 24px #5478c72b;
+}
+.home-promo-dots {
+  position: absolute;
+  right: 12px;
+  bottom: 2px;
+  display: flex;
+  gap: 2px;
+}
+/* 점은 작게 보이지만 누르는 칸은 24px로 둔다. */
+.home-promo-dots button {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.home-promo-dots button::before {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  background: #16181d33;
+}
+.home-promo-dots button.on::before {
+  background: #16181d99;
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-promo-slide {
+    transition: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .home-promo-link { height: 100%; }
+  .home .pc-search-row > .home-promo {
+    grid-area: promo;
+    margin-top: 0;
+    align-self: stretch;
+  }
+  .home-promo-dots {
+    bottom: 2px;
+  }
+}

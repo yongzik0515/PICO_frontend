@@ -60,6 +60,7 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
           <div className="agent-title">
             <h3>{a.name}</h3>
             <Badges agent={a} />
+            {!a.acceptsRequests && <span className="badge account-badge-warn">새 요청 받지 않음</span>}
           </div>
           <p>{a.intro}</p>
           <div className="agent-stats">
@@ -75,6 +76,7 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
             <span className="stat-divider"></span>
             <span>
               성공률 <strong>{successRate(a.success)}</strong>
+              {a.success !== null && <small className="muted"> (후기 {a.successReviews}건)</small>}
             </span>
           </div>
         </div>
@@ -99,9 +101,14 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
             </span>
           )}
         </div>
-        <Link className="pc-profile-link" to={`/agents/${a.id}`}>
-          프로필 보기 <Icon name="arrow" size={16} />
-        </Link>
+        <div className="pc-card-profile-actions">
+          {a.acceptsRequests && (
+            <strong className="pc-card-request-note">요청은 무료!</strong>
+          )}
+          <Link className="pc-profile-link" to={`/agents/${a.id}`}>
+            프로필 보기 <Icon name="arrow" size={16} />
+          </Link>
+        </div>
       </div>
     </article>
   );

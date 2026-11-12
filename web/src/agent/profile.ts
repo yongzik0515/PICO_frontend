@@ -183,12 +183,14 @@ export async function submitCareerCase(profileId: number, caseNumber: number, fi
 }
 
 /** 제출한 경력 사례 번호 목록 */
-/** 제출한 경력 사례(1~3)별 최신 상태. 심사 신청에는 최소 1건이 제출(SUBMITTED/APPROVED)이고 해당 최신 사례의 첨부가 전부 CLEAN이어야 한다. */
+/** 보관된 경력 사례 상태. 현재 경력 자료는 도우미 신청·승인의 필수 조건이 아니다. */
 export interface CareerCase {
   caseNumber: number;
   status: string;
   /** clean · pending · blocked · unknown(응답에 검사 상태 없음) */
   scan: 'clean' | 'pending' | 'blocked' | 'unknown';
+  /** 차단된 첨부에 관리자가 쓴 차단 사유(값이 있는 것만) */
+  blockedReasons: string[];
 }
 export function careerCaseStates(evidence: Raw[]): CareerCase[] {
   const latest = new Map<number, Raw>();
@@ -202,7 +204,8 @@ export function careerCaseStates(evidence: Raw[]): CareerCase[] {
       const files = list(pick(e, 'attachments'));
       const states = files.length ? files.map((f) => str(f.scanStatus) ?? '') : [str(pick(e, 'scanStatus')) ?? ''];
       const scan: CareerCase['scan'] = states.some((x) => x === 'BLOCKED') ? 'blocked' : states.every((x) => x === 'CLEAN') ? 'clean' : states.every((x) => !x) ? 'unknown' : 'pending';
-      return { caseNumber, status: str(e.status) ?? 'SUBMITTED', scan };
+      const blockedReasons = files.filter((f) => str(f.scanStatus) === 'BLOCKED').map((f) => str(f.blockedReason)?.trim() ?? '').filter(Boolean);
+      return { caseNumber, status: str(e.status) ?? 'SUBMITTED', scan, blockedReasons };
     })
     .filter((c) => ['SUBMITTED', 'APPROVED'].includes(c.status))
     .sort((a, b) => a.caseNumber - b.caseNumber);
@@ -218,14 +221,16 @@ export async function verifyIdentity() {
   const identityVerificationId = session.identityVerificationId;
   if (!identityVerificationId) throw new Error('본인인증을 시작하지 못했어요.');
   const PortOne = await loadPortOne();
-  const res = await PortOne.requestIdentityVerification({ storeId: session.storeId, identityVerificationId, channelKey: session.channelKey });
+  const res = await PortOne.requestIdentityVerification({ storeId: session.storeId, identityVerificationId, channelKey: session.channelKey, bypass: { inicisUnified: { flgFixedUser: 'N' } } });
   if (res?.code) throw new Error(res.message || '본인인증을 완료하지 못했어요.');
   await unwrap(api.POST('/api/me/identity/verify', { body: { identityReference: identityVerificationId } }));
 }
 
+export const ACCOUNT_STORAGE_CONSENT_VERSION = '2026-11-03.1';
+
 /** 정산 계좌: 본인인증한 이름으로 실명조회한다. */
-export async function verifyPayout(bankCode: string, accountNumber: string) {
-  return unwrap(api.PUT('/api/me/payout-account', { body: { bankCode, accountNumber } }));
+export async function verifyPayout(bankCode: string, accountNumber: string, accountStorageConsentVersion: string) {
+  return unwrap(api.PUT('/api/me/payout-account', { body: { bankCode, accountNumber, accountStorageConsentVersion } }));
 }
 
 // 금융결제원 은행 코드(3자리) 중 자주 쓰는 은행
@@ -244,13 +249,13 @@ export const banks: [string, string][] = [
   ['045', '새마을금고'],
 ];
 
-/** Public-only edits retain the existing career approval and publish immediately. */
+/** Public edits, including self-written career text, retain review history and publish immediately. */
 export async function savePublicProfile(body: ProfileBody, expectedProfileId: number, image?: File) {
   let imageStorageKey: string | undefined;
   if (image) {
     const target = await unwrap<Raw>(api.POST('/api/files/upload-url', { body: { purpose: 'PROFILE_IMAGE', originalName: image.name, mimeType: image.type, sizeBytes: image.size } }));
     imageStorageKey = await putFile(target, image);
   }
-  const { activityName, headline, bio, primaryCategory, contactHoursNote, upfrontFeeKrw, successFeeMin, successFeeMax, platformIds, categories } = body;
-  return unwrap(api.PUT('/api/me/agent/public-profile', { body: { expectedProfileId, activityName, headline, bio, primaryCategory, contactHoursNote, upfrontFeeKrw, successFeeMin, successFeeMax, platformIds, categories, imageStorageKey } }));
+  const { activityName, headline, bio, primaryCategory, contactHoursNote, careerDescription, upfrontFeeKrw, successFeeMin, successFeeMax, platformIds, categories } = body;
+  return unwrap(api.PUT('/api/me/agent/public-profile', { body: { expectedProfileId, activityName, headline, bio, primaryCategory, contactHoursNote, careerDescription, upfrontFeeKrw, successFeeMin, successFeeMax, platformIds, categories, imageStorageKey } }));
 }

@@ -18,8 +18,7 @@ const BIZ = {
   hosting: 'Amazon Web Services (AWS)', // 호스팅 서비스 제공자 (예: Amazon Web Services)
   cpo: '박진영', // 개인정보보호책임자 성명
   cpoEmail: '', // 개인정보보호책임자 연락처
-  tel: '070-8984-4636', // 고객센터 전화번호 (예: 02-0000-0000 (평일 10:00~18:00))
-  email: '', // 고객 문의 이메일
+  email: 'support@pico-kr.app', // 고객 문의 이메일
 };
 
 type BizItem = { label: string; value: string };
@@ -41,8 +40,7 @@ function bizLines(): BizItem[][] {
       { label: '호스팅제공자', value: BIZ.hosting },
     ],
     [
-      { label: '고객센터', value: BIZ.tel },
-      { label: '이메일', value: BIZ.email },
+      { label: '고객센터 이메일', value: BIZ.email },
     ],
   ];
   return lines.map((l) => l.filter((i) => i.value)).filter((l) => l.length);
@@ -62,6 +60,8 @@ function routeKey(pathname: string) {
 
 const titles: Record<string, string> = {
   home: '도우미 찾기',
+  notices: '공지·이벤트',
+  'service-guide': '피코 서비스 운영 안내',
   requests: '내 활동',
   leads: '받은 요청',
   matches: '매칭 관리',
@@ -71,6 +71,8 @@ const titles: Record<string, string> = {
   application: '도우미 신청',
 };
 
+export type DetailNavigation = { path: string; key: 'requests' | 'leads' | 'matches' };
+
 type Popover = '' | 'notifications' | 'profile';
 
 export function AppLayout() {
@@ -79,6 +81,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const route = routeKey(pathname);
+  const [detailNavigation, setDetailNavigation] = useState<DetailNavigation | null>(null);
   // 팝오버는 열었던 화면에서만 열려 있다(경로가 바뀌면 자동으로 닫힘).
   const [popover, setPopover] = useState<{ kind: Popover; path: string }>({ kind: '', path: '' });
   const opened = popover.path === pathname ? popover.kind : '';
@@ -100,7 +103,7 @@ export function AppLayout() {
   const nav: [string, string, string, IconName][] = helper
     ? [['/leads', 'leads', '받은 요청', 'inbox'], ['/matches', 'matches', '매칭 관리', 'ticket']]
     : [['/', 'home', '도우미 찾기', 'search'], ['/requests', 'requests', '내 활동', 'ticket']];
-  const active = ['my', 'favorites', 'help', 'inquiries', 'terms', 'privacy', 'guide', 'user-profile', 'helper-profile', 'account', 'history', 'application', 'credits', 'reports'].includes(route) ? 'my' : helper ? (route === 'matches' || route === 'availability' ? 'matches' : 'leads') : route === 'requests' ? 'requests' : 'home';
+  const active = (route === 'detail' && detailNavigation?.path === pathname) ? detailNavigation.key : ['my', 'favorites', 'help', 'inquiries', 'terms', 'privacy', 'guide', 'user-profile', 'helper-profile', 'account', 'history', 'application', 'credits', 'reports'].includes(route) ? 'my' : helper ? (route === 'matches' || route === 'availability' ? 'matches' : 'leads') : route === 'requests' ? 'requests' : 'home';
 
   useEffect(() => {
     document.title = `${titles[route] || '티켓팅 매칭'} · PICO`;
@@ -149,6 +152,7 @@ export function AppLayout() {
   }, [me, setState, navigate]);
 
   function switchMode(next: Mode) {
+    setOpened('');
     if (next === mode) return;
     setState((s) => ({ ...s, mode: next }));
     // 명세: PATCH /api/me는 닉네임과 기본 모드를 함께 받는다. 저장에 실패해도 화면 전환은 그대로 둔다.
@@ -180,6 +184,7 @@ export function AppLayout() {
             ))}
           </nav>
           <div className="header-right" ref={right}>
+            <Link className="support-link" to="/notices">공지·이벤트</Link>
             <button className="support-link" onClick={() => navigate('/inquiries')}>
               고객 문의
             </button>
@@ -279,10 +284,10 @@ export function AppLayout() {
         </div>
       </header>
       <main id="main" className={`page ${route}`} tabIndex={-1}>
-        <Outlet />
+        <Outlet context={{ setDetailNavigation }} />
       </main>
-      {/* 휴대폰(767px 이하) 하단 탭바. 헤더의 메뉴·이용자/도우미 전환·프로필 버튼이 숨겨지는 폭이라
-          메뉴 2개 + 마이(역할 전환·로그아웃이 있는 마이페이지)로 대신한다. 스타일은 styles.css의 .bottom-nav. */}
+      {/* 휴대폰(767px 이하) 하단 탭바. 주 메뉴 2개 + 마이페이지를 제공한다.
+          역할 전환과 프로필 메뉴는 헤더에서도 접근할 수 있다. 스타일은 styles.css의 .bottom-nav. */}
       <nav className="bottom-nav" aria-label="하단 메뉴">
         {[...nav, ['/my', 'my', '마이', 'user'] as const].map(([to, key, label, icon]) => (
           <button key={key} className={active === key ? 'active' : ''} aria-current={active === key ? 'page' : undefined} onClick={() => navigate(to)}>
@@ -305,6 +310,7 @@ export function AppLayout() {
             </span>
           </div>
           <div>
+            <Link to="/notices">공지·이벤트</Link>
             <button onClick={() => navigate('/guide')}>이용 방법</button>
             <button onClick={() => navigate('/inquiries')}>고객센터</button>
             <button onClick={() => navigate('/terms')}>이용약관</button>

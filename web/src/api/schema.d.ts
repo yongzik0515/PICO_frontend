@@ -13,12 +13,12 @@ export interface paths {
         };
         /**
          * 거래 당사자의 요청 상세
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 거래 당사자만 조회할 수 있습니다. 숨김·삭제된 후기 원문과 이미지 저장 키, 내부 정책 검토 메모·근거 URL은 응답에서 제외합니다. disputeNote는 이용자의 최근 이의 사유(양쪽 당사자에게 보임), resultConfirmDueAt은 이용자 결과 확인 기한(UTC, 확인 대기 중일 때만), paymentId·paymentStatus는 최신 합의의 최신 결제(환불 요청 API에 씀)입니다. stage는 REQUEST_WAITING·CONDITION_PREPARATION·CONDITION_CONFIRMATION·CONDITION_CHANGE_REQUESTED·PAYMENT_WAITING·READY_TO_START·IN_PROGRESS·RESULT_CONFIRMATION 또는 종료/분쟁 상태 코드입니다. 직접 거래는 MATCHING_COMPLETED와 completedAt으로 매칭 완료를 표시하고 finalResult는 null입니다. agencyBudgetDesired·agencyBudgetMax는 희망·최대 수고비입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 거래 당사자만 조회할 수 있습니다. 숨김·삭제된 후기 원문과 이미지 저장 키, 내부 정책 검토 메모·근거 URL은 응답에서 제외합니다. disputeNote는 이용자의 최근 이의 사유(양쪽 당사자에게 보임), resultConfirmDueAt은 이용자 결과 확인 기한(UTC, 확인 대기 중일 때만), paymentId·paymentStatus는 최신 합의의 최신 결제(환불 요청 API에 씀)입니다. stage는 REQUEST_WAITING·CONDITION_PREPARATION·CONDITION_CONFIRMATION·CONDITION_CHANGE_REQUESTED·OPENING_PASSED·PAYMENT_WAITING·READY_TO_START·IN_PROGRESS·RESULT_CONFIRMATION·BOOKING_UPCOMING 또는 종료/분쟁 상태 코드입니다. 직접 거래는 MATCHING_COMPLETED와 completedAt으로 매칭 완료를 표시하고 finalResult는 null입니다. 후기 작성 후에는 이용 예정일 전이라도 stage=MATCHING_COMPLETED로 완료 표시하며 후기 삭제·숨김 후에도 유지합니다. upfrontBudgetDesired는 희망 착수비, agencyBudgetDesired·agencyBudgetMax는 희망·최대 수고비(원)입니다. opensAt·useAt은 티켓 오픈·이용 예정 시각(UTC), contactsVisibleUntil은 연락처 공개가 끝나는 시각(useAt+7일)입니다. 이용자에게만 policyBlockedBy(AUTO 자동 검사·ADMIN 운영팀)와 policyBlockReason(자동 검사는 고정 항목명, 운영팀은 이용자에게 쓴 사유)을 줍니다. myContactConsentWithdrawn·counterpartyContactConsentWithdrawn은 이 거래의 연락처 제공 동의 철회 여부입니다.
          */
         get: operations["get"];
         /**
          * 수락 전 요청 내용 전체 수정
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. Create와 같은 전체 입력을 받습니다. 이용자만 만료 전 PENDING 요청을 수정할 수 있으며 대상 도우미 변경은 금지됩니다. 수정하면 정책 승인이 초기화됩니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. Create와 같은 전체 입력을 받으며 희망 수고비는 필수(0원 허용)입니다. 이용자만 만료 전 PENDING 요청을 수정할 수 있으며 대상 도우미 변경은 금지됩니다. 수정 내용은 다시 검사합니다. 내용 검사 PASS는 ALLOWED로 도우미 전달, REJECT는 BLOCKED로 저장·보류, 불확실·AI 미사용/미설정/장애는 PENDING 수동 검토입니다. data.contentReview={decision,issues,message,source}와 policyGateStatus를 확인하세요. 저장 성공이 곧 도우미 전달 성공은 아닙니다. 인증·예매처 등 기존 검증 실패는 오류입니다.
          */
         put: operations["edit"];
         post?: never;
@@ -42,7 +42,7 @@ export interface paths {
         get: operations["getPayoutAccount"];
         /**
          * 정산계좌 등록 및 인증
-         * @description 은행 코드와 계좌번호를 받아 저장된 본인인증 이름·생년월일로 실명조회합니다. 최종 검증 성공 시 마스킹값과 인증 시각만 저장합니다. 업체 미연동 시 503이며 DB를 변경하지 않습니다.
+         * @description 은행 코드와 계좌번호를 받아 저장된 본인인증 이름·생년월일로 실명조회합니다. 계좌 수집·이용 동의 버전을 확인하고 최종 검증 성공 시 전체 번호를 암호화하여 동의 이력·마스킹값·인증 시각과 함께 저장합니다. 기존 인증 계좌의 재등록 조건은 유지합니다. 업체 미연동 시 503이며 DB를 변경하지 않습니다.
          */
         put: operations["verifyPayoutAccount"];
         post?: never;
@@ -173,8 +173,8 @@ export interface paths {
         };
         get?: never;
         /**
-         * 승인 경력을 유지하며 공개 프로필 수정
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 게시된 도우미 프로필의 공개 정보만 수정하는 전체 입력 API입니다. expectedProfileId는 현재 게시 프로필 ID이며 필수입니다. activityName·headline·bio·primaryCategory·platformIds·categories 등 PublicProfile 입력을 받으며, imageStorageKey는 선택입니다. 승인된 경력·경력 증빙·사업자 정보는 재입력하거나 재심사하지 않고 유지합니다. 이전 프로필은 ARCHIVED, 새 버전은 즉시 PUBLISHED이며 저장된 경력 초안의 공개 정보도 동기화합니다. 게시 프로필이 바뀌었거나 심사 중인 프로필이 있으면 409입니다. 경력 변경은 별도의 프로필 초안·심사 API를 사용합니다.
+         * 승인 상태를 유지하며 공개 프로필 수정
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 게시된 도우미 프로필의 공개 정보만 수정하는 전체 입력 API입니다. expectedProfileId는 현재 게시 프로필 ID이며 필수입니다. activityName·headline·bio·primaryCategory·platformIds·categories 등 PublicProfile 입력을 받으며, imageStorageKey는 선택입니다. careerDescription으로 본인 작성 활동 경력(최대 3,000자)을 즉시 수정합니다. 생략/null은 유지, 빈 문자열은 삭제하며 입력한 경력은 저장된 초안에도 동기화합니다. 기존 경력 증빙·사업자 정보와 활동 시작일은 유지합니다. 경력 증빙이 없어도 수정할 수 있습니다. 이전 프로필은 ARCHIVED, 새 버전은 즉시 PUBLISHED이며 저장된 초안의 공개 정보도 동기화합니다. 게시 프로필이 바뀌었거나 심사 중인 프로필이 있으면 409입니다.
          */
         put: operations["updatePublic"];
         post?: never;
@@ -332,6 +332,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/ai/settings/helper-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 도우미 AI 자동 사전 심사 ON/OFF
+         * @description DB에 저장하며 재기동 후에도 유지됩니다. ON이고 라이너 키·AI_PERSONAL_DATA_TRANSFER_ENABLED가 있으면 도우미가 신청을 제출할 때마다 AI가 사전 심사합니다. PASS는 관리자 없이 게시하고, 그 밖의 결과는 관리자 심사 대기로 남깁니다.
+         */
+        put: operations["toggle"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/webhooks/payments": {
         parameters: {
             query?: never;
@@ -352,6 +372,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/webhooks/groble": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 그로블 결제 이벤트 수신
+         * @description 일반 사용자 인증을 요구하지 않습니다. 원본 바이트와 X-Groble-Timestamp로 HEX(HMAC-SHA256(secret, "{timestamp}.{body}"))를 계산해 X-Groble-Signature 또는 X-Groble-Signature-Previous와 대조하고(±5분), 검증 전에는 파싱·기록·상태 변경을 하지 않습니다. payment.completed는 sellerReference(그로블 주문 생성 API가 만든 주문번호)로 주문을 찾아 상품 ID·일반결제·KRW·금액이 주문과 모두 같을 때만 PAID로 확정하고 매칭권을 최초 한 번 지급합니다. payment.refunded는 환불액 ÷ 회당 가격만큼 남은 매칭권을 회수하고 결제를 PARTIALLY_REFUNDED/REFUNDED로 반영합니다. payment.cancel_requested는 기록하고 활성 관리자에게 알리며 관리자 결제 확인 목록에 CANCEL_REQUEST 항목을 남깁니다(매칭권은 묶지 않고, 승인·거절은 그로블 판매 관리에서 합니다). 같은 X-Groble-Idempotency-Key 재전송은 다시 처리하지 않습니다. 우리 주문이 아닌 이벤트(ref 없음·테스트 발송)는 기록 없이 200(IGNORED), 판정할 수 없는 건은 지급·회수 없이 FAILED로 기록하고 200입니다. 구매자 개인정보는 저장하지 않습니다.
+         */
+        post: operations["receiveWebhook_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/requests": {
         parameters: {
             query?: never;
@@ -361,13 +401,13 @@ export interface paths {
         };
         /**
          * 내 요청 목록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 로그인 회원의 요청을 최신 ID 순으로 반환합니다. role=ALL|REQUESTER|AGENT(기본 ALL), status는 선택 필터이며 page=0~100000, size=1~100입니다. data는 배열이며 카드용 stage·counterpartyName·counterpartyImageUrl·agreementStatus·agreementVersion·paymentId·paymentStatus·agreementChangePending·reviewWritten 등을 포함합니다. 직접 거래의 매칭 완료 상태는 MATCHING_COMPLETED이며 예매 성공을 뜻하지 않습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 로그인 회원의 요청을 최신 ID 순으로 반환합니다. role=ALL|REQUESTER|AGENT(기본 ALL), status는 선택 필터이며 page=0~100000, size=1~100입니다. data는 배열이며 카드용 stage·counterpartyName·counterpartyImageUrl·agreementStatus·agreementVersion·paymentId·paymentStatus·agreementChangePending·reviewWritten 등을 포함합니다. 직접 거래의 매칭 완료 상태는 MATCHING_COMPLETED이며 예매 성공을 뜻하지 않습니다. stage는 후기가 없고 이용 예정 시각(useAt: 공연 일시, 없으면 티켓 오픈 일시) 전인 매칭 완료를 BOOKING_UPCOMING(진행 중, 예매 예정)으로, 후기 작성 후에는 MATCHING_COMPLETED(완료, 삭제·숨김 후에도 유지)로, 티켓 오픈 시각(opensAt)이 지나도록 조건을 확정하지 못한 MATCHED를 OPENING_PASSED(조건 확정 불가, 취소 안내)로 줍니다. contactsVisibleUntil은 직접 거래 연락처 공개가 끝나는 시각(useAt+7일, UTC)입니다.
          */
         get: operations["list"];
         put?: never;
         /**
          * 지정 도우미에게 견적요청
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자 본인인증(VERIFIED)이 필요하며 미인증은 403입니다. applicationOpenDate/Time 및 scheduledUseDate/Time은 한국 현지 시각, expiresAt은 UTC입니다. 도우미의 본인·계좌 인증 및 게시 프로필, 지원 분야·신청처, 이용자 연락처·동의가 필요합니다. 요청은 정책 검토 대기로 생성됩니다. agencyBudgetDesired는 희망 수고비, agencyBudgetMax는 최대 수고비이며 둘 다 입력하면 희망 금액은 최대 금액 이하여야 합니다. platformId 또는 otherPlatformName 중 하나만 입력합니다. 활성 예매처는 정책 미입력도 요청 가능하며 BLOCK인 예매처는 진행할 수 없습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자 본인인증(VERIFIED)이 필요하며 미인증은 403입니다. 내용 검사 PASS는 ALLOWED로 도우미 전달, REJECT는 BLOCKED로 저장·보류, 불확실·AI 미사용/미설정/장애는 PENDING 수동 검토입니다. data.contentReview={decision,issues,message,source}와 policyGateStatus를 확인하세요. 저장 성공이 곧 도우미 전달 성공은 아닙니다. 인증·예매처 등 기존 검증 실패는 오류입니다. applicationOpenDate/Time 및 scheduledUseDate/Time은 한국 현지 시각, expiresAt은 UTC입니다. 도우미의 본인·계좌 인증 및 게시 프로필, 지원 분야·신청처, 이용자 연락처·동의가 필요합니다. 요청은 내용 검사 결과에 따라 전달 또는 수동 검토·보류됩니다. upfrontBudgetDesired는 희망 착수비, agencyBudgetDesired·agencyBudgetMax는 희망·최대 수고비(원)이며 둘 다 입력하면 희망 금액은 최대 금액 이하여야 합니다. 희망 수고비는 필수(0원 허용), 희망 착수비와 최대 수고비는 선택이며 최종 합의·결제 금액과 별개입니다. requestedQuantity는 양의 정수 매수, locationNote는 선택 공연장·위치입니다. platformId 또는 otherPlatformName 중 하나만 입력합니다. 활성 예매처는 정책 미입력도 요청 가능하며 BLOCK인 예매처는 진행할 수 없습니다.
          */
         post: operations["create"];
         delete?: never;
@@ -431,7 +471,7 @@ export interface paths {
         put?: never;
         /**
          * 후기 작성
-         * @description 안전거래 COMPLETED 또는 직접 거래 MATCHING_COMPLETED의 요청자만 작성할 수 있습니다. bookingResult는 선택이며 이용자가 기록한 후기 결과로만 저장하고 거래 확정 결과·결제·정산을 바꾸지 않습니다. requests의 후기 컬럼을 사용하며 별도 리뷰 ID를 만들지 않습니다. 거래 1건당 1개이며 삭제한 후기도 다시 작성할 수 없습니다(409). 요청자가 아니면 403, 없는 거래는 404입니다. imageKey는 purpose=REVIEW_IMAGE로 본인이 업로드한 파일만 허용하며 소유권·MIME·파일 시그니처를 검증한 뒤 서버 전용 경로에 비공개로 보관합니다. JPEG·PNG는 서버가 최대 2048px JPEG로 재인코딩(EXIF 제거)한 공개본을 만들어 imageUrl로 제공합니다. WebP·HEIC·손상 파일은 후기는 저장되지만 imageUrl=null입니다. 프런트 사진 입력은 accept="image/jpeg,image/png"로 두세요(아이폰 웹은 HEIC를 JPEG로 변환해 올립니다). 작성·삭제는 거래·결제·정산 상태를 바꾸지 않습니다.
+         * @description 안전거래 COMPLETED 또는 직접 거래 MATCHING_COMPLETED의 요청자만 작성할 수 있습니다. bookingResult는 선택이며 이용자가 기록한 후기 결과로만 저장하고 거래 확정 결과·결제·정산을 바꾸지 않습니다. requests의 후기 컬럼을 사용하며 별도 리뷰 ID를 만들지 않습니다. 직접 거래는 티켓 예매 오픈 시각(opensAt, UTC)부터 작성할 수 있고 그 전에는 REVIEW_NOT_YET_OPEN(409)입니다. opensAt이 없는 기존 거래는 시간 제한이 없습니다. 공연 이용 예정일과는 무관합니다. 거래 1건당 1개이며 삭제한 후기도 다시 작성할 수 없습니다(409). 요청자가 아니면 403, 없는 거래는 404입니다. imageKey는 purpose=REVIEW_IMAGE로 본인이 업로드한 파일만 허용하며 소유권·MIME·파일 시그니처를 검증한 뒤 서버 전용 경로에 비공개로 보관합니다. JPEG·PNG는 서버가 최대 2048px JPEG로 재인코딩(EXIF 제거)한 공개본을 만들어 imageUrl로 제공합니다. WebP·HEIC·손상 파일은 후기는 저장되지만 imageUrl=null입니다. 프런트 사진 입력은 accept="image/jpeg,image/png"로 두세요(아이폰 웹은 HEIC를 JPEG로 변환해 올립니다). 작성·삭제는 거래·결제·정산 상태를 바꾸지 않습니다.
          */
         post: operations["createReview"];
         /**
@@ -686,8 +726,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 요청 취소 및 필요 시 매칭권 복구
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. MatchingPassPort JDBC 구현으로 실제 지급·결제 완료된 유효 매칭권을 차감·복구합니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. MATCHED 취소는 이용자가 취소할 때만 매칭권을 복구하고, 도우미가 스스로 취소하면 복구하지 않습니다.
+         * 요청 취소(매칭권 복구 없음)
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 수락하면 MatchingPassPort JDBC 구현으로 지급·결제 완료된 유효 매칭권 1회를 차감하고, 취소는 매칭권을 복구하지 않습니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. 매칭권은 수락 시 사용이 확정되어 MATCHED 취소는 이용자·도우미 누구의 취소든 매칭권을 복구하지 않습니다. 공식 공연 취소·예매처·플랫폼 장애는 관리자 예외 복원 API로 처리합니다.
          */
         post: operations["cancel"];
         delete?: never;
@@ -735,7 +775,7 @@ export interface paths {
         put?: never;
         /**
          * 새 최종합의안 제안
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 첫 제안은 도우미만 작성합니다(이용자 403). MATCHED 상태이고 활성 결제가 없어야 합니다. 최신 PROPOSED를 받은 상대방은 조건 전체와 reason(공백 불가, 최대 2,000자), expectedAgreementVersion을 한 번에 보내 역제안합니다. 기존 PROPOSED는 SUPERSEDED, 새 버전은 PROPOSED로 저장되며 reason과 교체 이력을 같은 트랜잭션에 기록합니다. 보내는 순간 상대방 차례이며 자기 제안을 다시 덮어쓰면 409 AGREEMENT_REVIEW_REQUIRED입니다. expectedAgreementVersion은 작성 시작 때 본 최신 버전(최초는 0)입니다. 값이 다르면 409 AGREEMENT_CHANGED이며 직접 역제안에서 reason 또는 버전을 생략하면 400입니다. 최초·호환용 수정 요청 후 재제안에는 버전 생략을 허용하나 항상 전송을 권장합니다. 확정과 역제안이 경합하여 먼저 FINALIZED가 되면 reason을 포함한 직접 역제안은 409입니다. 확정 후 사유를 포함한 재협의는 기존 change-requests로 먼저 요청합니다. 제안자는 해당 버전에 동의한 것으로 기록되고 상대방이 확정하면 FINALIZED가 됩니다. 기존 사유 전용 change-requests로 접수된 미해결 요청은 양측 재제안으로 처리할 수 있도록 호환성을 유지합니다. safePayment=true이면 안전거래 수수료는 성공보수의 3%(원 단위 올림), 최소 1,000원입니다. 금액은 서버에서 계산해 저장하며 이 API는 결제하지 않습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 첫 제안은 도우미만 작성합니다(이용자 403). MATCHED 상태이고 활성 결제가 없어야 합니다. 최신 PROPOSED를 받은 상대방은 조건 전체와 reason(공백 불가, 최대 2,000자), expectedAgreementVersion을 한 번에 보내 역제안합니다. 기존 PROPOSED는 SUPERSEDED, 새 버전은 PROPOSED로 저장되며 reason과 교체 이력을 같은 트랜잭션에 기록합니다. 보내는 순간 상대방 차례이며 자기 제안을 다시 덮어쓰면 409 AGREEMENT_REVIEW_REQUIRED입니다. expectedAgreementVersion은 작성 시작 때 본 최신 버전(최초는 0)입니다. 값이 다르면 409 AGREEMENT_CHANGED이며 직접 역제안에서 reason 또는 버전을 생략하면 400입니다. 최초·호환용 수정 요청 후 재제안에는 버전 생략을 허용하나 항상 전송을 권장합니다. 확정과 역제안이 경합하여 먼저 FINALIZED가 되면 reason을 포함한 직접 역제안은 409입니다. 확정 후 사유를 포함한 재협의는 기존 change-requests로 먼저 요청합니다. 제안자는 해당 버전에 동의한 것으로 기록되고 상대방이 확정하면 FINALIZED가 됩니다. 기존 사유 전용 change-requests로 접수된 미해결 요청은 양측 재제안으로 처리할 수 있도록 호환성을 유지합니다. 현재 신규 거래는 직접 거래만 제공하며 웹은 항상 safePayment=false로 보냅니다(안전거래 수수료 0원). 서버는 기존 안전거래 호환을 위해 safePayment=true도 받으며, 이때 안전거래 수수료는 성공보수의 3%(원 단위 올림), 최소 1,000원입니다. 금액은 서버에서 계산해 저장하며 이 API는 결제하지 않습니다.
          */
         post: operations["propose"];
         delete?: never;
@@ -779,7 +819,7 @@ export interface paths {
         put?: never;
         /**
          * 해당 버전 최종합의에 동의
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 요청 본문 없이 해당 합의 버전을 확정합니다. 거래 당사자만 호출할 수 있고, PROPOSED는 제안한 사람이 아닌 상대방만 확정할 수 있습니다(자기 제안 확정은 403). MATCHED 상태이며 활성 결제·미해결 수정 요청이 없어야 합니다. 상대방 동의를 기록하고 FINALIZED로 전환합니다. SUPERSEDED 등 확정할 수 없는 버전은 409입니다. 최신 버전이 아닌 합의는 409 AGREEMENT_CHANGED입니다. 최신 FINALIZED인 합의는 요청이 MATCHED 또는 MATCHING_COMPLETED이면 기존 합의를 반환합니다. 안전거래는 조건 확정만으로 결제·착수하지 않으며, 활성 결제가 없으면 결제 전 재협의가 가능합니다. 직접 거래(수수료 0원)는 조건 확정 시 MATCHING_COMPLETED로 매칭이 완료됩니다. 직접 거래는 착수·결과 제출 없이 후기 작성과 연락처 조회가 가능하며 확정 후 조건 변경·요청 취소는 409입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 요청 본문 없이 해당 합의 버전을 확정합니다. 거래 당사자만 호출할 수 있고, PROPOSED는 제안한 사람이 아닌 상대방만 확정할 수 있습니다(자기 제안 확정은 403). MATCHED 상태이며 활성 결제·미해결 수정 요청이 없어야 합니다. 상대방 동의를 기록하고 FINALIZED로 전환합니다. SUPERSEDED 등 확정할 수 없는 버전은 409입니다. 최신 버전이 아닌 합의는 409 AGREEMENT_CHANGED입니다. 최신 FINALIZED인 합의는 요청이 MATCHED 또는 MATCHING_COMPLETED이면 기존 합의를 반환합니다. 안전거래는 조건 확정만으로 결제·착수하지 않으며, 활성 결제가 없으면 결제 전 재협의가 가능합니다. 직접 거래(수수료 0원)는 조건 확정 시 MATCHING_COMPLETED로 매칭이 완료됩니다. 연락처는 MATCHED부터 양측에 공개되며, 직접 거래는 확정 후 착수·결과 제출 없이 이용자가 후기를 작성할 수 있고 확정 후 조건 변경·요청 취소는 409입니다.
          */
         post: operations["acceptAgreement"];
         delete?: never;
@@ -799,7 +839,7 @@ export interface paths {
         put?: never;
         /**
          * 요청 수락 및 매칭권 차감
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. MatchingPassPort JDBC 구현으로 실제 지급·결제 완료된 유효 매칭권을 차감·복구합니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. MATCHED 취소는 이용자가 취소할 때만 매칭권을 복구하고, 도우미가 스스로 취소하면 복구하지 않습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. verifiedNameSharingAgreed=true가 필수입니다. 도우미에게 대표 연락처와 본인인증 이름 제공 안내를 표시하고, 그 화면에서 확인한 contactSharingDocumentId를 함께 전송합니다. 미전송·false는 400이며 새 동의·매칭권 차감은 발생하지 않습니다. 수락하면 MatchingPassPort JDBC 구현으로 지급·결제 완료된 유효 매칭권 1회를 차감하고, 취소는 매칭권을 복구하지 않습니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. 매칭권은 수락 시 사용이 확정되어 MATCHED 취소는 이용자·도우미 누구의 취소든 매칭권을 복구하지 않습니다. 공식 공연 취소·예매처·플랫폼 장애는 관리자 예외 복원 API로 처리합니다.
          */
         post: operations["accept"];
         delete?: never;
@@ -1083,7 +1123,7 @@ export interface paths {
         put?: never;
         /**
          * 프로필 심사 신청
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 본인인증·정산계좌 인증 및 경력 증빙 사례 최소 1건의 최신 제출에 정상 파일이 필요합니다. 보완 요청(CHANGES_REQUESTED) 프로필도 수정·증빙 재업로드·재제출할 수 있습니다. 인증 API 자체는 별도 연동 영역입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 본인인증·정산계좌 인증이 필요합니다. 경력 소개와 경력 증빙은 선택이며 자료 없이도 신청·승인할 수 있습니다. 보완 요청(CHANGES_REQUESTED) 프로필도 수정·재제출할 수 있습니다. 인증 API 자체는 별도 연동 영역입니다.
          */
         post: operations["submit_2"];
         delete?: never;
@@ -1156,6 +1196,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/matching-passes/groble-checkouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 그로블 결제창 매칭권 주문 생성
+         * @description 그로블 상품 설정(10장 5,000원)으로 pass_purchases와 PENDING 결제 주문(checkout_provider=GROBLE)을 만들고, 주문번호를 ref로 붙인 그로블 결제 링크(checkoutUrl)를 반환합니다. 구매자가 그 링크에서 결제하면 서명된 결제 완료 웹훅(POST /api/webhooks/groble)으로 PAID 확정·지급됩니다. 이 주문은 POST /purchases/{purchaseId}/payment(PG 승인)과 PG 환불 대상이 아닙니다. 환불은 그로블 결제 취소(payment.refunded 웹훅으로 반영)로 처리하며, 원결제를 취소할 수 없어 운영팀이 계좌로 송금한 환불(결제 후 3개월 경과 등)은 관리자 API(POST /api/admin/payments/{paymentId}/groble-manual-refund)로 매칭권을 회수합니다. 구매 조건은 일반 구매와 같습니다(본인인증 필요, 이용 정지·탈퇴·도우미 정지 계정은 403). 그로블 웹훅 시크릿·결제 링크가 설정되지 않으면 주문 없이 503입니다. 결제하지 않고 30분이 지나면 주문은 만료되지만, 이후 결제 완료 웹훅이 오면 같은 판정으로 되살려 지급합니다.
+         */
+        post: operations["createGrobleCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/inquiries": {
         parameters: {
             query?: never;
@@ -1171,7 +1231,7 @@ export interface paths {
         put?: never;
         /**
          * 문의 등록
-         * @description 활성 회원 본인 명의로 등록합니다. 제목 100자, 본문 3,000자까지입니다.
+         * @description 활성 회원 본인 명의로 등록합니다. 제목 100자, 본문 3,000자까지입니다. type을 생략하면 GENERAL입니다. 각 유형은 자기 대상만 받으며 다른 유형의 대상 필드를 보내면 400입니다. PASS_RESTORATION은 requestId와 restorationReason이 필요하고, 본인이 도우미가 아니거나 없는 요청이면 404, 복원을 요청할 수 없는 거래(진행 중, 이미 복원됨, 자동 만료 등)면 409입니다. 대상 목록은 GET /api/inquiries/pass-restoration-targets입니다. PASS_REFUND는 passPurchaseId가 필요하고, 본인 구매가 아니거나 없으면 404, 최신 결제가 PAID·PARTIALLY_REFUNDED가 아니면 409입니다. PRIVACY는 privacyAction이 필요합니다. 같은 요청·구매로 답변 대기 중인 같은 유형의 문의가 있으면 409이며, 답변이 끝난 뒤(예: 복원 거절에 대한 이의)에는 다시 접수할 수 있습니다. 문의 접수는 복원·환불을 처리하지 않습니다.
          */
         post: operations["create_1"];
         delete?: never;
@@ -1251,7 +1311,7 @@ export interface paths {
         put?: never;
         /**
          * 소셜 신규 가입 완료
-         * @description 검증된 제공자 ID와 닉네임·최신 약관 동의로 신규 계정 생성. adultConfirmed=true 필수이며 누락·null·false는 400입니다. 가입 후 본인인증에서 만 19세 이상을 확인합니다. 본인인증은 별도이며 기존 이메일 계정과 자동 병합하지 않습니다.
+         * @description 검증된 제공자 ID·가입 본인인증 토큰·닉네임·최신 약관 동의로 신규 계정을 생성합니다. adultConfirmed=true 필수입니다. 본인인증 결과로 만 19세 이상을 확인한 뒤 VERIFIED 계정만 생성하며, 이미 가입된 CI는 안내 문구와 함께 409로 거절합니다. 기존 계정과 자동 병합하지 않습니다.
          */
         post: operations["register"];
         delete?: never;
@@ -1291,7 +1351,7 @@ export interface paths {
         put?: never;
         /**
          * 이메일·비밀번호 회원가입
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. adultConfirmed=true 필수입니다. 누락·null·false는 400이며 회원을 생성하지 않습니다. 가입 시 확인은 연령 검증이 아니며 가입 후 본인인증에서 만 19세 이상을 확인합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. adultConfirmed=true와 identityVerificationToken이 필수입니다. 가입 전용 본인인증 세션으로 인증을 마친 뒤 가입하며, 서버가 PortOne 결과·만 19세 이상·CI 중복을 확인한 후 VERIFIED 회원을 생성합니다. 인증 토큰은 이메일에 결속된 10분 유효 일회용이며 누락·만료·재사용은 400, 이미 가입된 CI는 안내 문구와 함께 409입니다.
          */
         post: operations["register_1"];
         delete?: never;
@@ -1460,6 +1520,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/request-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 요청 내용 사전 검사
+         * @description 개인정보·매칭 전 외부 연락 유도·욕설/비하/협박 검사. 좌석·성공 조건·수고비 협의와 결제 방식 언급 자체는 허용합니다. AI 미사용 시 단순 규칙으로 검출하고 나머지는 MANUAL_REVIEW. 원문·검출된 개인정보는 응답하지 않습니다.
+         */
+        post: operations["request_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/performances/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 검색어를 실제 KOPIS 공연 후보에 매핑
+         * @description 로그인 필요. 조회 기간 기본 오늘부터 30일, 최대 30일. 최대 100개 조회 후보 중 실제 ID만 반환합니다. 라이너·KOPIS 미설정 또는 장애는 503.
+         */
+        post: operations["search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agreements/{agreementId}/safe-payment": {
         parameters: {
             query?: never;
@@ -1491,7 +1591,7 @@ export interface paths {
         put?: never;
         /**
          * 관리자 후기 숨김
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 본문 없이 호출합니다. 후기 상태를 HIDDEN으로 변경하고 공개 사진과 공개 기록도 제거합니다. 공개 후기 목록·상세 및 평점 집계에서 제외됩니다. 후기 원문·거래·결제는 삭제하지 않습니다. 반복 호출은 성공하며 작성자 삭제 후기는 404입니다. 사진 저장소 장애는 503으로 실패하고 DB 변경은 롤백합니다. 기존 CDN 캐시는 최대 5분 잔존할 수 있으며 내려받은 사본은 회수할 수 없습니다. 재공개 API는 제공하지 않습니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 본문은 선택이며 reason(500자 이하)을 주면 작성자에게 보내는 숨김 알림에 사유로 함께 안내합니다. 후기 상태를 HIDDEN으로 변경하고 공개 사진과 공개 기록도 제거합니다. 공개 후기 목록·상세 및 평점 집계에서 제외됩니다. 후기 원문·거래·결제는 삭제하지 않습니다. 반복 호출은 성공하며 작성자 삭제 후기는 404입니다. 사진 저장소 장애는 503으로 실패하고 DB 변경은 롤백합니다. 기존 CDN 캐시는 최대 5분 잔존할 수 있으며 내려받은 사본은 회수할 수 없습니다. 재공개 API는 제공하지 않습니다. ADMIN 권한이 필요합니다.
          */
         post: operations["hide"];
         delete?: never;
@@ -1531,7 +1631,7 @@ export interface paths {
         put?: never;
         /**
          * 요청 진행 가능 여부 검토 결과 기록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 미만료 PENDING 상태 요청의 BLOCKED 게이트도 allowed:true로 내용 수정 없이 승인할 수 있습니다. AI를 다시 호출하지 않습니다. 도우미가 REJECTED로 종료한 요청을 다시 여는 기능은 아닙니다. ADMIN 권한이 필요합니다.
          */
         post: operations["policy"];
         delete?: never;
@@ -1578,6 +1678,26 @@ export interface paths {
          * @description 운영팀이 결과 분쟁(RESULT: DISPUTED 요청) 또는 부분성공 정산(SETTLEMENT)의 조정안을 제시합니다. 응답 대기 중인 조정안이 있으면 409(MEDIATION_IN_PROGRESS), 이미 2회 제시했거나 합의가 안 됐으면 409(MEDIATION_FAILED), 이미 확정됐으면 409입니다. 관리자 본인이 당사자인 거래는 403입니다. 양측에 알림이 가고 응답 기한은 3일입니다.
          */
         post: operations["propose_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/{requestId}/matching-pass-restoration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 도우미 매칭권 예외 복원
+         * @description 매칭권은 수락 시 사용이 확정되며 요청 취소로 자동 복원하지 않습니다. 운영팀이 공식 공연·예매 취소(EVENT_CANCELLED), 예매처 장애(BOOKING_SITE_FAILURE), 플랫폼 장애(PLATFORM_FAILURE)를 확인한 경우에만 해당 요청의 매칭권 1회를 복원합니다. 질병·사고 등 당사자 개인 사유는 복원 사유가 아닙니다. 대상은 당사자(이용자 또는 도우미)가 취소한 CANCELLED 요청 또는 직접 거래 MATCHING_COMPLETED 요청이며 활성 안전거래 결제가 없어야 합니다. 활성 관리자만 가능하고 해당 요청의 당사자인 관리자는 403입니다. evidenceVerified=true와 decisionNote(1~500자)가 필요합니다(아니면 400). 중복 승인은 최초 기록을 반환하며, 이전 정책의 자동 복원분·V30 이전 복원 이력·그 밖의 상태는 409입니다. 사용 이력이 없으면 404입니다. 요청·결제 상태와 현금을 바꾸지 않습니다.
+         */
+        post: operations["restore"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1688,6 +1808,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/payments/{paymentId}/groble-manual-refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 그로블 매칭권 운영팀 송금 환불 기록
+         * @description 환불은 기간·정산 여부와 관계없이 그로블 결제 취소가 원칙입니다(구매 후 7일이 지나도 운영팀이 판매 관리에서 취소하거나 그로블 운영팀에 요청). 이 API는 원결제를 취소할 수 없어(개정 환불 규정 기준 결제 후 3개월 경과 등) 운영팀이 구매자 계좌로 송금한 경우에만 호출합니다. 송금 자체는 하지 않습니다. 그로블 결제 취소로 처리한 환불은 payment.refunded 웹훅이 반영하므로 이 API로 다시 기록하지 않습니다. 대상은 checkout_provider=GROBLE 매칭권 결제 중 PAID·PARTIALLY_REFUNDED이며, 그 밖의 결제·상태는 409, 없는 결제는 404입니다. units는 현재 회수 가능한 남은 수량(유효한 원구매 잔량 먼저, 이후 유효한 복원분. 그로블 취소 웹훅과 같은 순서) 이하여야 하며 초과하면 409입니다. 환불액은 요청으로 받지 않고 서버가 units × (구매 금액 ÷ 구매 수량)원으로 계산하며, 누적 환불이 결제액을 넘으면 409입니다. 회수와 함께 money_actions REFUND SUCCEEDED를 남기고, 결제는 누적 환불이 결제액이면 REFUNDED, 아니면 PARTIALLY_REFUNDED가 됩니다. 상태가 바뀌면 처리한 관리자와 사유 GROBLE_MANUAL_REFUND로 결제 이력을 남기고, 구매자에게 환불 완료 알림을 보냅니다. 구매자의 환불 내역에는 고정 사유만 보이며 decisionNote(1~500자)는 내부 기록으로 관리자 응답에만 포함됩니다. 같은 paymentId·transferReference(1~100자) 재요청은 다시 회수하지 않고 기존 기록을 200으로 반환하며, units가 다르면 409입니다. 활성 관리자만 가능하고 구매자 본인인 관리자는 403입니다.
+         */
+        post: operations["recordManualRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/payments/review/resolutions": {
         parameters: {
             query?: never;
@@ -1719,7 +1859,7 @@ export interface paths {
         put?: never;
         /**
          * 관리자 문의 답변
-         * @description OPEN 문의에 답변을 1회 등록합니다. 이미 답변한 문의는 409이며 덮어쓰지 않습니다. 문의자에게 답변 도착 알림을 보냅니다.
+         * @description OPEN 문의에 답변을 1회 등록합니다. 이미 답변한 문의는 409이며 덮어쓰지 않습니다. 문의자에게 답변 도착 알림을 보냅니다. 매칭권 복원은 POST /api/admin/requests/{requestId}/matching-pass-restoration으로 따로 처리합니다.
          */
         post: operations["reply"];
         delete?: never;
@@ -1802,6 +1942,46 @@ export interface paths {
          * @description PENDING 신청을 CHANGES_REQUESTED로 변경합니다. note와 changeFields가 필수입니다. 신청자는 같은 버전의 프로필·증빙을 보완하고 재제출할 수 있습니다.
          */
         post: operations["requestProfileChanges"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/agent-profiles/{profileId}/ai/pre-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 도우미 AI 사전 심사 실행
+         * @description ON일 때 프로필·경력 검토 결과를 제공합니다. OFF는 DISABLED 수동 검토 결과. 이 API는 결과만 돌려주며 상태를 바꾸지 않습니다(제출 시 자동 심사는 별도).
+         */
+        post: operations["helper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/agent-profiles/{profileId}/ai/career-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 경력 설명·증빙 사진 AI 비교
+         * @description 관리자 전용. 최신 CLEAN JPEG/PNG 증빙 최대 3개. 판독 불가·PDF·동영상·자료 초과는 수동 검토. 외부 제공 설정이 필요합니다.
+         */
+        post: operations["career"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1953,7 +2133,7 @@ export interface paths {
         };
         /**
          * 동의한 거래 상대방 연락처 공개
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 활성 연락처 중 isPrimary=true인 선택 연락처만 공개합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 활성 연락처 중 isPrimary=true인 선택 연락처만 공개합니다. 요청 수락은 verifiedNameSharingAgreed=true가 필수이며 구 클라이언트의 미전송·false는 400입니다. verifiedName은 이용자에게만 제공하는 도우미 본인인증 이름입니다. 도우미가 실명 제공을 포함한 CONTACT_SHARING 2026-11-03.2 또는 2026-11-03.3에 해당 거래별로 동의한 경우에만 반환하며 기존 동의·미인증·도우미 조회에서는 null입니다. 양측 동의, 거래 참여 권한, 공개 기간과 철회 조건은 연락처와 동일합니다. 공개 프로필·일반 요청 상세에는 이름을 추가하지 않습니다. Cache-Control: no-store.
          */
         get: operations["contacts_1"];
         put?: never;
@@ -1973,7 +2153,7 @@ export interface paths {
         };
         /**
          * 내 활동 탭별 전체 개수
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. role=ALL|REQUESTER|AGENT(기본 ALL)로 활동 건수를 조회합니다. data={totalCount,waitingCount,inProgressCount,completedCount,closedCount}입니다. waitingCount는 PENDING, inProgressCount는 MATCHED·IN_PROGRESS·DISPUTED, completedCount는 COMPLETED·MATCHING_COMPLETED, closedCount는 CANCELLED·REJECTED·EXPIRED입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. role=ALL|REQUESTER|AGENT(기본 ALL)로 활동 건수를 조회합니다. data={totalCount,waitingCount,inProgressCount,completedCount,closedCount}입니다. waitingCount는 PENDING, inProgressCount는 MATCHED·IN_PROGRESS·DISPUTED와 후기가 없고 이용 예정 시각(useAt) 전인 MATCHING_COMPLETED, completedCount는 COMPLETED와 후기를 작성했거나(삭제·숨김 포함) 이용 예정 시각이 지난 MATCHING_COMPLETED, closedCount는 CANCELLED·REJECTED·EXPIRED입니다.
          */
         get: operations["counts"];
         put?: never;
@@ -2393,7 +2573,7 @@ export interface paths {
         };
         /**
          * 내 매칭권 잔여 개수 조회
-         * @description 검증된 도우미의 지급·유효기간·미복구 사용·진행 중이거나 완료된 환불 회수 예약을 구매별로 집계합니다. 만료 시각은 UTC이며 정확한 만료 시각부터 사용할 수 없습니다. 데이터 불일치는 409이고 조회는 상태를 변경하지 않습니다. 개발용 Basic만으로는 401입니다.
+         * @description 검증된 회원의 유료·무료 지급권 유효기간·미복구 사용·진행 중이거나 완료된 환불 회수 예약을 구매별로 집계합니다. 만료 시각은 UTC이며 정확한 만료 시각부터 사용할 수 없습니다. 데이터 불일치는 409이고 조회는 상태를 변경하지 않습니다. 개발용 Basic만으로는 401입니다.
          */
         get: operations["getBalance"];
         put?: never;
@@ -2475,7 +2655,7 @@ export interface paths {
          * 게시된 도우미 검색·필터
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. data={items,totalCount,page,size}. q는 게시된 활동명·소개(공연명 포함)·경력·지원 예매처명을 검색합니다. name은 기존 활동명 전용 필터입니다. platformIds는 OR, availableDates는 한국 날짜 기준 하루 중 가능한 시간이 겹치는 날짜 중 하나(OR)입니다. 필터 종류 사이는 AND입니다. 기본 RECOMMENDED 정렬은 요청 가능 여부→평점→완료 거래 수 순서입니다. identityVerified와 payoutAccountVerified는 실제 인증 상태의 boolean입니다. 공연 일정 카탈로그 검색은 아닙니다. 가능 구간의 날짜·시각은 UTC이며 ISO LocalDateTime 형식으로 전달합니다.
          */
-        get: operations["search"];
+        get: operations["search_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2693,7 +2873,7 @@ export interface paths {
         };
         /**
          * 정책 검토 대기 요청 목록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 미만료 PENDING 및 BLOCKED 요청을 포함합니다. policyGateNote는 관리자 전용 내부 검토 안내입니다. 관리자가 거래 당사자이면 제외합니다. ADMIN 권한이 필요합니다.
          */
         get: operations["pending"];
         put?: never;
@@ -2784,6 +2964,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/payments/groble-manual-refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 그로블 매칭권 운영팀 송금 환불 처리 이력
+         * @description 운영팀 송금 환불 기록을 최근 처리 순(decidedAt 내림차순)으로 반환합니다. 항목마다 결제(paymentId), 회수 장수(revokedUnits), 환불액(amountKrw), 현재 결제 상태, 송금 식별자, 처리 사유(decisionNote, 내부 메모), 처리한 관리자(decidedByUserId), 처리 시각(UTC)을 포함합니다. 그로블 결제 취소 웹훅으로 반영된 환불은 이 목록이 아니라 결제의 환불 내역에 있습니다. page는 0부터, size는 1~100(기본 20)이며 범위를 벗어나면 400입니다. 활성 관리자만 조회할 수 있습니다(아니면 403).
+         */
+        get: operations["manualRefundHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/partial-settlements/unproposed": {
         parameters: {
             query?: never;
@@ -2833,7 +3033,7 @@ export interface paths {
         };
         /**
          * 관리자 문의 목록
-         * @description 관리자 전용. status는 OPEN 또는 ANSWERED이며 생략하면 전체입니다. 최신순 페이지 조회입니다.
+         * @description 관리자 전용. status는 OPEN 또는 ANSWERED, type은 문의 유형이며 생략하면 전체입니다. 최신순 페이지 조회입니다. 항목마다 작성 회원(userId)과 대상 요청의 현재 상태·매칭권 복원 시각, 대상 구매의 최신 결제(주문번호·결제창·상태)를 함께 반환합니다.
          */
         get: operations["admin"];
         put?: never;
@@ -2896,6 +3096,23 @@ export interface paths {
          * @description 제출 후 24시간이 지나도록 SUBMITTED인 시도 증빙을 제출 시각 오름차순으로 반환합니다. BLOCKED가 아닌 첨부(PENDING 포함)에 5분 유효 URL·expiresAt·urlType을 포함합니다. 차단·유실·저장소 장애 시 세 값은 null이며 Cache-Control: no-store입니다.
          */
         get: operations["getOverdueEvidences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/ai/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 관리자 AI 설정 조회 */
+        get: operations["settings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2984,62 +3201,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/requests/{requestId}/matching-pass-restoration": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["restore"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/matching-passes/groble-checkouts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 그로블 결제창 매칭권 주문 생성
-         * @description 그로블 상품 설정(10장 5,000원)으로 pass_purchases와 PENDING 결제 주문(checkout_provider=GROBLE)을 만들고, 주문번호를 ref로 붙인 그로블 결제 링크(checkoutUrl)를 반환합니다. 구매자가 그 링크에서 결제하면 서명된 결제 완료 웹훅(POST /api/webhooks/groble)으로 PAID 확정·지급됩니다. 이 주문은 POST /purchases/{purchaseId}/payment(PG 승인)과 PG 환불 대상이 아니며, 환불은 그로블 결제 취소로만 처리됩니다. 구매 조건은 일반 구매와 같습니다(본인인증 필요, 이용 정지·탈퇴·도우미 정지 계정은 403). 그로블 웹훅 시크릿·결제 링크가 설정되지 않으면 주문 없이 503입니다. 결제하지 않고 30분이 지나면 주문은 만료되지만, 이후 결제 완료 웹훅이 오면 같은 판정으로 되살려 지급합니다.
-         */
-        post: operations["createGrobleCheckout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/webhooks/groble": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * 그로블 결제 이벤트 수신
-         * @description 일반 사용자 인증을 요구하지 않습니다. 원본 바이트와 X-Groble-Timestamp로 HEX(HMAC-SHA256(secret, "{timestamp}.{body}"))를 계산해 X-Groble-Signature 또는 X-Groble-Signature-Previous와 대조하고(±5분), 검증 전에는 파싱·기록·상태 변경을 하지 않습니다. payment.completed는 sellerReference(그로블 주문 생성 API가 만든 주문번호)로 주문을 찾아 상품 ID·일반결제·KRW·금액이 주문과 모두 같을 때만 PAID로 확정하고 매칭권을 최초 한 번 지급합니다. payment.refunded는 환불액 ÷ 회당 가격만큼 남은 매칭권을 회수하고 결제를 PARTIALLY_REFUNDED/REFUNDED로 반영합니다. payment.cancel_requested는 기록만 합니다. 같은 X-Groble-Idempotency-Key 재전송은 다시 처리하지 않습니다. 우리 주문이 아닌 이벤트(ref 없음·테스트 발송)는 기록 없이 200(IGNORED), 판정할 수 없는 건은 지급·회수 없이 FAILED로 기록하고 200입니다. 구매자 개인정보는 저장하지 않습니다.
-         */
-        post: operations["receiveWebhook_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/search/events": {
         parameters: {
             query?: never;
@@ -3072,6 +3233,426 @@ export interface paths {
          * @description 공개 조회. 전날 KST 검색을 집계하며 동일 브라우저의 동일 대상은 하루 1회만 계산합니다. 3개 이상 브라우저에서 검색된 실제 공연·공개 도우미·예매처만 노출합니다. 데이터 부족·기능 OFF는 items=[]입니다. 최초 정상 집계 후 하루 한 번 갱신합니다.
          */
         get: operations["popular"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/search-keyword": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 도우미 검색어 AI 교정
+         * @description 로그인 필요. Enter·검색 버튼으로 확정한 검색에만 호출합니다(입력 중 호출 금지). 오타·줄임말을 고친 검색어를 돌려주며, 고칠 것이 없으면 입력과 같습니다. 화면은 원래 검색어와 함께 GET /api/agents의 alias로 넘깁니다. 회원당 분당 20회(429), 라이너 미설정·오류 503.
+         */
+        post: operations["keyword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/ai/profile-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 도우미 신청 AI 자동 심사 기록
+         * @description 관리자 전용. 최근 심사순. 버전마다 최신 결과 1건이며 자동 게시(autoPublished) 여부와 지금 상태를 함께 보여 줍니다.
+         */
+        get: operations["profileReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inquiries/pass-restoration-targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 매칭권 복원 요청 가능 거래
+         * @description 본인이 도우미인 요청 중 매칭권을 사용했고 아직 복원되지 않았으며, 당사자가 취소했거나 직접 거래 매칭이 완료됐고 진행 중인 안전거래 결제가 없는 거래를 매칭권 사용 최신순으로 최대 100건 반환합니다. 관리자 복원 API가 받는 조건과 같습니다. inquiryOpen=true인 거래는 이미 답변 대기 중인 복원 요청이 있습니다.
+         */
+        get: operations["restorationTargets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/requests/{requestId}/contact-consent/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 거래별 연락처 제공 동의 철회
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 당사자 본인의 이 거래 연락처 제공 동의를 철회합니다. 철회하면 이 거래에서 양쪽 연락처와 도우미 본인인증 이름 공개가 바로 멈추고(GET contacts 403 CONTACTS_CLOSED), 상대방에게 받은 연락처를 거래 목적 밖에서 쓰지 말고 지워 달라는 알림을 보냅니다. 다시 동의하는 기능은 없습니다. 수락 전 요청은 409(CONSENT_NOT_WITHDRAWABLE)이며 요청 취소를 안내합니다. 반복 호출은 현재 요청 상세를 반환합니다.
+         */
+        post: operations["withdrawContactConsent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/{reportId}/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 신고 소명 작성
+         * @description 신고 대상 본인이 운영팀이 조사 중(INVESTIGATING)인 신고에 소명을 남깁니다(2000자 이하, 신고당 최대 10건). 조사 전·다른 회원의 신고는 404, 처리가 끝난 신고는 409(REPORT_STATEMENT_CLOSED), 10건을 넘으면 409입니다. 자료 파일은 신고 번호와 함께 support@pico-kr.app로 보냅니다.
+         */
+        post: operations["addStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reports/received": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 나를 대상으로 한 신고 목록
+         * @description 운영팀이 조사를 시작했거나 나에게 조치를 실행한 신고만 created_at DESC로 반환합니다. 신고자와 신고 내용 원문, 운영 내부 조치 사유는 포함하지 않습니다. 처리가 끝나면 처리 결과(resolutionNote, 신고자와 신고 대상 모두에게 공개)와 실행된 조치를 포함하고, 조사 중이면 statementOpen=true로 소명을 남길 수 있습니다.
+         */
+        get: operations["getReceivedReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/reports/{reportId}/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 신고 대상 소명 조회
+         * @description 신고 대상 회원이 남긴 소명을 오래된 순으로 반환합니다. 관리자가 그 신고의 신고자·피신고자면 403입니다.
+         */
+        get: operations["statements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/reports/{reportId}/deal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 신고 관련 거래의 조건과 진행 이력
+         * @description 신고에 연결된 거래의 요청 내용, 모든 조건 제안 버전(착수비·수고비·실패·환불 처리 포함), 조건 수정 요청, 상태 이력을 반환합니다. 연락처와 결제 비밀값은 포함하지 않습니다. 연결된 거래가 없으면 404, 관리자가 신고나 거래의 당사자면 403입니다.
+         */
+        get: operations["deal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/pass-purchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 매칭권 구매 건 조회
+         * @description 환불 문의·그로블 취소 요청을 처리할 때 사용합니다. q는 회원 번호·구매 번호(숫자), 로그인 이메일(@ 포함), 주문번호 또는 닉네임 일부이며 없으면 최근 구매순입니다. 항목마다 구매 회원, 주문번호, 결제 상태, 사용·회수·남은 장수, 장당 가격, 환불된 금액, 지금 환불할 수 있는 금액, 그로블 취소 요청 시각을 포함합니다. 환불 자체는 하지 않습니다(그로블 판매 관리에서 결제 취소, 취소할 수 없으면 운영팀 송금 환불 기록 API). page는 0부터, size는 1~100(기본 20). 활성 관리자만 조회할 수 있습니다(아니면 403).
+         */
+        get: operations["search_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/social/identity-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 소셜 가입 본인인증 시작
+         * @description 소셜 인증을 완료한 신규 가입 흐름에 결속된 일회용 본인인증 세션. 동일 출처의 세션 쿠키와 flowSecret이 필요합니다.
+         */
+        post: operations["identitySession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/registration/identity-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 이메일 가입 본인인증 시작
+         * @description 정규화한 이메일에 결속된 가입 전용 본인인증 세션. 토큰 유효기간은 10분이며 PortOne 인증 완료 후 register에 제출합니다. 아직 회원은 생성하지 않습니다.
+         */
+        post: operations["identitySession_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/recovery/identity/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 계정 찾기 본인인증 시작
+         * @description FIND_ID 또는 RESET_PASSWORD 목적의 로그인 전 인증 세션을 발급합니다. recoveryToken은 15분 유효하며 인증기관에 전달하지 않습니다.
+         */
+        post: operations["recoverySession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/recovery/identity/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 본인인증으로 아이디 찾기 또는 재설정 메일 요청
+         * @description 서버가 인증기관 결과와 CI를 확인합니다. FIND_ID는 가입 이메일을 반환하고 RESET_PASSWORD는 등록된 이메일로 15분 유효한 일회용 링크를 보냅니다. providers는 가입 방식이며 소셜 전용·미가입 계정에는 메일을 보내지 않습니다. 복구 세션은 한 번만 사용할 수 있고 메일은 1분 간격·하루 10회 제한입니다.
+         */
+        post: operations["recoveryConfirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/matching-passes/promotions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 내 이벤트 매칭권 조회
+         * @description 서버 시각과 전체 유료 구매 이력으로 첫 구매 혜택 가능 여부를 판단하고 본인 무료 지급 내역을 반환합니다. 승인 혜택과 첫 구매 혜택은 각각 같은 계정에 1회입니다. 무료권은 330일 유효하며 현금 환불되지 않습니다. 원구매 환불 진행 중에는 보너스를 사용할 수 없고 환불 성공 시 남은 보너스를 회수합니다.
+         */
+        get: operations["promotions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{userId}/matching-pass-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 무료 매칭권 지급
+         * @description 활성 관리자만 활성·본인/계좌 인증·승인된 도우미에게 1~1000장을 추가 지급합니다. 무료권은 지급일부터 330일 유효하고 현금 환불되지 않습니다. 유료 구매·결제 이력은 변경하지 않습니다. requestReference는 지급 건별 UUID이며 동일 관리자·대상·수량·사유의 재요청은 기존 지급을 반환합니다. 동일 식별자의 다른 내용은 409, 지급 자격 미충족도 409입니다. 내부 지급 사유는 관리자만 조회합니다.
+         */
+        post: operations["grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/matching-pass-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관리자 매칭권 지급 이력
+         * @description 활성 관리자만 조회합니다. userId 생략 시 전체 최신순이며 page는 0부터, size는 1~100입니다.
+         */
+        get: operations["history_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/reports/{reportId}/identity-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 신고 대상 실명·계좌 열람
+         * @description 현재 보관된 실명과 전체 계좌번호를 별도 열람합니다. 관리자 권한과 사유가 필요하며 신고·거래 당사자인 관리자는 접근할 수 없습니다. 열람 이력 저장이 실패하면 정보를 반환하지 않습니다. 미보관 항목은 null이며 거래 당시 송금 계좌를 의미하지 않습니다.
+         */
+        post: operations["identity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/completed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 처리된 요청서 목록
+         * @description 활성 관리자 전용. COMPLETED, MATCHING_COMPLETED, CANCELLED, REJECTED, EXPIRED를 처리 시각·번호 내림차순으로 조회합니다. status는 이 중 하나이며 생략하면 전체입니다. q는 요청·회원 번호 정확 일치 또는 요청명·닉네임 부분 일치(최대 100자). page=0~10000, size=1~100. 본인이 당사자인 요청은 제외하며 상태를 변경하지 않습니다.
+         */
+        get: operations["completed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/completed/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 처리된 요청서 상세
+         * @description 활성 관리자 전용. request(요청 내용·최종 결과), agreements(모든 조건 버전), changeRequests(조건 수정 요청), history(상태 이력)를 반환합니다. 본인이 당사자이면 403, 없는 요청이나 처리 전 요청은 404입니다. 연락처·실명·계좌·결제 비밀값을 포함하지 않으며 상태를 변경하지 않습니다.
+         */
+        get: operations["detail_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 전체 요청서 목록
+         * @description 활성 관리자 전용. 수락 전·진행 중·종료된 모든 요청을 생성 시각·번호 내림차순으로 조회합니다. status는 PENDING, MATCHED, MATCHING_COMPLETED, IN_PROGRESS, DISPUTED, COMPLETED, CANCELLED, REJECTED, EXPIRED 중 선택합니다. policyStatus는 PENDING(심사 대기), ALLOWED(심사 통과), BLOCKED(보류·차단)이며 요청 진행 상태와 독립입니다. status=PENDING&policyStatus=ALLOWED로 심사 통과 후 도우미 수락 전 요청을 조회합니다. 기한 만료 작업 전에는 응답 기한이 지난 PENDING도 포함하므로 expiresAt을 함께 확인합니다. q는 요청·회원 번호 또는 요청명·닉네임 검색(최대 100자). page=0~10000, size=1~100. 본인이 당사자인 요청은 제외하며 읽기 전용입니다.
+         */
+        get: operations["all"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 전체 요청서 상세
+         * @description 활성 관리자 전용. 수락 전·진행 중·종료 여부와 관계없이 request(요청 내용·심사 상태·심사 시각·결과), agreements(모든 조건 버전), changeRequests, history를 반환합니다. 본인이 당사자인 요청은 403, 없는 요청은 404입니다. 연락처·실명·계좌·결제 비밀값은 포함하지 않고 읽기 전용입니다.
+         */
+        get: operations["requestDetail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3123,8 +3704,16 @@ export interface components {
             expiresAt: string;
             /** Format: int64 */
             contactSharingDocumentId: number;
-            /** Format: int64 */
-            agencyBudgetDesired?: number;
+            /**
+             * Format: int64
+             * @description 희망 수고비(원). 최대 수고비 이하여야 합니다.
+             */
+            agencyBudgetDesired: number;
+            /**
+             * Format: int64
+             * @description 희망 착수비(원). 선택 입력이며 최종 합의 금액·결제 금액과는 별개입니다.
+             */
+            upfrontBudgetDesired?: number;
         };
         /**
          * @description agent_profile_versions.primary_category의 DDL CHECK 허용값
@@ -3146,8 +3735,10 @@ export interface components {
              * @example 088
              */
             bankCode: string;
-            /** @description 확인할 계좌번호. 조회에만 사용하고 저장하지 않음 */
+            /** @description 확인할 계좌번호. 동의 후 검증에 성공한 번호를 암호화하여 보관 */
             accountNumber: string;
+            /** @description 계좌 수집·이용 안내를 확인하고 동의한 버전. 현재 2026-11-03.1 */
+            accountStorageConsentVersion: string;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponse: {
@@ -3229,6 +3820,8 @@ export interface components {
             platformIds: number[];
             categories: components["schemas"]["ServiceCategory"][];
             imageStorageKey?: string;
+            /** @description 본인 작성 활동 경력. 생략 또는 null은 기존 값 유지, 빈 문자열은 삭제 */
+            careerDescription?: string;
         };
         Business: {
             registrationNumber?: string;
@@ -3279,6 +3872,20 @@ export interface components {
          * @enum {string}
          */
         PolicyAssessment: "UNKNOWN" | "ALLOW" | "CONDITIONAL" | "BLOCK";
+        AiHelperReviewToggle: {
+            enabled: boolean;
+        };
+        AiReviewSettings: {
+            helperReviewEnabled?: boolean;
+            linerConfigured?: boolean;
+            personalDataTransferEnabled?: boolean;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAiReviewSettings: {
+            success?: boolean;
+            data?: components["schemas"]["AiReviewSettings"];
+            message?: string;
+        };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponsePaymentWebhookResponse: {
             success?: boolean;
@@ -4029,6 +4636,7 @@ export interface components {
         Accept: {
             /** Format: int64 */
             contactSharingDocumentId: number;
+            verifiedNameSharingAgreed: boolean;
         };
         /** @description 신고자 식별은 인증 주체에서 가져옴 */
         ReportCreateRequest: {
@@ -4475,10 +5083,90 @@ export interface components {
             createdAt: string;
             /** @description payments.pass_purchase_id로 연결된 최신 결제 시도(created_at DESC, id DESC); 결제 시도가 없으면 null */
             payment?: components["schemas"]["PaymentResponse"] | null;
+            /**
+             * Format: int64
+             * @description 구매 당시 총액/수량으로 계산한 장당 가격(원). 정수 단가가 아니면 null
+             */
+            unitPriceKrw?: number | null;
+            /**
+             * Format: int64
+             * @description 이 구매의 SUCCEEDED 환불 기록으로 회수된 매칭권 수. 진행 중·실패 환불 제외
+             */
+            refundedUnits: number;
+            /**
+             * Format: int64
+             * @description 이 구매의 SUCCEEDED 환불 기록 금액 합계(원). 진행 중·실패 환불 제외
+             */
+            refundedAmountKrw: number;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseGrobleCheckoutResponse: {
+            success?: boolean;
+            data?: components["schemas"]["GrobleCheckoutResponse"];
+            message?: string;
+        };
+        /** @description 그로블 결제창 매칭권 주문. checkoutUrl로 이동해 결제하면 서명된 결제 완료 웹훅으로 지급된다 */
+        GrobleCheckoutResponse: {
+            /**
+             * Format: int64
+             * @description pass_purchases.id
+             * @example 101
+             */
+            purchaseId: number;
+            /**
+             * Format: int32
+             * @description pass_purchases.purchased_units. 그로블 상품 수량
+             * @example 10
+             */
+            purchasedUnits: number;
+            /**
+             * Format: int64
+             * @description pass_purchases.price_krw. 그로블 상품 금액(원)
+             * @example 5000
+             */
+            priceKrw: number;
+            /**
+             * Format: int32
+             * @description pass_purchases.valid_days. 지급일부터 사용 가능한 일수
+             * @example 330
+             */
+            validDays: number;
+            /**
+             * @description 그로블 결제 링크. ref에 이 주문의 주문번호가 붙어 있으며 바꾸면 지급되지 않는다
+             * @example https://www.groble.im/payment/k6pnFx?ref=pass-0f1e2d3c4b5a69788796a5b4c3d2e1f0
+             */
+            checkoutUrl: string;
+            /** @description 생성된 PENDING 결제 주문 */
+            payment: components["schemas"]["PaymentResponse"];
         };
         InquiryCreate: {
+            /**
+             * @description 생략하면 GENERAL
+             * @enum {string}
+             */
+            type?: "GENERAL" | "PASS_RESTORATION" | "PASS_REFUND" | "PRIVACY";
             subject: string;
             message: string;
+            /**
+             * Format: int64
+             * @description PASS_RESTORATION에서만. 본인이 도우미인 요청
+             */
+            requestId?: number;
+            /**
+             * Format: int64
+             * @description PASS_REFUND에서만. 본인 매칭권 구매
+             */
+            passPurchaseId?: number;
+            /**
+             * @description PASS_RESTORATION에서만. 질병·사고 등 개인 사유는 선택지가 없습니다
+             * @enum {string}
+             */
+            restorationReason?: "EVENT_CANCELLED" | "BOOKING_SITE_FAILURE" | "PLATFORM_FAILURE";
+            /**
+             * @description PRIVACY에서만
+             * @enum {string}
+             */
+            privacyAction?: "ACCESS" | "CORRECTION_OR_DELETION" | "PROCESSING_SUSPENSION" | "CONSENT_WITHDRAWAL";
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseInquiryDetail: {
@@ -4489,6 +5177,11 @@ export interface components {
         InquiryDetail: {
             /** Format: int64 */
             id?: number;
+            /**
+             * @description GENERAL 일반 문의, PASS_RESTORATION 도우미 매칭권 예외 복원 요청(requestId·restorationReason 필수), PASS_REFUND 매칭권 구매대금 환불 요청(passPurchaseId 필수), PRIVACY 개인정보 열람·정정·삭제·처리정지·동의 철회 요청(privacyAction 필수)
+             * @enum {string}
+             */
+            type?: "GENERAL" | "PASS_RESTORATION" | "PASS_REFUND" | "PRIVACY";
             subject?: string;
             message?: string;
             status?: string;
@@ -4497,6 +5190,25 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             answeredAt?: string;
+            /**
+             * Format: int64
+             * @description PASS_RESTORATION 대상 요청
+             */
+            requestId?: number | null;
+            /** @description 대상 요청의 신청 대상명 */
+            targetName?: string | null;
+            /**
+             * Format: int64
+             * @description PASS_REFUND 대상 구매
+             */
+            passPurchaseId?: number | null;
+            /** @enum {string|null} */
+            restorationReason?: "EVENT_CANCELLED" | "BOOKING_SITE_FAILURE" | "PLATFORM_FAILURE" | null;
+            /**
+             * @description ACCESS 열람, CORRECTION_OR_DELETION 정정·삭제, PROCESSING_SUSPENSION 처리정지, CONSENT_WITHDRAWAL 동의 철회
+             * @enum {string|null}
+             */
+            privacyAction?: "ACCESS" | "CORRECTION_OR_DELETION" | "PROCESSING_SUSPENSION" | "CONSENT_WITHDRAWAL" | null;
         };
         /**
          * @description 업로드 파일의 사용 목적. 목적별 소유권·MIME·후속 연결 정책에 사용
@@ -4572,8 +5284,10 @@ export interface components {
             termsDocumentId?: number;
             /** Format: int64 */
             privacyDocumentId?: number;
-            /** @description 만 19세 이상이라는 가입자 확인. true 필수이며 실제 연령 검증은 본인인증에서 수행합니다. */
+            /** @description 만 19세 이상이라는 가입자 확인. true 필수이며 회원 생성 전에 본인인증 결과로 실제 연령도 검증합니다. */
             adultConfirmed: boolean;
+            /** @description 가입 전 본인인증 세션에서 받은 일회용 토큰. 이메일 또는 현재 소셜 인증 흐름에 결속되며 10분간 유효합니다. */
+            identityVerificationToken: string;
         };
         Register: {
             /** Format: email */
@@ -4584,8 +5298,10 @@ export interface components {
             termsDocumentId: number;
             /** Format: int64 */
             privacyDocumentId: number;
-            /** @description 만 19세 이상이라는 가입자 확인. true 필수이며 실제 연령 검증은 본인인증에서 수행합니다. */
+            /** @description 만 19세 이상이라는 가입자 확인. true 필수이며 회원 생성 전에 본인인증 결과로 실제 연령도 검증합니다. */
             adultConfirmed: boolean;
+            /** @description 가입 전 본인인증 세션에서 받은 일회용 토큰. 이메일 또는 현재 소셜 인증 흐름에 결속되며 10분간 유효합니다. */
+            identityVerificationToken: string;
         };
         Refresh: {
             refreshToken: string;
@@ -4627,6 +5343,62 @@ export interface components {
              * @example 시도 내역을 확인했습니다.
              */
             reviewNote?: string | null;
+        };
+        AiRequestReviewInput: {
+            text: string;
+        };
+        AiReviewResult: {
+            /** @enum {string} */
+            decision?: "PASS" | "REJECT" | "MANUAL_REVIEW";
+            issues?: ("CONTACT" | "BANK_ACCOUNT" | "CREDENTIAL" | "PERSONAL_ID" | "OFF_PLATFORM" | "ABUSE" | "MISMATCH" | "UNCERTAIN")[];
+            message?: string;
+            source?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAiReviewResult: {
+            success?: boolean;
+            data?: components["schemas"]["AiReviewResult"];
+            message?: string;
+        };
+        AiPerformanceSearchInput: {
+            query: string;
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+        };
+        AiPerformanceMapping: {
+            normalizedKeyword?: string;
+            items?: components["schemas"]["Performance"][];
+            attribution?: string[];
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAiPerformanceMapping: {
+            success?: boolean;
+            data?: components["schemas"]["AiPerformanceMapping"];
+            message?: string;
+        };
+        BookingLink: {
+            name?: string;
+            url?: string;
+        };
+        Performance: {
+            kopisId?: string;
+            name?: string;
+            /** Format: date */
+            startsOn?: string;
+            /** Format: date */
+            endsOn?: string;
+            venueName?: string;
+            venueId?: string;
+            posterUrl?: string;
+            area?: string;
+            genre?: string;
+            performanceStatus?: string;
+            scheduleText?: string;
+            ticketPriceText?: string;
+            bookingLinks?: components["schemas"]["BookingLink"][];
+            attribution?: string[];
         };
         Resolve: {
             result: components["schemas"]["RequestResult"];
@@ -4672,6 +5444,12 @@ export interface components {
              */
             note: string;
         };
+        PassRestorationRequest: {
+            /** @enum {string} */
+            reason: "EVENT_CANCELLED" | "BOOKING_SITE_FAILURE" | "PLATFORM_FAILURE";
+            decisionNote: string;
+            evidenceVerified?: boolean;
+        };
         DisputeQuestion: {
             party: string;
             body: string;
@@ -4699,6 +5477,85 @@ export interface components {
          * @enum {string}
          */
         PolicyDocumentType: "TERMS" | "PRIVACY" | "CONTACT_SHARING";
+        /** @description 운영팀이 계좌로 송금한 그로블 매칭권 환불 기록. 금액은 받지 않고 서버가 회수 수량 × 장당 가격으로 계산한다 */
+        GrobleManualRefundRequest: {
+            /**
+             * Format: int32
+             * @description 회수할 매칭권 수량. 현재 회수 가능한 남은 수량 이하
+             * @example 4
+             */
+            units: number;
+            /**
+             * @description 운영팀 송금 식별자(이체 확인 번호 등). 결제별로 고유하며 같은 값으로 다시 보내면 기존 기록을 반환
+             * @example TR-20261029-0001
+             */
+            transferReference: string;
+            /**
+             * @description 내부 처리 메모(고객센터 접수 번호, 확인 내용 등). 구매자에게 공개하지 않음
+             * @example 고객센터 접수 #1234, 남은 4장 환불 송금 확인
+             */
+            decisionNote: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseGrobleManualRefundResponse: {
+            success?: boolean;
+            data?: components["schemas"]["GrobleManualRefundResponse"];
+            message?: string;
+        };
+        /** @description 그로블 매칭권 운영팀 송금 환불 기록(관리자 전용). 금액·회수 수량은 money_actions REFUND SUCCEEDED 행 */
+        GrobleManualRefundResponse: {
+            /**
+             * Format: int64
+             * @description money_actions.id (kind=REFUND). 구매자의 환불 내역(GET /api/payments/{paymentId}/refunds)에도 표시
+             * @example 401
+             */
+            refundId: number;
+            /**
+             * Format: int64
+             * @description payments.id
+             * @example 301
+             */
+            paymentId: number;
+            /**
+             * Format: int32
+             * @description money_actions.revoked_units. 회수한 매칭권 수량
+             * @example 4
+             */
+            revokedUnits: number;
+            /**
+             * Format: int64
+             * @description money_actions.amount_krw. 서버 계산 환불액(회수 수량 × 장당 가격, 원)
+             * @example 2000
+             */
+            amountKrw: number;
+            /**
+             * @description 응답 시점 결제 상태. 누적 환불이 결제액이면 REFUNDED, 아니면 PARTIALLY_REFUNDED
+             * @example PARTIALLY_REFUNDED
+             */
+            paymentStatus: components["schemas"]["PaymentStatus"];
+            /**
+             * @description groble_manual_refunds.transfer_reference
+             * @example TR-20261029-0001
+             */
+            transferReference: string;
+            /**
+             * @description groble_manual_refunds.decision_note. 내부 메모(관리자 응답에만 포함)
+             * @example 고객센터 접수 #1234, 남은 4장 환불 송금 확인
+             */
+            decisionNote: string;
+            /**
+             * Format: int64
+             * @description groble_manual_refunds.decided_by_user_id → users.id(기록한 관리자)
+             * @example 1
+             */
+            decidedByUserId: number;
+            /**
+             * Format: date-time
+             * @description groble_manual_refunds.decided_at. UTC
+             * @example 2026-10-29T01:00:00
+             */
+            decidedAt: string;
+        };
         /** @description 결제 확인 항목 처리 완료 기록 요청 */
         PaymentReviewResolveRequest: {
             /**
@@ -4763,10 +5620,10 @@ export interface components {
             resolvedAt: string;
         };
         /**
-         * @description 관리자 결제 확인 항목 분류. EVENT: 자동 재시도하지 않는 실패 웹훅 이벤트, PAYMENT_FLAG: 결제의 수동 확인 표시, PAYMENT_STUCK: 30분 넘게 PG 결과 확인 중(PROCESSING), REFUND_STUCK: 1시간 넘게 끝나지 않은 환불. payment_review_resolutions.item_type의 DDL CHECK 허용값
+         * @description 관리자 결제 확인 항목 분류. EVENT: 자동 재시도하지 않는 실패 웹훅 이벤트, PAYMENT_FLAG: 결제의 수동 확인 표시, PAYMENT_STUCK: 30분 넘게 PG 결과 확인 중(PROCESSING), REFUND_STUCK: 1시간 넘게 끝나지 않은 환불, CANCEL_REQUEST: 구매자가 그로블 주문조회에서 결제 취소를 요청함(그로블 판매 관리에서 승인·거절 필요). payment_review_resolutions.item_type의 DDL CHECK 허용값
          * @enum {string}
          */
-        PaymentReviewType: "EVENT" | "PAYMENT_FLAG" | "PAYMENT_STUCK" | "REFUND_STUCK";
+        PaymentReviewType: "EVENT" | "PAYMENT_FLAG" | "PAYMENT_STUCK" | "REFUND_STUCK" | "CANCEL_REQUEST";
         InquiryReply: {
             reply: string;
         };
@@ -4868,10 +5725,6 @@ export interface components {
             data?: components["schemas"]["Page"];
             message?: string;
         };
-        BookingLink: {
-            name?: string;
-            url?: string;
-        };
         Page: {
             source?: string;
             /** Format: int32 */
@@ -4879,24 +5732,6 @@ export interface components {
             /** Format: int32 */
             size?: number;
             items?: components["schemas"]["Performance"][];
-            attribution?: string[];
-        };
-        Performance: {
-            kopisId?: string;
-            name?: string;
-            /** Format: date */
-            startsOn?: string;
-            /** Format: date */
-            endsOn?: string;
-            venueName?: string;
-            venueId?: string;
-            posterUrl?: string;
-            area?: string;
-            genre?: string;
-            performanceStatus?: string;
-            scheduleText?: string;
-            ticketPriceText?: string;
-            bookingLinks?: components["schemas"]["BookingLink"][];
             attribution?: string[];
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
@@ -5002,7 +5837,7 @@ export interface components {
             notificationId: number;
             /**
              * @description notifications.kind
-             * @example PAYMENT
+             * @example MATCH
              */
             kind: components["schemas"]["NotificationKind"];
             /**
@@ -5013,12 +5848,12 @@ export interface components {
             requestId?: number | null;
             /**
              * @description notifications.title
-             * @example 결제 상태가 변경되었습니다.
+             * @example 직접 거래 매칭이 완료됐어요
              */
             title: string;
             /**
              * @description notifications.body
-             * @example 안전거래 결제가 완료되었습니다.
+             * @example '콘서트 예매' 요청의 조건이 확정됐어요. 이용자와 직접 진행해 주세요. 플랫폼에 착수·결과를 등록할 필요는 없어요.
              */
             body: string;
             /**
@@ -5033,6 +5868,11 @@ export interface components {
              * @example 2026-09-19T01:00:00
              */
             createdAt: string;
+            /**
+             * @description notifications.link_path. 알림을 눌렀을 때 열 서비스 내 경로(/로 시작). null이면 requestId(요청 상세)나 kind로 판단
+             * @example /application
+             */
+            linkPath?: string | null;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseNotificationResponse: {
@@ -5086,7 +5926,7 @@ export interface components {
             usedAt: string;
             /**
              * Format: date-time
-             * @description 매칭 취소 등으로 복구된 서버 시각(UTC). 미복구이면 null
+             * @description 복구된 서버 시각(UTC). 공식 공연·예매 취소, 예매처·플랫폼 장애를 운영팀이 확인한 관리자 예외 복원이며, 이전 정책의 자동 복구분도 포함합니다. 미복구이면 null
              * @example 2026-09-19T02:00:00
              */
             restoredAt?: string | null;
@@ -5095,6 +5935,12 @@ export interface components {
              * @example false
              */
             restored: boolean;
+            /**
+             * Format: date-time
+             * @description 운영팀 예외 복원으로 돌려받은 매칭권의 사용 기한(UTC). 복원 기록이 없으면 null
+             * @example 2027-01-31T15:00:00
+             */
+            restoredExpiresAt?: string | null;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseListPassPurchaseResponse: {
@@ -5175,7 +6021,7 @@ export interface components {
         /** @description 관리자가 확인해야 하는 결제 항목. 자동 처리가 멈췄거나 대금 수납 여부를 사람이 판단해야 하는 경우입니다. */
         PaymentReviewItemResponse: {
             /**
-             * @description 항목 식별자. 처리 완료 기록(POST /api/admin/payments/review/resolutions)에 사용. EVENT:{이벤트ID}, PAYMENT_FLAG:{결제ID}:{코드}, PAYMENT_STUCK:{결제ID}, REFUND_STUCK:{환불행ID}
+             * @description 항목 식별자. 처리 완료 기록(POST /api/admin/payments/review/resolutions)에 사용. EVENT:{이벤트ID}, PAYMENT_FLAG:{결제ID}:{코드}, PAYMENT_STUCK:{결제ID}, REFUND_STUCK:{환불행ID}, CANCEL_REQUEST:{이벤트ID}
              * @example EVENT:12
              */
             key: string;
@@ -5222,6 +6068,29 @@ export interface components {
              * @example 2026-09-27T09:46:45
              */
             occurredAt: string;
+            /**
+             * Format: int64
+             * @description 매칭권 결제의 구매(pass_purchases.id). 안전거래 결제는 null
+             * @example 7
+             */
+            passPurchaseId?: number | null;
+            /**
+             * Format: int64
+             * @description 매칭권 구매 회원(users.id). 안전거래 결제는 null
+             * @example 11
+             */
+            buyerUserId?: number | null;
+            /**
+             * @description 매칭권 구매 회원 닉네임. 안전거래 결제는 null
+             * @example 티켓도우미
+             */
+            buyerNickname?: string | null;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListGrobleManualRefundResponse: {
+            success?: boolean;
+            data?: components["schemas"]["GrobleManualRefundResponse"][];
+            message?: string;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseListPartialSettlementResponse: {
@@ -5238,52 +6107,6 @@ export interface components {
             data: null;
             /** @example 인증이 필요합니다. */
             message: string;
-        };
-        PassRestorationRequest: {
-            /** @enum {string} */
-            reason: "ILLNESS_OR_ACCIDENT" | "EVENT_CANCELLED" | "BOOKING_SITE_FAILURE" | "PLATFORM_FAILURE";
-            decisionNote: string;
-            evidenceVerified?: boolean;
-        };
-        /** @description 그로블 결제창 매칭권 주문. checkoutUrl로 이동해 결제하면 서명된 결제 완료 웹훅으로 지급된다 */
-        GrobleCheckoutResponse: {
-            /**
-             * Format: int64
-             * @description pass_purchases.id
-             * @example 101
-             */
-            purchaseId: number;
-            /**
-             * Format: int32
-             * @description pass_purchases.purchased_units. 그로블 상품 수량
-             * @example 10
-             */
-            purchasedUnits: number;
-            /**
-             * Format: int64
-             * @description pass_purchases.price_krw. 그로블 상품 금액(원)
-             * @example 5000
-             */
-            priceKrw: number;
-            /**
-             * Format: int32
-             * @description pass_purchases.valid_days. 지급일부터 사용 가능한 일수
-             * @example 330
-             */
-            validDays: number;
-            /**
-             * @description 그로블 결제 링크. ref에 이 주문의 주문번호가 붙어 있으며 바꾸면 지급되지 않는다
-             * @example https://www.groble.im/payment/k6pnFx?ref=pass-0f1e2d3c4b5a69788796a5b4c3d2e1f0
-             */
-            checkoutUrl: string;
-            /** @description 생성된 PENDING 결제 주문 */
-            payment: components["schemas"]["PaymentResponse"];
-        };
-        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
-        ApiResponseGrobleCheckoutResponse: {
-            success?: boolean;
-            data?: components["schemas"]["GrobleCheckoutResponse"];
-            message?: string;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponsePopularSearchReceipt: {
@@ -5317,6 +6140,480 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string;
             items?: components["schemas"]["PopularSearchItem"][];
+        };
+        AiSearchKeywordInput: {
+            query: string;
+        };
+        /** @description AI가 고친 검색어. 고칠 것이 없으면 입력과 같습니다. */
+        AiSearchKeyword: {
+            keyword?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAiSearchKeyword: {
+            success?: boolean;
+            data?: components["schemas"]["AiSearchKeyword"];
+            message?: string;
+        };
+        /** @description 도우미 신청 AI 자동 사전 심사 결과(버전별 최신 1건) */
+        AiProfileReviewRecord: {
+            /** Format: int64 */
+            profileId?: number;
+            /** Format: int64 */
+            userId?: number;
+            activityName?: string;
+            /** Format: int32 */
+            version?: number;
+            /** @description 지금 프로필 버전 상태(PENDING·PUBLISHED·REJECTED 등) */
+            status?: string;
+            /** @enum {string} */
+            decision?: "PASS" | "REJECT" | "MANUAL_REVIEW";
+            issues?: ("CONTACT" | "BANK_ACCOUNT" | "CREDENTIAL" | "PERSONAL_ID" | "OFF_PLATFORM" | "ABUSE" | "MISMATCH" | "UNCERTAIN")[];
+            /** @description LINER(AI 판단), RULES(서버 규칙에 걸려 AI에 보내지 않음), UNSUPPORTED_EVIDENCE(사진을 읽을 수 없음), AI_UNAVAILABLE(라이너 오류) */
+            source?: string;
+            /** @description PASS로 관리자 없이 게시됐으면 true */
+            autoPublished?: boolean;
+            /** Format: date-time */
+            reviewedAt?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListAiProfileReviewRecord: {
+            success?: boolean;
+            data?: components["schemas"]["AiProfileReviewRecord"][];
+            message?: string;
+        };
+        /** @description 관리자 문의 목록 항목. 문의 내용에 대상 요청·구매의 현재 상태를 붙입니다. */
+        AdminInquiryDetail: {
+            /** Format: int64 */
+            id?: number;
+            /**
+             * @description GENERAL 일반 문의, PASS_RESTORATION 도우미 매칭권 예외 복원 요청(requestId·restorationReason 필수), PASS_REFUND 매칭권 구매대금 환불 요청(passPurchaseId 필수), PRIVACY 개인정보 열람·정정·삭제·처리정지·동의 철회 요청(privacyAction 필수)
+             * @enum {string}
+             */
+            type?: "GENERAL" | "PASS_RESTORATION" | "PASS_REFUND" | "PRIVACY";
+            /** Format: int64 */
+            userId?: number;
+            subject?: string;
+            message?: string;
+            status?: string;
+            reply?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            answeredAt?: string;
+            /** Format: int64 */
+            requestId?: number | null;
+            targetName?: string | null;
+            /** @description 대상 요청의 현재 상태 */
+            requestStatus?: string | null;
+            /**
+             * Format: date-time
+             * @description 대상 요청의 매칭권이 복원된 시각(UTC). 미복원이면 null
+             */
+            passRestoredAt?: string | null;
+            /** @enum {string|null} */
+            restorationReason?: "EVENT_CANCELLED" | "BOOKING_SITE_FAILURE" | "PLATFORM_FAILURE" | null;
+            /** Format: int64 */
+            passPurchaseId?: number | null;
+            /**
+             * Format: int32
+             * @description 대상 구매의 구매 장수
+             */
+            purchasedUnits?: number | null;
+            /**
+             * Format: int64
+             * @description 대상 구매의 결제 금액(원)
+             */
+            priceKrw?: number | null;
+            /**
+             * Format: int64
+             * @description 대상 구매의 최신 결제
+             */
+            paymentId?: number | null;
+            /** @description 그로블 등 결제창에서 주문을 찾을 때 쓰는 주문번호 */
+            orderNumber?: string | null;
+            /** @description PG 또는 GROBLE */
+            checkoutProvider?: string | null;
+            /** @description 대상 구매의 최신 결제 상태 */
+            paymentStatus?: string | null;
+            /**
+             * @description ACCESS 열람, CORRECTION_OR_DELETION 정정·삭제, PROCESSING_SUSPENSION 처리정지, CONSENT_WITHDRAWAL 동의 철회
+             * @enum {string|null}
+             */
+            privacyAction?: "ACCESS" | "CORRECTION_OR_DELETION" | "PROCESSING_SUSPENSION" | "CONSENT_WITHDRAWAL" | null;
+            /** @description 작성 회원 닉네임 */
+            writerNickname?: string;
+            /** @description 작성 회원 로그인 이메일. 소셜 전용 계정은 null */
+            writerEmail?: string | null;
+            /** @description PASS_REFUND 대상 구매의 사용·남은 장수와 지금 환불할 수 있는 금액 */
+            purchase?: components["schemas"]["AdminPassPurchaseResponse"];
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAdminInquiryDetail: {
+            success?: boolean;
+            data?: components["schemas"]["AdminInquiryDetail"];
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListPassRestorationTarget: {
+            success?: boolean;
+            data?: components["schemas"]["PassRestorationTarget"][];
+            message?: string;
+        };
+        /** @description 본인이 도우미인 요청 중 매칭권 예외 복원을 요청할 수 있는 거래 */
+        PassRestorationTarget: {
+            /** Format: int64 */
+            requestId?: number;
+            targetName?: string;
+            /**
+             * Format: date
+             * @description 관람·이용 예정일
+             */
+            scheduledUseDate?: string | null;
+            /** @description CANCELLED 또는 MATCHING_COMPLETED */
+            status?: string;
+            /**
+             * Format: date-time
+             * @description 매칭권 사용 시각(UTC)
+             */
+            usedAt?: string;
+            /** @description 같은 거래로 답변 대기 중인 복원 요청 문의가 있으면 true */
+            inquiryOpen?: boolean;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListAdminInquiryDetail: {
+            success?: boolean;
+            data?: components["schemas"]["AdminInquiryDetail"][];
+            message?: string;
+        };
+        /** @description 신고 대상 회원의 소명. 운영팀이 조사 중인 신고에만 남길 수 있습니다. */
+        ReportStatementRequest: {
+            /** @description 소명 내용(2000자 이하). 자료 파일은 신고 번호와 함께 support@pico-kr.app로 보냅니다. */
+            content: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseReportStatementResponse: {
+            success?: boolean;
+            data?: components["schemas"]["ReportStatementResponse"];
+            message?: string;
+        };
+        /** @description 신고 대상 회원이 남긴 소명 */
+        ReportStatementResponse: {
+            /**
+             * Format: int64
+             * @description report_statements.id
+             */
+            statementId?: number;
+            /**
+             * Format: int64
+             * @description 작성 회원 users.id
+             */
+            authorUserId?: number;
+            /** @description 소명 내용 */
+            content?: string;
+            /**
+             * Format: date-time
+             * @description 작성 시각(UTC)
+             */
+            createdAt?: string;
+        };
+        AdminReviewHide: {
+            /** @description 작성자에게 알리는 숨김 사유(선택) */
+            reason?: string;
+        };
+        /** @description 관리자 매칭권 구매 건. 환불 문의·그로블 취소 요청을 처리할 때 사용 장수와 환불 가능 금액을 확인합니다. */
+        AdminPassPurchaseResponse: {
+            /**
+             * Format: int64
+             * @description pass_purchases.id
+             * @example 7
+             */
+            purchaseId?: number;
+            /**
+             * Format: int64
+             * @description 구매 회원 users.id
+             * @example 11
+             */
+            buyerUserId?: number;
+            /**
+             * @description 구매 회원 닉네임
+             * @example 티켓도우미
+             */
+            buyerNickname?: string;
+            /** @description 구매 회원의 로그인 이메일. 소셜 전용 계정은 null */
+            buyerEmail?: string | null;
+            /**
+             * Format: int32
+             * @description 구매 장수
+             * @example 10
+             */
+            purchasedUnits?: number;
+            /**
+             * Format: int64
+             * @description 구매 금액(원)
+             * @example 4500
+             */
+            priceKrw?: number;
+            /**
+             * Format: int64
+             * @description 장당 가격(원). 구매 금액이 장수로 나누어떨어지지 않으면 null
+             */
+            unitPriceKrw?: number | null;
+            /**
+             * Format: date-time
+             * @description 매칭권 지급 시각(UTC). 결제 전이면 null
+             */
+            grantedAt?: string | null;
+            /**
+             * Format: date-time
+             * @description 원구매분 유효기간 끝(UTC). 지급 전이거나 기간이 없으면 null
+             */
+            validUntil?: string | null;
+            /**
+             * Format: int64
+             * @description 최신 결제 payments.id
+             */
+            paymentId?: number | null;
+            /** @description 그로블 등 결제창에서 주문을 찾을 때 쓰는 주문번호 */
+            orderNumber?: string | null;
+            /** @description PG 또는 GROBLE */
+            checkoutProvider?: string | null;
+            /** @description 최신 결제 상태 */
+            paymentStatus?: string | null;
+            /**
+             * Format: date-time
+             * @description 결제 완료 시각(UTC)
+             */
+            paidAt?: string | null;
+            /**
+             * Format: int64
+             * @description 거래 수락에 사용한 장수(복원된 사용은 제외)
+             * @example 3
+             */
+            usedUnits?: number;
+            /**
+             * Format: int64
+             * @description 환불로 회수한 장수
+             * @example 0
+             */
+            revokedUnits?: number;
+            /**
+             * Format: int64
+             * @description 지금 쓸 수 있는 남은 장수(유효한 원구매 잔량 + 유효한 복원분). 장부가 맞지 않으면 null
+             */
+            remainingUnits?: number | null;
+            /**
+             * Format: int64
+             * @description 이미 환불된 금액(원)
+             * @example 0
+             */
+            refundedAmountKrw?: number;
+            /**
+             * Format: int64
+             * @description 지금 환불할 수 있는 금액(원) = 남은 장수 × 장당 가격, 결제액에서 환불된 금액을 뺀 값 이하. 결제 완료가 아니거나 장당 가격을 정할 수 없으면 0
+             * @example 3150
+             */
+            refundableAmountKrw?: number;
+            /**
+             * Format: date-time
+             * @description 그로블 주문조회에서 들어온 마지막 취소 요청 시각(UTC). 없으면 null
+             */
+            cancelRequestedAt?: string | null;
+            /** @description 관리자 결제 확인에서 아직 처리 기록을 남기지 않은 취소 요청이 있으면 true */
+            cancelRequestOpen?: boolean;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListReceivedReportResponse: {
+            success?: boolean;
+            data?: components["schemas"]["ReceivedReportResponse"][];
+            message?: string;
+        };
+        /** @description 나를 대상으로 한 신고. 운영팀이 조사를 시작했거나 나에게 조치한 신고만 보이며, 신고자와 신고 내용 원문은 보이지 않습니다. */
+        ReceivedReportResponse: {
+            /** Format: int64 */
+            reportId?: number;
+            /**
+             * Format: int64
+             * @description 관련 거래 requests.id
+             */
+            requestId?: number | null;
+            /** @description 관련 거래의 신청 대상명 */
+            targetName?: string | null;
+            /** @description 신고 사유 분류 */
+            reason?: components["schemas"]["ReportReason"];
+            status?: components["schemas"]["ReportStatus"];
+            /**
+             * Format: date-time
+             * @description 운영팀이 조사를 시작한 시각(UTC)
+             */
+            investigatedAt?: string | null;
+            /** @description 처리 결과(신고자와 신고 대상 모두에게 공개). 처리 전이면 null */
+            resolutionNote?: string | null;
+            /**
+             * Format: date-time
+             * @description 처리 시각(UTC)
+             */
+            resolvedAt?: string | null;
+            /** @description 처리와 함께 나에게 실행한 조치. 처리 전이면 NONE */
+            actionTaken?: components["schemas"]["ReportAction"];
+            /** @description 지금 소명을 남길 수 있으면 true(운영팀 조사 중) */
+            statementOpen?: boolean;
+            /** @description 내가 남긴 소명, 오래된 순 */
+            statements?: components["schemas"]["ReportStatementResponse"][];
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListReportStatementResponse: {
+            success?: boolean;
+            data?: components["schemas"]["ReportStatementResponse"][];
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListAdminPassPurchaseResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminPassPurchaseResponse"][];
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseStarted: {
+            success?: boolean;
+            data?: components["schemas"]["Started"];
+            message?: string;
+        };
+        Started: {
+            identityVerificationToken?: string;
+            identityVerificationId?: string;
+            storeId?: string;
+            channelKey?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        RegistrationIdentityStart: {
+            /** Format: email */
+            email: string;
+        };
+        RecoveryStart: {
+            /** @enum {string} */
+            purpose: "FIND_ID" | "RESET_PASSWORD";
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseRecoverySession: {
+            success?: boolean;
+            data?: components["schemas"]["RecoverySession"];
+            message?: string;
+        };
+        RecoverySession: {
+            recoveryToken?: string;
+            identityVerificationId?: string;
+            storeId?: string;
+            channelKey?: string;
+        };
+        RecoveryConfirm: {
+            recoveryToken: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseRecoveryResult: {
+            success?: boolean;
+            data?: components["schemas"]["RecoveryResult"];
+            message?: string;
+        };
+        RecoveryResult: {
+            email?: string;
+            providers?: string[];
+            passwordResetRequested?: boolean;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponsePassPromotionsResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PassPromotionsResponse"];
+            message?: string;
+        };
+        Grant: {
+            /** Format: int64 */
+            purchaseId?: number;
+            code?: string;
+            /** Format: int32 */
+            units?: number;
+            /** Format: int64 */
+            remainingUnits?: number;
+            /** Format: date-time */
+            grantedAt?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            status?: string;
+        };
+        PassPromotionsResponse: {
+            firstPurchaseEligible?: boolean;
+            grants?: components["schemas"]["Grant"][];
+        };
+        AdminPassGrantRequest: {
+            /**
+             * Format: int32
+             * @description 추가 지급 수량(1~1000장)
+             * @example 50
+             */
+            units: number;
+            /**
+             * @description 지급 건별 소문자 UUID. 실패 후 재시도에는 같은 값을 사용
+             * @example 16c1f1b9-88df-4494-9bcf-b9c2e9148123
+             */
+            requestReference: string;
+            /**
+             * @description 관리자 내부 지급 사유(1~500자). 회원에게 공개하지 않음
+             * @example 서비스 이용 테스트용 매칭권 지급
+             */
+            decisionNote: string;
+        };
+        AdminPassGrantResponse: {
+            /** Format: int64 */
+            purchaseId?: number;
+            /** Format: int64 */
+            userId?: number;
+            nickname?: string;
+            /** Format: int32 */
+            units?: number;
+            /** Format: int64 */
+            remainingUnits?: number;
+            requestReference?: string;
+            decisionNote?: string;
+            /** Format: int64 */
+            grantedByUserId?: number;
+            grantedByNickname?: string;
+            /** Format: date-time */
+            grantedAt?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAdminPassGrantResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminPassGrantResponse"];
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListAdminPassGrantResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminPassGrantResponse"][];
+            message?: string;
+        };
+        AdminReportIdentityRequest: {
+            /** @description 신고 조사 또는 적법한 기관 요청에 따른 구체적인 열람 사유. 계좌번호 등 개인정보 입력 금지 */
+            reason: string;
+        };
+        /** @description 신고 대상의 현재 보관된 본인인증 성명과 계좌. 거래 당시 송금 계좌를 증명하지 않으며 미보관 항목은 null */
+        AdminReportIdentityResponse: {
+            /** Format: int64 */
+            reportedUserId?: number;
+            verifiedName?: string;
+            bankCode?: string;
+            accountNumber?: string;
+            maskedAccount?: string;
+            /** Format: date-time */
+            accountVerifiedAt?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAdminReportIdentityResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminReportIdentityResponse"];
+            message?: string;
         };
     };
     responses: never;
@@ -7022,6 +8319,66 @@ export interface operations {
             };
         };
     };
+    toggle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiHelperReviewToggle"];
+            };
+        };
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     receiveWebhook: {
         parameters: {
             query?: never;
@@ -7075,6 +8432,69 @@ export interface operations {
                 };
             };
             /** @description 웹훅 시크릿 미설정. 상태 변경·기록 없음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    receiveWebhook_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 그로블 원본 JSON {id, type, version, occurredAt, data{object}}. 수신 바이트 그대로 서명 검증 후 파싱합니다. */
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description 검증 완료. 처리 결과(PROCESSED·FAILED) 또는 기록 없이 무시(IGNORED) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePaymentWebhookResponse"];
+                };
+            };
+            /** @description 서명은 유효하지만 본문이 JSON·UTF-8이 아님 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서명 검증 실패: 헤더 누락, 서명 불일치 또는 허용 시각(±5분) 초과 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 웹훅 시크릿 미설정. 상태 변경·기록 없음(그로블이 재전송) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -10920,6 +12340,71 @@ export interface operations {
             };
         };
     };
+    createGrobleCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 그로블 결제 링크와 PENDING 결제 주문 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGrobleCheckoutResponse"];
+                };
+            };
+            /** @description 잘못된 요청 값 또는 형식 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 구매할 수 없는 계정 상태 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 그로블 연동 미설정 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     mine: {
         parameters: {
             query?: {
@@ -11628,6 +13113,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
+            /** @description 이용 정지 계정(비밀번호가 맞을 때만). message에 회원에게 보이는 정지 사유와 support@pico-kr.app 안내 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
             /** @description 현재 상태·동의·정책·중복 조건 충돌 */
             409: {
                 headers: {
@@ -11912,6 +13406,126 @@ export interface operations {
             };
         };
     };
+    request_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiRequestReviewInput"];
+            };
+        };
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiPerformanceSearchInput"];
+            };
+        };
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     createSafePayment: {
         parameters: {
             query?: never;
@@ -12017,7 +13631,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AdminReviewHide"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -12462,6 +14080,59 @@ export interface operations {
             };
             /** @description 조정 대상 아님·응답 대기 중·조정 불성립·이미 확정 */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PassRestorationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12944,6 +14615,90 @@ export interface operations {
             };
         };
     };
+    recordManualRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description payments.id
+                 * @example 301
+                 */
+                paymentId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrobleManualRefundRequest"];
+            };
+        };
+        responses: {
+            /** @description 새 기록 또는 같은 송금 식별자의 기존 기록 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseGrobleManualRefundResponse"];
+                };
+            };
+            /** @description units·transferReference·decisionNote 누락 또는 범위·길이 초과 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description ADMIN 권한 없음, 비활성 관리자 또는 구매자 본인 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 결제 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 그로블 매칭권 결제가 아니거나 환불할 수 없는 상태, 남은 수량·결제액 초과, 같은 송금 식별자에 다른 수량 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     resolvePaymentReviewItem: {
         parameters: {
             query?: never;
@@ -13043,7 +14798,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseInquiryDetail"];
+                    "*/*": components["schemas"]["ApiResponseAdminInquiryDetail"];
                 };
             };
             /** @description 인증 필요 (Bearer JWT) */
@@ -13354,6 +15109,122 @@ export interface operations {
             };
             /** @description 서버 오류가 발생했습니다. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    helper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    career: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15721,7 +17592,7 @@ export interface operations {
             };
         };
     };
-    search: {
+    search_1: {
         parameters: {
             query?: {
                 name?: string;
@@ -15740,6 +17611,7 @@ export interface operations {
                 platformIds?: number[];
                 availableDates?: string[];
                 completedMin?: number;
+                alias?: string;
             };
             header?: never;
             path?: never;
@@ -15946,6 +17818,8 @@ export interface operations {
     users: {
         parameters: {
             query?: {
+                /** @description 회원 번호 정확 일치 또는 닉네임·LOCAL 로그인 이메일 부분 일치. 공백 제거, 최대 100자 */
+                q?: string;
                 page?: number;
                 size?: number;
             };
@@ -16024,6 +17898,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: components["schemas"]["ReviewStatus"];
+                /** @description 거래·작성자·도우미 번호 정확 일치 또는 참여자 닉네임·후기 내용 부분 일치. 최대 100자 */
+                q?: string;
                 page?: number;
                 size?: number;
             };
@@ -16711,6 +18587,8 @@ export interface operations {
         parameters: {
             query?: {
                 status?: components["schemas"]["ReportStatus"];
+                /** @description 신고·거래·회원 번호 정확 일치 또는 신고자·대상자 닉네임·신고 내용 부분 일치. 최대 100자 */
+                q?: string;
                 page?: number;
                 size?: number;
             };
@@ -16922,6 +18800,65 @@ export interface operations {
             };
         };
     };
+    manualRefundHistory: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 처리 이력(없으면 빈 목록) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListGrobleManualRefundResponse"];
+                };
+            };
+            /** @description page·size 범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description ADMIN 권한 없음 또는 비활성 관리자 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     getUnproposedPartialSettlements: {
         parameters: {
             query?: {
@@ -17042,6 +18979,7 @@ export interface operations {
         parameters: {
             query?: {
                 status?: string;
+                type?: "GENERAL" | "PASS_RESTORATION" | "PASS_REFUND" | "PRIVACY";
                 page?: number;
                 size?: number;
             };
@@ -17057,7 +18995,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseListInquiryDetail"];
+                    "*/*": components["schemas"]["ApiResponseListAdminInquiryDetail"];
                 };
             };
             /** @description 인증 필요 (Bearer JWT) */
@@ -17291,6 +19229,62 @@ export interface operations {
             };
             /** @description 서버 오류가 발생했습니다. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17558,187 +19552,6 @@ export interface operations {
             };
         };
     };
-    restore: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                requestId: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PassRestorationRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
-                };
-            };
-            /** @description 인증 필요 (Bearer JWT) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 접근 권한이 없습니다. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 서버 오류가 발생했습니다. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-        };
-    };
-    createGrobleCheckout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description 그로블 결제 링크와 PENDING 결제 주문 */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseGrobleCheckoutResponse"];
-                };
-            };
-            /** @description 잘못된 요청 값 또는 형식 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 인증 필요 (Bearer JWT) */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 구매할 수 없는 계정 상태 */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 서버 오류가 발생했습니다. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 그로블 연동 미설정 */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-        };
-    };
-    receiveWebhook_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description 그로블 원본 JSON {id, type, version, occurredAt, data{object}}. 수신 바이트 그대로 서명 검증 후 파싱합니다. */
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        responses: {
-            /** @description 검증 완료. 처리 결과(PROCESSED·FAILED) 또는 기록 없이 무시(IGNORED) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponsePaymentWebhookResponse"];
-                };
-            };
-            /** @description 서명은 유효하지만 본문이 JSON·UTF-8이 아님 */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 서명 검증 실패: 헤더 누락, 서명 불일치 또는 허용 시각(±5분) 초과 */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 서버 오류가 발생했습니다. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 웹훅 시크릿 미설정. 상태 변경·기록 없음(그로블이 재전송) */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-        };
-    };
     record: {
         parameters: {
             query?: never;
@@ -17788,6 +19601,1102 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponsePopularSearchSnapshot"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    keyword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiSearchKeywordInput"];
+            };
+        };
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    profileReviews: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 잘못된 입력 또는 금지 요청 내용 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description Bearer JWT 인증 필요 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 활성 회원 또는 관리자 권한 필요 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 라이너·KOPIS·외부 처리 설정 미완료 또는 응답 오류. 통과/승인으로 처리하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    restorationTargets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListPassRestorationTarget"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    withdrawContactConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    addStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportStatementRequest"];
+            };
+        };
+        responses: {
+            /** @description 정상 응답 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseReportStatementResponse"];
+                };
+            };
+            /** @description 잘못된 요청 값 또는 형식 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 검증된 MemberPrincipal 필요. Basic 사용자 이름만으로는 접근 불가 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 행위자 권한 또는 소유권 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 대상 리소스 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 상태·중복·정책 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    getReceivedReports: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 정상 응답 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListReceivedReportResponse"];
+                };
+            };
+            /** @description 잘못된 요청 값 또는 형식 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 검증된 MemberPrincipal 필요. Basic 사용자 이름만으로는 접근 불가 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 행위자 권한 또는 소유권 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 대상 리소스 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 상태·중복·정책 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    statements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListReportStatementResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    deal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    search_2: {
+        parameters: {
+            query?: {
+                q?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListAdminPassPurchaseResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    identitySession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SocialComplete"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseStarted"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    identitySession_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegistrationIdentityStart"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseStarted"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    recoverySession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryStart"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRecoverySession"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    recoveryConfirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryConfirm"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRecoveryResult"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    promotions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 본인 이벤트 지급 내역과 첫 구매 대상 여부 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePassPromotionsResponse"];
+                };
+            };
+            /** @description 잘못된 요청 값 또는 형식 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    grant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPassGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminPassGrantResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    history_1: {
+        parameters: {
+            query?: {
+                userId?: number;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListAdminPassGrantResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    identity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReportIdentityRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminReportIdentityResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    completed: {
+        parameters: {
+            query?: {
+                status?: string;
+                q?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    detail_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    all: {
+        parameters: {
+            query?: {
+                status?: string;
+                policyStatus?: string;
+                q?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    requestDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
             /** @description 서버 오류가 발생했습니다. */

@@ -1,0 +1,23 @@
+[
+  {
+    "type": "PRIVACY",
+    "version": "2026-11-03.3",
+    "contentUrl": "https://pico-kr.app/legal/2026-11-03.3/privacy.html",
+    "contentSha256": "e48574ff6aad895dd6b958b71a89f23a8ac0a750859163ce5bc71fa2599e18a2",
+    "effectiveAt": "2026-11-02T15:00:00"
+  },
+  {
+    "type": "TERMS",
+    "version": "2026-11-03.3",
+    "contentUrl": "https://pico-kr.app/legal/2026-11-03.3/terms.html",
+    "contentSha256": "9e9d5ef29f329077c0731cfef11e88c4d218649bbe1ab9509f77756460cac063",
+    "effectiveAt": "2026-11-02T15:00:00"
+  },
+  {
+    "type": "CONTACT_SHARING",
+    "version": "2026-11-03.3",
+    "contentUrl": "https://pico-kr.app/legal/2026-11-03.3/contact-sharing.html",
+    "contentSha256": "879fbf4935fd0ebe0595141166d38657dc97264479e5c3a71639da16e00bf444",
+    "effectiveAt": "2026-11-02T15:00:00"
+  }
+]

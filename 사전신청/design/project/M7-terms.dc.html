@@ -17,10 +17,12 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
 .pk-halo{animation:pk-halo 1.6s ease-out infinite}
 .pk-ring{animation:pk-ring 1.6s ease-out infinite}
 .pk-pop{animation:pk-pop .35s cubic-bezier(.2,.8,.2,1) both}
+.pk-bob{animation:pk-bob 1.4s ease-in-out infinite}
 @keyframes pk-halo{0%{transform:scale(1);opacity:.9}70%{transform:scale(1.05);opacity:0}100%{transform:scale(1.05);opacity:0}}
 @keyframes pk-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.8);opacity:0}}
 @keyframes pk-pop{0%{transform:translateY(12px);opacity:0}100%{transform:none;opacity:1}}
-@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop{animation:none}}
+@keyframes pk-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop,.pk-bob{animation:none}}
 </style>
 </helmet>
 <div style="position: relative; width: 390px; height: 844px; overflow: hidden; background: #F5F7FA; color: #16181D; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; word-break: keep-all">
@@ -41,7 +43,7 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
   <div role="status" class="pk-pop" style="position: relative; display: flex; align-items: center; gap: 8px; background: #16181D; color: #FFFFFF; border-radius: 12px; padding: 10px 16px 10px 10px; box-shadow: 0 6px 16px rgba(0,0,0,0.16); white-space: nowrap">
     <span aria-hidden="true" style="position: absolute; bottom: -5px; left: 30px; width: 10px; height: 10px; background: #16181D; transform: rotate(45deg)"></span>
     <svg width="24" height="24" viewBox="0 0 96 96" aria-hidden="true" style="flex: 0 0 24px"><path d="M24 18H72A16 16 0 0 1 88 34V41A9 9 0 0 0 88 59V66A16 16 0 0 1 72 82H24A16 16 0 0 1 8 66V59A9 9 0 0 0 8 41V34A16 16 0 0 1 24 18Z" fill="#3A5BFF"></path><circle cx="30" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="48" cy="46" r="6" fill="#FFFFFF"></circle><circle cx="31" cy="47" r="3" fill="#16181D"></circle><circle cx="49" cy="47" r="3" fill="#16181D"></circle><path d="M32 58Q39 64 46 58" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" fill="none"></path></svg>
-    <span><span style="display: block; font-size: 15px; font-weight: 700">조건을 확인해요</span><span style="display: block; margin-top: 1px; font-size: 13px; color: #C9CDD6">요청서 내용이 미리 들어 있어요</span></span>
+    <span><span style="display: block; font-size: 15px; font-weight: 700">조건을 확인해요</span><span style="display: block; margin-top: 1px; font-size: 13px; color: #C9CDD6">아래로 내리며 끝까지 봐요</span></span>
   </div>
 </div></div>
     </sc-if>
@@ -114,6 +116,11 @@ input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{
       마이
     </button>
   </nav>
+  <sc-if value="{{read}}" hint-placeholder-val="{{ true }}">
+    <div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 80px; z-index: 30; display: flex; justify-content: center; pointer-events: none">
+      <span class="pk-bob" style="display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px 7px 10px; border-radius: 999px; background: rgba(22,24,29,0.82); font-size: 13px; font-weight: 700; color: #FFFFFF; box-shadow: 0 6px 16px rgba(0,0,0,0.16)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>아래로 내려 보세요</span>
+    </div>
+  </sc-if>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>

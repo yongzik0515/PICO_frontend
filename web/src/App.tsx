@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { AppStateProvider } from './AppState';
+import { Analytics } from './analytics';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { RequireAuth } from './auth/RequireAuth';
 import { AgentCard } from './discovery/AgentCard';
@@ -26,10 +27,13 @@ import { QuotePage, RequestSentPage } from './pages/QuotePage';
 import { RequestDetailPage } from './pages/RequestDetailPage';
 import { TermsPage } from './pages/TermsPage';
 import { HomePage } from './pages/HomePage';
+import { NoticesPage } from './pages/NoticesPage';
+import { ServiceGuidePage } from './pages/ServiceGuidePage';
 import { SocialCallbackPage } from './pages/SocialCallbackPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SignupPage } from './pages/SignupPage';
+import { RegistrationReturnPage } from './pages/RegistrationReturnPage';
 import { Icon } from './ui/Icon';
 import { PageTitle, type Crumb } from './ui/PageTitle';
 import { ToastProvider } from './ui/Toast';
@@ -135,6 +139,7 @@ export default function App() {
         <ToastProvider>
           <FavoritesProvider>
           <BrowserRouter>
+            <Analytics />
             <Routes>
               {/* 관리자 화면은 이용자·도우미 헤더 없이 관리자 전용 셸로 보여 준다. */}
               <Route element={<AdminLayout />}>
@@ -142,10 +147,13 @@ export default function App() {
               </Route>
               <Route element={<AppLayout />}>
                 <Route index element={<HomePage />} />
+                <Route path="notices" element={<NoticesPage />} />
+                <Route path="service-guide" element={<ServiceGuidePage />} />
                 <Route path="agents/:id" element={auth(<ProfilePage />)} />
                 <Route path="login" element={<LoginPage />} />
                 <Route path="auth/social/callback" element={<SocialCallbackPage />} />
                 <Route path="signup" element={<SignupPage />} />
+                <Route path="auth/registration/return" element={<RegistrationReturnPage />} />
                 <Route path="dev/api" element={<ApiCheckPage />} />
                 <Route path="favorites" element={auth(<FavoritesPage />)} />
                 <Route path="quote/:id" element={auth(<QuotePage />)} />

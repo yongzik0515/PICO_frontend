@@ -22,7 +22,7 @@ const fakeScroll = (c) => {
 // ── 함께 해 보기 ──
 const steps = [];
 const m2 = new (load('M2-welcome-character.dc.html'))({});
-ok(m2.renderVals().welcome, 'M2 welcome'); m2.renderVals().start(); ok(m2.renderVals().tour, 'M2 tour'); steps.push(1);
+ok(m2.renderVals().tour, 'M2 starts on the tour'); steps.push(1);
 
 const m3 = new (load('M3-my.dc.html'))({});
 ok(m3.renderVals().s2 && m3.renderVals().boxBottom === '66px', 'M3 start'); steps.push(m3.renderVals().progN);
@@ -94,7 +94,8 @@ const ustep = [];
 const u1 = new (load('U1-main.dc.html'))({}); ustep.push(u1.renderVals().progN);
 const u2 = new (load('U2-profile.dc.html'))({}); fakeScroll(u2);
 ok(u2.renderVals().read, 'U2 read'); ustep.push(u2.renderVals().progN);
-u2.box.scrollTop = 1200; u2.renderVals().onScroll(); ok(u2.renderVals().askStep, 'U2 ask after scroll'); ustep.push(u2.renderVals().progN);
+u2.box.scrollTop = 1200; u2.renderVals().onScroll(); ok(u2.renderVals().tabStep && u2.renderVals().about, 'U2 review tab step after scroll'); ustep.push(u2.renderVals().progN);
+u2.renderVals().showReviews(); ok(u2.renderVals().askStep && u2.renderVals().reviews && !u2.renderVals().about, 'U2 reviews shown, ask step'); ustep.push(u2.renderVals().progN);
 const u3 = new (load('U3-quote.dc.html'))({}); fakeScroll(u3);
 ok(u3.renderVals().read && u3.renderVals().notAgreed, 'U3 read'); ustep.push(u3.renderVals().progN);
 u3.renderVals().send(); ok(!u3.renderVals().sent, 'U3 send blocked before agreeing');
@@ -108,5 +109,25 @@ u4.box.scrollTop = 1200; u4.renderVals().onScroll(); ok(u4.renderVals().confirmS
 u4.renderVals().openSheet(); ok(u4.renderVals().sheet, 'U4 sheet'); ustep.push(u4.renderVals().progN);
 u4.renderVals().closeSheet(); ok(u4.renderVals().confirmStep, 'U4 sheet cancel');
 u4.renderVals().openSheet(); u4.renderVals().confirm(); ok(u4.renderVals().matched && !u4.renderVals().reviewing, 'U4 matched'); ustep.push(u4.renderVals().progN);
-ok(ustep.join(',') === '1,2,3,4,5,6,7,8,9,10,11,12', 'user steps ' + ustep.join(','));
+ok(ustep.join(',') === '1,2,3,4,5,6,7,8,9,10,11,12,13', 'user steps ' + ustep.join(','));
 console.log(process.exitCode ? 'user checks failed' : 'user checks passed', '| user steps', ustep.join(','));
+
+// ── 이용자 혼자 해 보기 ──
+const up = new (load('U6-practice.dc.html'))({});
+up.boxRef({ scrollTop: 300 });
+const q = () => up.renderVals();
+ok(q().onMain && q().stageN === 1 && q().mission === '도우미를 골라 보세요', 'U6 main');
+q().pickSky(); ok(q().onProfile && q().agentName === '하늘도우미' && q().isSky && q().agentFee === '5,000원', 'U6 sky profile');
+q().toMain(); q().pickStar(); ok(q().onProfile && up.box.scrollTop === 0 && q().agentName === '별빛티켓' && q().isStar, 'U6 star profile');
+q().toQuote(); ok(q().onQuote && q().stageN === 2, 'U6 quote');
+q().sendQuote(); ok(q().quoteErr && q().quoteErrText === '빈칸을 모두 채워 주세요.' && q().titleStyle.includes('#D92D20'), 'U6 empty blocked');
+['setTitle', 'setOpen', 'setSite', 'setSeat', 'setCond', 'setPhone'].forEach((k) => q()[k](ev('아무 내용')));
+q().sendQuote(); ok(q().quoteErr && q().quoteErrText === '약관에 동의해 주세요.', 'U6 needs agreement');
+q().toggleAgree(); q().sendQuote(); ok(q().onSent && !q().showNav, 'U6 sent');
+q().toDetail(); v = q(); ok(v.onDetail && v.waiting && v.stageN === 3 && v.badgeText === '도우미 응답 대기' && v.titleV === '아무 내용', 'U6 waiting');
+q().skipTime(); v = q(); ok(v.showProposed && v.badgeText === '최종 조건 확인 대기' && !v.waiting, 'U6 terms');
+q().tryRevise(); ok(q().reviseNote, 'U6 revise nudge');
+q().openConfirm(); ok(q().onConfirmSheet, 'U6 sheet'); q().closeSheet(); ok(!q().onConfirmSheet && q().showProposed, 'U6 sheet cancel');
+q().openConfirm(); q().confirmTerms(); v = q(); ok(v.matched && v.stageN === 4 && v.badgeText === '직접 거래 매칭 완료', 'U6 matched');
+q().finish(); ok(q().onDone && !q().showNav, 'U6 done');
+console.log(process.exitCode ? 'U6 checks failed' : 'U6 checks passed');

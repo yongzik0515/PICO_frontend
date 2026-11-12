@@ -164,8 +164,8 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
             <Field label="희망 좌석·요청 내용" required error={errors.requirements}>
               <textarea name="requirements" rows={3} required maxLength={10000} value={draft.requirements} onChange={(e) => setDraft((old) => ({ ...old, requirements: e.target.value }))} />
             </Field>
-            <Field label="성공 요건" required error={errors.successConditions}>
-              <textarea name="successConditions" rows={3} required maxLength={10000} value={draft.successConditions} onChange={(e) => setDraft((old) => ({ ...old, successConditions: e.target.value }))} />
+            <Field label="성공 요건" required error={errors.successConditions} helper="희망 좌석을 확보하지 못해도 성공으로 인정할 최소 조건과, 그 경우 지급하기로 합의한 수고비를 함께 명시해 주세요. 희망 좌석 확보 시 수고비와 구분해서 정해 주세요.">
+              <textarea name="successConditions" rows={3} required maxLength={10000} placeholder="예: 희망 좌석은 1층 A구역 연석 2매(수고비 50,000원). B~C구역 연석 2매까지 성공으로 인정하며, 이 경우 수고비는 30,000원으로 합의" value={draft.successConditions} onChange={(e) => setDraft((old) => ({ ...old, successConditions: e.target.value }))} />
             </Field>
             <Notice>착수·결과 증빙은 플랫폼에 등록하지 않아요. 조건이 확정되면 매칭이 완료되고, 결제·정산은 당사자끼리 직접 해요.</Notice>
           </TxCard>
@@ -174,7 +174,7 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
               <Field label="착수비" required helper="예매 시도에 대한 비용이에요." error={errors.upfrontFeeKrw}>
                 <MoneyInput name="upfrontFeeKrw" required max={MAX_FEE} value={current.upfront} onChange={(n) => setFees({ ...current, upfront: n })} />
               </Field>
-              <Field label="수고비(성공보수)" required helper="성공 요건을 충족했을 때 받는 비용이에요." error={errors.successFeeKrw}>
+              <Field label="수고비(성공보수)" required helper="희망 좌석을 확보했을 때 받기로 합의한 수고비예요. 그보다 낮은 조건의 수고비는 성공 요건에 별도로 명시해 주세요." error={errors.successFeeKrw}>
                 <MoneyInput name="successFeeKrw" required max={MAX_FEE} value={current.success} onChange={(n) => setFees({ ...current, success: n })} />
               </Field>
             </div>
@@ -193,7 +193,7 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
               <span>정산 방식</span>
               <strong>당사자끼리 직접 정산</strong>
             </div>
-            <Field label="실패·환불 처리" required error={errors.refundRule} helper="실패하거나 취소될 때 착수비·수고비를 어떻게 할지 두 분이 정해 적어 주세요. PICO는 금액을 정하지 않아요. 분쟁은 신고하기나 고객센터로 알려 주시면 운영팀이 이 내용을 참고해 구속력 없는 조정안을 드릴 수 있어요.">
+            <Field label="실패·환불 처리" required error={errors.refundRule} helper="실패하거나 취소될 때 착수비·수고비를 어떻게 할지 두 분이 정해 적어 주세요. PICO는 금액을 정하지 않아요. 분쟁은 거래 상세의 신고하기로 알려 주시면 운영팀이 이 내용을 참고해 구속력 없는 조정안을 드릴 수 있어요.">
               <textarea name="refundRule" rows={5} required maxLength={10000} value={draft.refundRule} onChange={(e) => setDraft((old) => ({ ...old, refundRule: e.target.value }))} placeholder={'예시)\n- 약속한 시도를 했지만 예매에 실패: 착수비는 도우미 몫, 수고비는 받지 않음(미리 받았다면 돌려줌)\n- 도우미가 시도하지 않았거나 도우미 사정으로 취소: 받은 금액 전액 돌려줌\n- 이용자 사정으로 취소: 시도 시작 전이면 전액, 시작 후면 착수비를 뺀 나머지 돌려줌\n- 공연·예매 공식 취소: 받은 금액 전액 돌려줌'} />
             </Field>
             {counteroffering && <Field label="수정 사유" required error={errors.reason}>
@@ -231,6 +231,7 @@ function TermsEditor({ requestId, detail, reload }: { requestId: number; detail:
                 ['예매처', r.platformName || r.otherPlatformName],
                 ['희망 좌석·요청 내용', r.requirements],
                 ['성공 요건', r.successConditions],
+                ['희망 착수비', won(r.upfrontBudgetDesired)],
                 ['희망 수고비', won(r.agencyBudgetDesired)],
                 ['최대 수고비', won(r.agencyBudgetMax)],
                 ['기타 사항', r.additionalNote],

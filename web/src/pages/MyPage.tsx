@@ -1,20 +1,22 @@
+import { AccountStorageConsent } from '../agent/AccountStorageConsent';
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { getTokens, setTokens } from '../api/tokens';
-import { banks, fetchAgentState, verifyIdentity, verifyPayout } from '../agent/profile';
+import { ACCOUNT_STORAGE_CONSENT_VERSION, banks, fetchAgentState, verifyIdentity, verifyPayout } from '../agent/profile';
 import { useAppState, type Mode } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
 import { startSocial, useSocialProviders, socialNames } from '../auth/social';
 import { fetchRequests, latestAgreement, toAgreement, useLoad } from '../transactions/model';
 import { Field, useAction, utcToLocal, won } from '../transactions/ui';
 import { AccountCard, AccountInput, AccountNote, Verification } from '../ui/account';
-import { tokenFrom } from '../ui/format';
+import { kstLastDay, tokenFrom } from '../ui/format';
 import { Icon } from '../ui/Icon';
 import { ImagePreview } from '../ui/ImagePreview';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
+import { PassPurchaseStatus, PassPurchaseRefundSummary } from '../transactions/PassPurchaseSummary';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 account.js의 my()/userProfile()/contacts()/account()와 transactions.js의 historyPage()
@@ -297,6 +299,8 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
   const [load, reload] = useLoad(fetchAgentState, []);
   const { pending, run } = useAction();
   const [bank, setBank] = useState({ code: '004', number: '' });
+  const [payoutChecking, setPayoutChecking] = useState(false);
+  const [accountStorageConsent, setAccountStorageConsent] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawPassword, setWithdrawPassword] = useState('');
   const providers = useSocialProviders();
@@ -365,8 +369,10 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
                   done={state.payoutVerified}
                   doneText={state.payoutMasked ? `확인 완료 · ${state.payoutMasked}` : undefined}
                 />
+                {!state.payoutVerified && <>
+                <AccountStorageConsent checked={accountStorageConsent} onChange={setAccountStorageConsent} disabled={payoutChecking} />
                 <Field label="은행" required>
-                  <select value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
+                  <select disabled={payoutChecking} value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
                     {banks.map(([code, bankName]) => (
                       <option key={code} value={code}>
                         {bankName}
@@ -380,18 +386,30 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
                     계좌번호 <em>*</em>
                   </span>
                   <div className="account-input-action">
-                    <input aria-label="계좌번호" inputMode="numeric" value={bank.number} placeholder="'-' 없이 숫자만 입력" onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
+                    <input disabled={payoutChecking} aria-label="계좌번호" inputMode="numeric" value={bank.number} placeholder="'-' 없이 숫자만 입력" onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
                     <button
                       type="button"
                       className="btn primary"
-                      disabled={pending || !state.identityVerified || bank.number.length < 8}
-                      onClick={() => run(() => verifyPayout(bank.code, bank.number), '본인 계좌를 확인했어요.').then((ok) => ok && reload())}
+                      disabled={pending || !state.identityVerified || bank.number.length < 8 || !accountStorageConsent}
+                      onClick={async () => {
+                        setPayoutChecking(true);
+                        try {
+                          if (!accountStorageConsent) return;
+                            if (await run(() => verifyPayout(bank.code, bank.number, ACCOUNT_STORAGE_CONSENT_VERSION), '본인 계좌를 확인했어요.')) {
+                              setBank({ ...bank, number: '' });
+                              setAccountStorageConsent(false);
+                              reload();
+                            }
+                        } finally { setPayoutChecking(false); }
+                      }}
                     >
-                      {state.payoutVerified ? '계좌 변경' : '계좌 확인'}
+                      {payoutChecking ? '확인 중…' : '계좌 확인'}
                     </button>
                   </div>
-                  <small className="field-helper">{state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
+                  <small className="field-helper">{payoutChecking ? '요청이 많으면 최대 2분 정도 걸릴 수 있어요. 잠시 기다려 주세요.' : state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
+                  <small className="field-helper">매일 23:30~00:30(한국시간)에는 정기 점검으로 계좌 확인을 이용할 수 없어요.</small>
                 </div>
+                </>}
               </>
             )}
           </>
@@ -461,7 +479,7 @@ function AccountSections({ primaryContact }: { primaryContact?: Raw }) {
               if (ok) signOut('탈퇴했어요. 그동안 이용해 주셔서 고마워요.', '/');
             }}
           >
-            <p className="prose">탈퇴하면 계정으로 로그인할 수 없고, 연락처·본인인증·계좌 확인 정보는 바로 지워져요. 거래·결제 기록은 법에 따라 보관돼요.</p>
+            <p className="prose">탈퇴하면 로그인할 수 없고 연락처·생년월일 등 일반 회원정보는 삭제돼요. 계좌정보 보관에 동의한 경우 실명·계좌정보는 신고 대응을 위해 탈퇴 후 30일간 분리 보관해요. 탈퇴 전 또는 탈퇴 후 30일 안에 접수된 신고가 처리 중이면 종료 시까지 보관해요. 거래·결제 기록은 법에 따라 보관돼요.</p>
             <p className="prose">응답 대기·조건 협의 중인 요청이나 진행 중인 거래가 있으면 탈퇴할 수 없어요. 매칭권 환불이 처리 중이거나 예전 안전거래의 지급·환불이 남아 있을 때도 끝난 뒤에 탈퇴할 수 있어요. 탈퇴 후 30일 동안은 같은 명의로 다시 본인인증을 할 수 없어요(도우미 활동이 정지된 상태에서 탈퇴하면 3년).</p>
             {hasLocal ? <><Field label="비밀번호 확인" required>
               <input type="password" required maxLength={72} value={withdrawPassword} onChange={(e) => setWithdrawPassword(e.target.value)} autoComplete="current-password" />
@@ -683,9 +701,10 @@ function AgentHistory() {
               {tab === 'purchases' ? (
                 <>
                   <div>
-                    <span className={`tx-status ${r.grantedAt ? 'blue' : 'amber'}`}>{r.grantedAt ? '충전 완료' : '결제 대기'}</span>
+                    <PassPurchaseStatus purchase={r} />
                     <h3>매칭권 {num(r.purchasedUnits)}장</h3>
                     <p>{utcToLocal(str(r.createdAt) ?? '')}</p>
+                    <PassPurchaseRefundSummary purchase={r} />
                   </div>
                   <div>
                     <strong>{won(num(r.priceKrw))}</strong>
@@ -700,6 +719,8 @@ function AgentHistory() {
                       {utcToLocal(str(r.usedAt) ?? '')}
                       {r.restoredAt ? ` · 복원 ${utcToLocal(str(r.restoredAt) ?? '')}` : ''}
                     </p>
+                    {/* 예외 복원으로 돌려받은 매칭권의 사용 기한(그 시각 직전까지). 마지막 사용 가능일을 한국 날짜로 보여 준다. */}
+                    {r.restored === true && str(r.restoredExpiresAt) && <small>복원됨 · {kstLastDay(str(r.restoredExpiresAt) ?? '')}까지 사용 가능</small>}
                   </div>
                   <div>
                     <button type="button" className="btn secondary" onClick={() => navigate(`/requests/${num(r.requestId)}`)}>

@@ -4,6 +4,11 @@
 
 /* 관리자 화면(/admin): 프로토타입에 없는 화면이라 여기서만 스타일한다. */
 .admin-tabs { flex-wrap: wrap; row-gap: 8px; }
+.admin-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+.admin-toolbar:first-child { margin-top: 0; }
+.admin-toolbar + .field { margin-top: 20px; }
+.admin-toolbar > .btn { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; }
+.admin-pagination { justify-content: center; }
 .admin-item { display: flex; justify-content: space-between; gap: 20px; padding: 18px 0; border-top: 1px solid var(--line-200); }
 .admin-item:first-of-type { border-top: 0; }
 .admin-item > div:first-child { flex: 1; min-width: 0; }
@@ -16,6 +21,7 @@
 /* 휴대폰(767px 이하): 버튼 칸(150px)이 옆에 붙어 정보 칸 값이 한 글자씩 세로로 쌓였다. 버튼을 정보 아래로 내린다.
    탭 12개는 4줄로 쌓여 화면 위쪽을 차지해 한 줄 가로 스크롤로 바꾼다. */
 @media (max-width: 767px) {
+  .admin-toolbar:not(.admin-pagination) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-item { flex-direction: column; gap: 12px; }
   .admin-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .admin-tabs > * { flex-shrink: 0; white-space: nowrap; }

@@ -247,3 +247,49 @@ body {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Keep helper application steps and fields readable on phones and narrow tablets. */
+@media (max-width: 1023px) {
+  .account-form-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .account-form-layout > * { min-width: 0; }
+  .account-form-aside { position: static; padding: 20px; }
+  .account-form-aside h2 { font-size: 20px; margin: 8px 0 12px; }
+  .account-form-aside .account-progress {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 20px 0 0;
+  }
+  .account-form-aside .account-progress li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding-bottom: 0;
+    font-size: 12px;
+  }
+  .account-form-aside .account-progress li::before { display: none; }
+  .account-form-layout form > .content-card { padding: 20px 16px; }
+  .account-form-layout .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .account-form-layout .account-image-picker { gap: 14px; }
+  .account-form-layout .account-image-picker > * { min-width: 0; }
+  .account-form-layout .account-image-picker > .avatar { flex-shrink: 0; }
+}
+
+/* Narrow cards need separate rows for review charts and form actions. */
+@media (max-width: 767px) {
+  .profile-feedback .review-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .account-form-footer {
+    flex-wrap: wrap;
+  }
+  .tx-form-footer,
+  #tx-terms-form .tx-card .tx-form-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

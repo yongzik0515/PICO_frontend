@@ -1,0 +1,49 @@
+/* 서비스 운영 안내: 홈 배너와 공지 본문 */
+
+.service-guide-banner{display:flex;align-items:center;gap:16px;min-height:86px;margin:0 0 40px;padding:20px 24px;border:1px solid #dbe3f6;border-radius:14px;background:#f8faff;color:var(--ink-900);transition:background .2s,border-color .2s}
+.service-guide-banner:hover{background:#eef3ff;border-color:#bccaf2}
+.service-guide-banner-icon{display:flex;align-items:center;justify-content:center;width:42px;height:42px;flex-shrink:0;background:#e9efff;border-radius:12px;color:var(--primary-500)}
+.service-guide-banner-copy{display:flex;align-items:center;gap:20px;flex:1;min-width:0}
+.service-guide-banner-copy strong{font-size:15px;font-weight:650;white-space:nowrap}
+.service-guide-banner-copy>span{font-size:13px;line-height:1.7;color:var(--ink-600)}
+.service-guide-banner-action{display:flex;align-items:center;gap:10px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--primary-500)}
+.service-guide-page{max-width:960px;margin:0 auto}
+.service-guide-hero{padding:32px 0 36px}
+.service-guide-eyebrow{display:inline-flex;align-items:center;gap:7px;margin-bottom:18px;font-size:12px;font-weight:600;color:var(--primary-500)}
+.service-guide-hero h1{font-size:34px;line-height:1.45;letter-spacing:-1.3px}
+.service-guide-hero p{margin-top:12px;font-size:15px;line-height:1.8;color:var(--ink-600)}
+.service-guide-footer{display:flex;justify-content:center;margin-top:40px;padding:0 0 20px}
+.service-guide-footer .btn{min-width:180px;gap:12px;background:#fff;font-size:13px}
+@media(max-width:999px){
+ .service-guide-banner-copy{align-items:flex-start;flex-direction:column;gap:4px}
+ .service-guide-hero{padding-top:20px}
+}
+@media(max-width:640px){
+ .service-guide-banner{position:relative;align-items:flex-start;gap:12px;padding:18px;margin-bottom:32px;flex-wrap:wrap}
+ .service-guide-banner-icon{width:36px;height:36px;border-radius:10px}
+ .service-guide-banner-copy{flex-basis:calc(100% - 48px)}
+ .service-guide-banner-copy strong{font-size:14px}
+ .service-guide-banner-copy>span{font-size:12px}
+ .service-guide-banner-action{margin-left:48px;font-size:12px;gap:8px}
+ .service-guide-hero{padding-bottom:28px}
+ .service-guide-hero h1{font-size:27px;letter-spacing:-1px}
+ .service-guide-hero p{font-size:13px}
+}
+
+.service-guide-notice{margin-top:32px;border-top:1px solid var(--line-200)}
+.service-guide-notice section{padding:32px 0;border-bottom:1px solid var(--line-200)}
+.service-guide-notice h2{display:flex;gap:14px;font-size:18px;font-weight:650;line-height:1.7}
+.service-guide-notice h2 span{flex-shrink:0;color:var(--ink-400);font-size:13px;padding-top:4px}
+.service-guide-notice p{margin:14px 0 0 32px;font-size:14px;line-height:1.9;color:var(--ink-600)}
+.service-guide-notice p+p{margin-top:4px}
+.service-guide-notice a{text-decoration:underline;text-underline-offset:3px}
+.service-guide-banner:focus-visible{outline:2px solid var(--primary-500);outline-offset:4px}
+@media(max-width:640px){.service-guide-notice section{padding:24px 0}.service-guide-notice h2{font-size:16px}.service-guide-notice p{font-size:13px}}
+.service-guide-intro,.service-guide-closing{font-size:15px;line-height:2;color:var(--ink-600);word-break:keep-all;overflow-wrap:anywhere}
+.service-guide-intro p+p{margin-top:16px}
+.service-guide-closing{padding:32px 0}
+.service-guide-notice h2,.service-guide-notice p{word-break:keep-all;overflow-wrap:anywhere}
+.service-guide-references{padding:24px;background:#f5f7fa;border-radius:12px;font-size:13px;line-height:1.9;color:var(--ink-600)}
+.service-guide-references ul{margin:12px 0 0;padding-left:20px}
+.service-guide-references a{text-decoration:underline;text-underline-offset:3px}
+@media(max-width:640px){.service-guide-intro,.service-guide-closing{font-size:14px}.service-guide-notice p{margin-left:0}.service-guide-references{padding:18px}}

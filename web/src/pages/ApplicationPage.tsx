@@ -1,15 +1,15 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { AccountStorageConsent } from '../agent/AccountStorageConsent';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, str } from '../api/pick';
 import {
+  ACCOUNT_STORAGE_CONSENT_VERSION,
   banks,
-  careerCaseStates,
   emptyProfile,
   fetchAgentState,
   saveDraft,
   savePublicProfile,
-  submitCareerCase,
   uploadProfileImage,
   verifyIdentity,
   verifyPayout,
@@ -24,7 +24,7 @@ import { useAgentActive } from '../agent/active';
 import { Avatar } from '../discovery/AgentCard';
 import { categoryNames, useFreshPlatforms } from '../discovery/agent';
 import { useLoad } from '../transactions/model';
-import { FilePicker, MoneyInput, kstDay, useAction } from '../transactions/ui';
+import { MoneyInput, kstDay, useAction } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
@@ -33,7 +33,7 @@ import { money } from '../ui/format';
 import { useToast } from '../ui/Toast';
 
 // 프로토타입 account.js의 application()/helperFields()/verificationCard()/careerUpload()/publicPreview()/applicationStatusPage()
-// 명세 흐름: PUT /api/me/agent/profile(초안) → 본인·계좌 인증 → 경력 증빙(CAREER 최소 1건) → POST /profiles/{id}/submit → 관리자 심사
+// 신청 흐름: 공개 프로필 → 본인·계좌 인증과 연락 방법 → 심사 신청. 경력 자료는 필수가 아니다.
 // 공개 항목만 수정하면 기존 경력 승인을 유지하고 즉시 게시한다.
 
 const statusLabels: Record<ProfileStatus | 'none', string> = { none: '미신청', draft: '작성 중', review: '심사 중', approved: '승인', changes: '보완 요청', rejected: '반려', archived: '이전 게시본' };
@@ -43,7 +43,6 @@ const fieldNames: Record<string, string> = {
   primaryCategory: '주로 맡는 공연 분야', contactHoursNote: '활동 가능 시간·일정', upfrontFeeKrw: '최소 착수비', successFee: '수고비',
   payout: '본인 계좌', contact: '매칭 후 연락 방법', careerDescription: '경력 요약', career: '경력 인증', business: '사업자 등록번호',
 };
-const scanLabels: Record<string, string> = { clean: '검토 완료', pending: '운영팀 파일 검토 전', blocked: '차단됨 · 다시 제출해 주세요', unknown: '제출 완료' };
 const categories = Object.keys(categoryNames) as Category[];
 // 매칭 후 연락 방법(마이페이지 연락처와 같은 값)
 const contactKinds: Record<string, string> = { PHONE: '전화번호', KAKAO: '카카오톡 ID', EMAIL: '이메일' };
@@ -82,7 +81,7 @@ function Field({ label, required, helper, className = '', children }: { label: s
 function Progress({ step }: { step: number }) {
   return (
     <ol className="account-progress" aria-label="진행 단계">
-      {['공개 프로필', '인증과 경력', '미리보기·제출'].map((t, i) => (
+      {['공개 프로필', '활동 준비', '미리보기·제출'].map((t, i) => (
         <li key={t} className={i === step ? 'active' : i < step ? 'complete' : ''} aria-current={i === step ? 'step' : undefined}>
           <span>{i < step ? <Icon name="check" size={14} /> : i + 1}</span>
           <strong>{t}</strong>
@@ -229,10 +228,10 @@ function StatusView({ state, onResume }: { state: AgentState; onResume: () => vo
   const s: ProfileStatus | 'none' = state.approved ? 'approved' : (latest?.status ?? 'none');
   const revision = state.approved && latest && latest.id !== state.approved.id ? latest.status : undefined;
   const data: Record<ProfileStatus | 'none', [string, string, 'clock' | 'check' | 'info']> = {
-    none: ['아직 도우미 신청 전이에요', '공개 프로필과 인증·경력 자료를 준비해 신청해 주세요. 단계마다 저장돼서 나눠서 작성해도 돼요.', 'info'],
+    none: ['아직 도우미 신청 전이에요', '공개 프로필을 작성하고 본인·계좌 확인을 마친 뒤 신청해 주세요. 단계마다 저장돼서 나눠서 작성해도 돼요.', 'info'],
     archived: ['이전 게시본이에요', '새 버전이 게시되어 이 버전은 보관됐어요.', 'info'],
     draft: ['신청서를 작성하고 있어요', '이어서 작성하고 제출해 주세요.', 'info'],
-    review: ['신청 내용을 확인하고 있어요', '공개 프로필과 인증·경력 자료를 확인한 뒤 알림으로 안내할게요. 승인 전에는 받은 요청과 매칭 관리를 이용할 수 없어요.', 'clock'],
+    review: ['신청 내용을 확인하고 있어요', '공개 프로필과 필수 인증을 확인한 뒤 알림으로 안내할게요. 승인 전에는 받은 요청과 매칭 관리를 이용할 수 없어요.', 'clock'],
     approved: ['도우미 활동을 시작할 수 있어요', '공개 프로필로 직접 도착한 요청을 확인하고, 수락한 거래는 매칭 관리에서 이어가세요.', 'check'],
     changes: ['신청 내용을 보완해 주세요', '아래 사유와 항목을 고쳐 다시 신청하면 이어서 심사해요. 신청 양식에서 고칠 곳을 빨간 테두리로 표시해 두었어요.', 'info'],
     rejected: ['신청이 승인되지 않았어요', '아래 사유를 확인해 주세요. 활동 기준에 맞는 자료를 준비해 다시 신청할 수 있어요.', 'info'],
@@ -319,7 +318,7 @@ function StatusView({ state, onResume }: { state: AgentState; onResume: () => vo
             </button>
           )}
         </div>
-        {state.approved?.careerSourceProfileId && <Note>공개 내용은 수정해 바로 게시한 버전이에요. 인증·경력은 기존에 승인된 자료를 유지하고 있어요.</Note>}
+        {state.approved?.careerSourceProfileId && <Note>공개 내용은 수정해 바로 게시한 버전이에요. 기존 프로필 심사 이력을 유지하고 있어요.</Note>}
         {s === 'none' && <Note>요청 수락 시 매칭권 1장을 사용해요. 예매처의 이용 기준을 준수하고, 계정정보 수집·매크로·재판매·티켓 양도를 요구하거나 제공할 수 없어요.</Note>}
         {latest?.submittedAt && <small className="account-caption">신청일 {kstDay(latest.submittedAt)}</small>}
       </section>
@@ -370,14 +369,28 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
   const [image, setImage] = useState<{ file: File; url: string } | null>(null);
   const [error, setError] = useState('');
   const [bank, setBank] = useState({ code: '004', number: '' });
+  const [payoutChecking, setPayoutChecking] = useState(false);
+  const [accountStorageConsent, setAccountStorageConsent] = useState(false);
   const [contactsLoad] = useLoad(() => unwrap<unknown>(api.GET('/api/me/contacts')).then(list), []);
   const primaryContact = contactsLoad.status === 'done' ? contactsLoad.data.find((c) => c.isPrimary === true) : undefined;
   const [contact, setContact] = useState<{ kind: string; value: string } | null>(null);
   const contactDraft = contact ?? { kind: str(primaryContact?.kind) ?? 'PHONE', value: str(primaryContact?.value) ?? '' };
-  const [career, setCareer] = useState<Record<number, { files: File[]; description: string }>>({});
   const [business, setBusiness] = useState('');
   const [agreed, setAgreed] = useState({ rules: false, contact: false });
   const { pending, run } = useAction();
+
+  // Refresh briefly while the application is reviewed; manual review may take longer.
+  const reviewing = load.status === 'done' && load.data.latest?.status === 'review';
+  const reviewVersion = load.status === 'done' ? load.data.latest?.id : undefined;
+  useEffect(() => {
+    if (!reviewing) return;
+    let checks = 0;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') reload();
+      if (++checks >= 24) window.clearInterval(timer);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [reviewing, reviewVersion, reload]);
 
   if (load.status === 'loading')
     return (
@@ -422,9 +435,6 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
     setLocalDraft(null);
     try { localStorage.removeItem(storageKey); } catch { /* 서버 저장 성공은 유지한다. */ }
   }
-  const caseStates = careerCaseStates(state.evidence);
-  // 경력 인증은 정상 파일을 포함한 최신 사례 1건 이상을 요구한다.
-  const careerCase = caseStates.find((c) => c.caseNumber === 1);
   const platformNames = platforms.filter((x) => p.platformIds.includes(x.id)).map((x) => x.name);
 
   function validateProfile() {
@@ -480,11 +490,9 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
       ? '본인인증을 완료해 주세요.'
       : !state.payoutVerified
         ? '본인 계좌를 확인해 주세요.'
-        : !caseStates.some((c) => c.scan === 'clean')
-          ? '경력 인증 자료를 제출하고 파일 검토가 완료될 때까지 기다려 주세요.'
-          : !agreed.rules || !agreed.contact
-            ? '필수 항목에 동의해 주세요.'
-            : '';
+        : !agreed.rules || !agreed.contact
+          ? '필수 항목에 동의해 주세요.'
+          : '';
     setError(message);
     if (message) return;
     const ok = await run(async () => {
@@ -514,24 +522,9 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
     }
   }
 
-  async function submitCase(n: number) {
-    if (!latest) return;
-    const c = career[n];
-    if (!c?.files.length) return toast('첨부할 파일을 선택해 주세요.');
-    if (!c.description.trim()) return toast('경력 설명을 적어 주세요.');
-    const ok = await run(() => submitCareerCase(latest.id, n, c.files, c.description.trim()), '경력 자료를 제출했어요.');
-    if (ok) {
-      // 제출한 사례는 '제출 완료'로 접는다. 다시 제출하려면 '다시 제출하기'를 누른다.
-      const rest = { ...career };
-      delete rest[n];
-      setCareer(rest);
-      reload();
-    }
-  }
-
   const titles = [
     ['어떤 도우미인가요?', '이용자가 보게 될 공개 프로필을 만들어요.'],
-    ['활동에 필요한 확인', '본인인증·연락 방법·본인 계좌와 경력 자료를 확인해요.'],
+    ['활동에 필요한 확인', '본인인증·연락 방법·본인 계좌를 확인해요.'],
     ['마지막으로 확인해 주세요', '입력한 내용이 공개 프로필에 이렇게 표시돼요.'],
   ][step];
 
@@ -610,6 +603,11 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
           <Field label="상세 소개" required className={fl('bio')} helper="경험과 진행 방식을 직접 소개해 주세요. 직접 작성한 경력은 검증된 실적으로 표시되지 않아요.">
             <textarea rows={5} required maxLength={10000} value={p.bio} onChange={(e) => set({ bio: e.target.value })} />
           </Field>
+          {edit && (
+            <Field label="활동 경력 (선택)" helper="직접 작성한 경력으로 공개 프로필에 표시돼요. 최대 3,000자">
+              <textarea rows={3} maxLength={3000} value={p.careerDescription ?? ''} onChange={(e) => set({ careerDescription: e.target.value })} placeholder="예: 2022년부터 콘서트·뮤지컬 예매를 도와 왔어요." />
+            </Field>
+          )}
           <fieldset className={`account-fieldset ${fl('platformIds')}`}>
             <legend>
               가능한 예매처 <small className="account-required">필수 · 복수 선택</small>
@@ -700,7 +698,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
     return (
       <>
         <PageTitle title="공개 프로필" crumbs={[{ label: '마이페이지', to: '/my' }]} />
-        <p className="prose">이용자가 도우미 찾기와 프로필 화면에서 보는 정보예요. 저장하면 심사 없이 바로 반영돼요. 이미 승인된 인증과 경력 자료는 그대로 유지돼요.</p>
+        <p className="prose">이용자가 도우미 찾기와 프로필 화면에서 보는 정보예요. 저장하면 심사 없이 바로 반영돼요. 기존 프로필 승인 상태는 유지돼요.</p>
         <div className="detail-layout public-profile-layout">
           <div>{profileForm}</div>
           <aside className="public-profile-side">
@@ -747,8 +745,9 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
               <Verification title="본인 계좌 확인" text="도우미 활동에 필요한 본인 명의 계좌인지 확인해요. PICO는 이 계좌로 돈을 보내지 않아요." done={state.payoutVerified} doneText={state.payoutMasked ? `확인 완료 · ${state.payoutMasked}` : undefined} />
               {!state.payoutVerified && (
                 <>
+                  <AccountStorageConsent checked={accountStorageConsent} onChange={setAccountStorageConsent} disabled={payoutChecking} />
                   <Field label="은행" required className={fl('payout')}>
-                    <select required value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
+                    <select required disabled={payoutChecking} value={bank.code} onChange={(e) => setBank({ ...bank, code: e.target.value })}>
                       {banks.map(([code, name]) => (
                         <option key={code} value={code}>
                           {name}
@@ -762,17 +761,28 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
                       계좌번호 <small className="account-required">필수</small>
                     </span>
                     <div className="account-input-action">
-                      <input required aria-label="계좌번호" inputMode="numeric" value={bank.number} placeholder="'-' 없이 숫자만 입력" onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
+                      <input required disabled={payoutChecking} aria-label="계좌번호" inputMode="numeric" value={bank.number} placeholder="'-' 없이 숫자만 입력" onChange={(e) => setBank({ ...bank, number: e.target.value.replace(/[^0-9]/g, '') })} />
                       <button
                         type="button"
                         className="btn primary"
-                        disabled={pending || !state.identityVerified || bank.number.length < 8}
-                        onClick={() => run(() => verifyPayout(bank.code, bank.number), '본인 계좌를 확인했어요.').then((ok) => ok && reload())}
+                        disabled={pending || !state.identityVerified || bank.number.length < 8 || !accountStorageConsent}
+                        onClick={async () => {
+                          setPayoutChecking(true);
+                          try {
+                            if (!accountStorageConsent) return;
+                            if (await run(() => verifyPayout(bank.code, bank.number, ACCOUNT_STORAGE_CONSENT_VERSION), '본인 계좌를 확인했어요.')) {
+                              setBank({ ...bank, number: '' });
+                              setAccountStorageConsent(false);
+                              reload();
+                            }
+                          } finally { setPayoutChecking(false); }
+                        }}
                       >
-                        계좌 확인
+                        {payoutChecking ? '확인 중…' : '계좌 확인'}
                       </button>
                     </div>
-                    <small className="field-helper">{state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
+                    <small className="field-helper">{payoutChecking ? '요청이 많으면 최대 2분 정도 걸릴 수 있어요. 잠시 기다려 주세요.' : state.identityVerified ? '예금주가 본인인증한 이름과 같아야 해요.' : '본인인증을 마친 뒤 계좌를 확인할 수 있어요.'}</small>
+                    <small className="field-helper">매일 23:30~00:30(한국시간)에는 정기 점검으로 계좌 확인을 이용할 수 없어요.</small>
                   </div>
                 </>
               )}
@@ -793,45 +803,10 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
               </div>
               <p className="record-note">요청을 수락한 뒤 거래하는 이용자에게만 공개돼요. 공개 프로필에는 표시하지 않아요.</p>
             </Card>
-            <Card title="경력 자료">
-              <Field label="경력 요약" className={fl('careerDescription')} helper="공개 프로필의 활동 경력에 표시돼요.">
+            <Card title="추가 정보 (선택)">
+              <Field label="경력 소개 (선택)" className={fl('careerDescription')} helper="입력하지 않아도 신청할 수 있어요. 직접 작성한 소개로 표시돼요.">
                 <textarea rows={3} maxLength={3000} value={p.careerDescription ?? ''} onChange={(e) => set({ careerDescription: e.target.value })} placeholder="예: 2022년부터 콘서트·뮤지컬 예매를 도와 왔어요." />
               </Field>
-              {/* 경력 인증: 자료와 설명을 한 묶음으로 제출한다(사례 1건). */}
-              <div className={`account-career-upload ${fl('career')}`}>
-                <div className="account-title-row">
-                  <strong>
-                    경력 인증 <small className="account-required">필수</small>
-                  </strong>
-                  {careerCase && (
-                    <span className={`badge ${careerCase.scan === 'blocked' ? 'account-badge-error' : 'verified'}`}>
-                      <Icon name="check" size={12} />
-                      {scanLabels[careerCase.scan]}
-                    </span>
-                  )}
-                </div>
-                <p>
-                  경력을 보여줄 자료(예매 내역·활동 기록 등)와 설명을 함께 제출해 주세요. 개인정보는 가려 주세요.
-                  <br />
-                  이미지·PDF / 파일당 최대 20MB / 최대 10개 · 비공개로 저장되고, 운영팀 파일 검토를 마친 뒤 심사를 신청할 수 있어요.
-                </p>
-                <button type="button" className="btn ghost" disabled={pending} onClick={reload}>파일 검토 상태 새로고침</button>
-                {!careerCase || career[1] ? (
-                  <>
-                    <FilePicker kind="career" files={career[1]?.files ?? []} onChange={(files) => setCareer({ ...career, 1: { description: career[1]?.description ?? '', files: files.slice(0, 10) } })} />
-                    <Field label="설명" required>
-                      <textarea rows={3} maxLength={10000} value={career[1]?.description ?? ''} onChange={(e) => setCareer({ ...career, 1: { files: career[1]?.files ?? [], description: e.target.value } })} placeholder="예: 2024년 ○○ 콘서트 예매 내역이에요. 좌석 정보만 남기고 가렸어요." />
-                    </Field>
-                    <button type="button" className="btn secondary" disabled={pending} onClick={() => void submitCase(1)}>
-                      {careerCase ? '경력 자료 다시 제출' : '경력 자료 제출'}
-                    </button>
-                  </>
-                ) : (
-                  <button type="button" className="text-link" onClick={() => setCareer({ ...career, 1: { files: [], description: '' } })}>
-                    다시 제출하기
-                  </button>
-                )}
-              </div>
               <Field label="사업자 등록번호" className={fl('business')} helper="예: 123-45-67890">
                 <input value={business} onChange={(e) => setBusiness(e.target.value)} pattern="[0-9]{3}-?[0-9]{2}-?[0-9]{5}" placeholder="선택 사항" />
               </Field>
@@ -866,7 +841,7 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
           >
             <div className="application-detail-preview">
               <DetailPreview p={p} platformNames={platformNames} image={image?.url ?? latest?.imageUrl} footer={footer(edit ? '수정한 프로필 심사 신청' : '도우미 신청 제출')} />
-              <Note>소개와 경력은 직접 작성한 정보예요. 제출한 자료에 대한 검토 전에는 인증된 경력이나 플랫폼 거래 실적으로 표시되지 않습니다.</Note>
+              <Note>소개와 경력은 직접 작성한 정보이며, 인증된 경력이나 플랫폼 거래 실적을 뜻하지 않아요.</Note>
             </div>
           </form>
         )}

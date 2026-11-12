@@ -11,10 +11,12 @@ const CSS = [
   '.pk-halo{animation:pk-halo 1.6s ease-out infinite}',
   '.pk-ring{animation:pk-ring 1.6s ease-out infinite}',
   '.pk-pop{animation:pk-pop .35s cubic-bezier(.2,.8,.2,1) both}',
+  '.pk-bob{animation:pk-bob 1.4s ease-in-out infinite}',
   '@keyframes pk-halo{0%{transform:scale(1);opacity:.9}70%{transform:scale(1.05);opacity:0}100%{transform:scale(1.05);opacity:0}}',
   '@keyframes pk-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.8);opacity:0}}',
   '@keyframes pk-pop{0%{transform:translateY(12px);opacity:0}100%{transform:none;opacity:1}}',
-  '@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop{animation:none}}',
+  '@keyframes pk-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}',
+  '@media (prefers-reduced-motion: reduce){.pk-halo,.pk-ring,.pk-pop,.pk-bob{animation:none}}',
 ].join('\n');
 
 const doc = (title, body, script) => `<!doctype html>
@@ -55,6 +57,7 @@ const ICON = {
   info: '<circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path>',
   check: '<path d="m5 12 4 4L19 6"></path>',
   chevron: '<path d="m9 5 7 7-7 7"></path>',
+  down: '<path d="m6 9 6 6 6-6"></path>',
   close: '<path d="m6 6 12 12M6 18 18 6"></path>',
   upload: '<path d="M12 16V4m-5 5 5-5 5 5"></path><path d="M4 16v4h16v-4"></path>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="m3 16 5-5 4 4 3-3 6 6"></path>',
@@ -195,6 +198,52 @@ const contactCard = (show, phone = '010-1234-5678', kakao = 'redheart_fan') => c
   <p style="margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: #6B7180">매칭한 이용자에게만 공개되는 정보예요. 예매처 계정정보는 공유하지 마세요.</p>`
   : notice('요청을 수락하면 매칭한 이용자의 연락처가 공개돼요.'));
 
+const tabBtn = (on, text, extra = '') => `<button type="button" role="tab" aria-selected="{{${on}}}"${extra} style="{{${on}Style}}">${text}</button>`;
+const reviewBar = (score, count, total) => `<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #4B5160"><span style="flex: 0 0 26px">${score}점</span><span role="meter" aria-label="${score}점 후기" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${count}" style="flex: 1; height: 6px; border-radius: 999px; background: #EEF1F5; overflow: hidden"><span style="display: block; width: ${Math.round((count / total) * 100)}%; height: 100%; background: #F5A524"></span></span><small style="flex: 0 0 26px; text-align: right; color: #6B7180">${count}개</small></div>`;
+const reviewItem = (stars, date, result, text) => `<article style="padding: 14px 0; border-top: 1px solid #F0F2F6">
+          <div style="display: flex; align-items: center; gap: 6px"><strong style="font-size: 13px">이용자</strong><span style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: #0B7A67; background: #E6F7F3; padding: 2px 7px; border-radius: 999px">${svg('check', 12, '#0B7A67', 2.4)}매칭 내역 확인</span></div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px"><span aria-label="${stars}점" style="color: #F5A524">${'★'.repeat(stars)}<span style="color: #D5D9E2">${'☆'.repeat(5 - stars)}</span></span><time style="color: #6B7180">${date}</time></div>
+          <p style="margin: 6px 0 0; font-size: 12px; color: #6B7180">이용자 후기 결과: ${result}</p>
+          <p style="margin: 6px 0 0; font-size: 14px; line-height: 1.6; color: #16181D">${text}</p>
+        </article>`;
+// 도우미 프로필의 소개·거래 후기 탭(ProfilePage). 탭 상태는 about/reviews, 스타일은 aboutStyle/reviewsStyle, 전환은 showReviews/showAbout 값으로 받는다.
+// stats: 평점·후기 수·5점부터 1점까지의 후기 수(기본은 하늘도우미)
+const SKY_REVIEWS = { avg: '4.8', count: 27, bars: [22, 4, 1, 0, 0] };
+const profileFeedback = (guided, stats = SKY_REVIEWS) => `<section style="margin-top: 16px; background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 8px 16px 18px">
+      <div role="tablist" aria-label="프로필 정보" style="display: flex; gap: 20px; border-bottom: 1px solid #E6E9EF">
+        ${tabBtn('about', '도우미 소개', ' onClick="{{showAbout}}"')}
+        <div${guided ? ' ref="{{targetRef}}"' : ''} style="position: relative; border-radius: 8px">
+          ${tabBtn('reviews', `거래 후기 ${stats.count}`, ' onClick="{{showReviews}}"')}
+          ${guided ? `<sc-if value="{{tabStep}}" hint-placeholder-val="{{ false }}">${halo(10)}</sc-if>` : ''}
+        </div>
+      </div>
+      ${guided ? `<sc-if value="{{tabStep}}" hint-placeholder-val="{{ false }}">${bubble({ title: '후기도 확인해요', sub: '실제 이용자가 남긴 후기예요', justify: 'flex-start', at: { left: 150 } })}</sc-if>` : ''}
+      <sc-if value="{{about}}" hint-placeholder-val="{{ true }}">
+        <h3 style="margin: 16px 0 0; font-size: 15px">공연을 기다리는 마음, 함께할게요.</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; line-height: 1.7; color: #4B5160">희망하는 공연과 좌석 조건을 꼼꼼히 확인하고, 충분히 이야기한 뒤 예매를 준비해요.</p>
+        <p style="margin: 8px 0 0; font-size: 12px; color: #6B7180">도우미가 직접 작성한 소개예요.</p>
+      </sc-if>
+      <sc-if value="{{reviews}}" hint-placeholder-val="{{ false }}">
+        <div class="pk-pop" style="display: flex; align-items: center; gap: 16px; margin-top: 16px; padding: 14px; border-radius: 12px; background: #F5F7FA">
+          <div style="flex: 0 0 auto; text-align: center"><strong style="display: block; font-size: 28px; font-weight: 800">${stats.avg}</strong><span style="color: #F5A524; font-size: 13px">★★★★★</span><small style="display: block; margin-top: 2px; font-size: 11px; color: #6B7180">거래 후기 ${stats.count}개</small></div>
+          <div aria-label="별점 분포" style="flex: 1; display: flex; flex-direction: column; gap: 4px">${stats.bars.map((c, i) => reviewBar(5 - i, c, stats.count)).join('')}</div>
+        </div>
+        <div style="margin-top: 8px">
+        ${reviewItem(5, '2026.10.02', '성공', '오픈 전에 진행 방식을 꼼꼼히 설명해 주셔서 믿고 맡겼어요. 원하던 1층 좌석으로 예매됐어요.')}
+        ${reviewItem(5, '2026.09.21', '성공', '연락이 빠르고 친절했어요. 다음 공연도 부탁드리려고요.')}
+        ${reviewItem(4, '2026.09.08', '부분 성공', '2매 중 1매만 잡혔지만 미리 정한 대로 깔끔하게 정리해 주셨어요.')}
+        </div>
+        <p role="status" style="margin: 8px 0 0; text-align: center; font-size: 12px; color: #6B7180">아래로 스크롤하면 후기가 이어져요.</p>
+      </sc-if>
+    </section>`;
+
+// 끝까지 내려야 넘어가는 단계에서 화면 아래에 띄우는 안내. bottom은 하단 메뉴(와 고정 바) 위 위치.
+const scrollCue = (show, bottom = 80) => `<sc-if value="{{${show}}}" hint-placeholder-val="{{ true }}">
+    <div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: ${bottom}px; z-index: 30; display: flex; justify-content: center; pointer-events: none">
+      <span class="pk-bob" style="display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px 7px 10px; border-radius: 999px; background: rgba(22,24,29,0.82); font-size: 13px; font-weight: 700; color: #FFFFFF; box-shadow: 0 6px 16px rgba(0,0,0,0.16)">${svg('down', 16, '#FFFFFF', 2.4)}아래로 내려 보세요</span>
+    </div>
+  </sc-if>`;
+
 // 스크롤 영역: ref로 스크롤 위치를 보고 다음 단계로 넘긴다.
 const scroller = (inner, bottom = '66px') => `  <div ref="{{boxRef}}" onScroll="{{onScroll}}" style="position: absolute; top: 56px; left: 0; right: 0; bottom: ${bottom}; overflow-y: auto; padding: 16px 20px 24px; box-sizing: border-box">
 ${inner}
@@ -203,5 +252,5 @@ ${inner}
 module.exports = {
   TOTAL, doc, write, MASCOT, svg, header, AVATAR_USER, AVATAR_HELPER, nav, navButton, navItemStyle, halo, bubble, pageTitle, cardOpen, card, rows, notice,
   statusBadge, nextStep, detailHeader, progressList, STEP_NAMES, DISCLAIMER, CONFIRMED, BTN, BTN_GHOST, sheet, ACCEPT_BODY, DIRECT_CARD,
-  REFUND_HELPER, REFUND_PH, TERMS_NOTICE, contactCard, scroller,
+  REFUND_HELPER, REFUND_PH, TERMS_NOTICE, contactCard, scroller, profileFeedback, scrollCue,
 };

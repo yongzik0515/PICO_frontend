@@ -16,7 +16,10 @@ function LegalDocument({ document }: { document: keyof typeof legalDocuments }) 
   return (
     <div className="account-contained legal-document">
       <PageTitle title={title} crumbs={[{ label: '홈', to: '/' }]} />
-      <p className="prose">시행일: {document === 'contactSharing' ? '2026년 10월 12일' : '2026년 10월 29일'}</p>
+      <p className="prose">게시일: 2026년 11월 {document === 'terms' ? '5' : '3'}일 · 시행일: 2026년 11월 {document === 'terms' ? '5' : '3'}일</p>
+      {document === 'terms' && <p className="prose">개정 안내: 도우미 심사 완료 이벤트를 2026년 11월 8일(일)까지 연장하며, 11월 5일부터 최초 승인 시 매칭권 2장을 지급합니다. 기존 지급 내역과 첫 구매 보너스는 그대로 유지됩니다.</p>}
+      {document === 'terms' && <p className="prose"><a href="/legal/2026-11-04/terms.html">이전 이용약관 보기</a></p>}
+      {document === 'privacy' && <p className="prose"><a href="/legal/2026-11-01.2/privacy.html">이전 개인정보처리방침 보기</a></p>}
       <nav className="legal-links" aria-label="약관 및 개인정보 문서">
         {links.map(([to, label]) => <Link key={to} to={to} aria-current={label === title ? 'page' : undefined}>{label}</Link>)}
       </nav>

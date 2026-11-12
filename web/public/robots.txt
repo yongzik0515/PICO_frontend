@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+#DaumWebMasterTool:1409e6a4edf84f22062b3ea617d90cf025e887f63b25dca4b8fa23bdbdfb702f:BakdpLsnsaW+jhngvF4sVQ==
+
+# 로그인해야 보이는 페이지가 있으면 아래처럼 막아두세요 (앞의 #을 지우고 경로를 실제 주소로 바꾸기)
+# Disallow: /mypage
+# Disallow: /admin
+# Disallow: /login
+
+Sitemap: https://pico-kr.app/sitemap.xml
