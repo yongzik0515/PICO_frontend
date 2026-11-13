@@ -265,11 +265,12 @@ main.page.home {
   }
 }
 
-/* 검색창 옆 '요청서 먼저 쓰기' 버튼. PC는 검색창 오른쪽, 모바일은 검색창 아래 한 줄. */
+/* 검색창 옆 '요청서 먼저 쓰기' 버튼. 1024px 미만은 검색창 왼쪽에 작게, PC는 검색창 오른쪽에 크게 둔다. */
 .search-line {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
 }
 .search-line > .search-container {
   flex: 1 1 auto;
@@ -281,8 +282,10 @@ main.page.home {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  min-height: 52px;
-  padding: 8px 18px;
+  flex: 0 0 auto;
+  order: -1;
+  min-height: 56px;
+  padding: 6px 12px;
   border-radius: 14px;
   background: linear-gradient(135deg, var(--primary-500), #5b78ff);
   box-shadow: 0 8px 20px #3a5bff33;
@@ -291,12 +294,15 @@ main.page.home {
   transition: box-shadow var(--dur-fast), transform var(--dur-fast);
 }
 .request-cta strong {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: -0.3px;
   line-height: 1.3;
+  white-space: nowrap;
 }
+/* 작은 버튼에서는 보조 문구를 숨긴다. */
 .request-cta span {
+  display: none;
   font-size: 11.5px;
   line-height: 1.3;
   opacity: 0.9;
@@ -311,18 +317,22 @@ main.page.home {
 }
 @media (min-width: 1024px) {
   .search-line {
-    flex-direction: row;
-    align-items: stretch;
     gap: 12px;
   }
   .home .search-line > .search-container {
     max-width: none;
   }
   .request-cta {
-    flex: 0 0 auto;
+    order: 0;
     min-width: 168px;
     min-height: 60px;
     padding: 0 22px;
+  }
+  .request-cta strong {
+    font-size: 15px;
+  }
+  .request-cta span {
+    display: block;
   }
 }
 @media (prefers-reduced-motion: reduce) {
