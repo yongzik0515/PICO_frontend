@@ -42,6 +42,7 @@ export const categoryNames: Record<string, string> = {
   SPORTS: '스포츠',
   COURSE: '강좌',
   FACILITY: '시설',
+  DINING: '맛집·식당',
   OTHER: '기타',
 };
 

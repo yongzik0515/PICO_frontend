@@ -18534,6 +18534,7 @@
           "SPORTS",
           "COURSE",
           "FACILITY",
+          "DINING",
           "OTHER"
         ]
       },
@@ -18795,7 +18796,7 @@
             "items": {
               "$ref": "#/components/schemas/ServiceCategory"
             },
-            "maxItems": 7,
+            "maxItems": 8,
             "minItems": 0,
             "uniqueItems": true
           },
@@ -18896,7 +18897,7 @@
             "items": {
               "$ref": "#/components/schemas/ServiceCategory"
             },
-            "maxItems": 7,
+            "maxItems": 8,
             "minItems": 0,
             "uniqueItems": true
           }
