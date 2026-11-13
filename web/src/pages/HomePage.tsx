@@ -131,11 +131,12 @@ export function HomePage() {
     sites?: Platform[];
     loading?: boolean;
     title?: string;
-    suggested?: boolean;
   }>();
   useEffect(() => () => searchRequest.current?.abort(), []);
   const current = lookup?.keyword === query.trim() ? lookup : undefined;
-  const result = useAgentSearch(current?.sites ? '' : query, sort, filters, reload, current?.sites ? undefined : alias, current?.sites?.map((site) => site.id));
+  const recommended = current ? fallbackPlatforms(current.keyword, platforms) : [];
+  const matchedSites = current?.sites?.length ? current.sites : recommended.length ? recommended : current?.sites;
+  const result = useAgentSearch(matchedSites ? '' : query, sort, filters, reload, matchedSites ? undefined : alias, matchedSites?.map((site) => site.id));
   const list = result.status === 'done' ? result.items : [];
   const total = result.status === 'done' ? result.total : 0;
   const labels = filterLabels(filters);
@@ -147,13 +148,15 @@ export function HomePage() {
   }
   const reset = () => {
     clearLookup();
+    setInput('');
+    setAiAlias(null);
     setState((s) => ({ ...s, query: '', filters: emptyFilters() }));
   };
-  function beginLookup(keyword: string) {
+  function beginLookup(keyword: string, candidates?: PerformanceCandidate[]) {
     searchRequest.current?.abort();
     const controller = new AbortController();
     searchRequest.current = controller;
-    setLookup({ keyword, loading: true });
+    setLookup({ keyword, loading: true, candidates });
     return controller.signal;
   }
   function submitSearch(keyword = input, ai = true) {
@@ -172,7 +175,7 @@ export function HomePage() {
       const available = await loadPlatforms().catch(() => []);
       if (signal.aborted) return;
       const sites = fallbackPlatforms(text, available);
-      setLookup(sites.length ? { keyword: text, sites, suggested: true } : undefined);
+      setLookup(sites.length ? { keyword: text } : undefined);
       if (!sites.length && ai && loggedIn) {
         const fixed = await correctKeyword(text).catch(() => null);
         if (!signal.aborted && fixed) setAiAlias({ query: text, keyword: fixed });
@@ -182,12 +185,13 @@ export function HomePage() {
 
   async function selectPerformance(item: PerformanceCandidate) {
     const keyword = query.trim();
-    const signal = beginLookup(keyword);
+    const candidates = current?.candidates;
+    const signal = beginLookup(keyword, candidates);
     const [detail, available] = await Promise.all([
       getPerformance(item.kopisId, signal).catch(() => undefined),
       loadPlatforms().catch(() => []),
     ]);
-    if (!signal.aborted) setLookup({ keyword, title: item.name, sites: bookingPlatforms(detail?.bookingLinks, available) });
+    if (!signal.aborted) setLookup({ keyword, candidates, title: item.name, sites: bookingPlatforms(detail?.bookingLinks, available) });
   }
 
   function saveAlert(e: FormEvent<HTMLFormElement>) {
@@ -257,9 +261,10 @@ export function HomePage() {
             {[item.name, item.venueName, item.startsOn].filter(Boolean).join(' · ')}
           </button>
         ))}
-        {current.sites && (current.sites.length ? (
-          <span>{current.title && `${current.title} · `}{current.suggested ? '추천 예매처' : '지원 예매처'} · {current.sites.map((site) => site.name).join(', ')}</span>
-        ) : <label>
+        {!!matchedSites?.length && (
+          <span>{current.title && `${current.title} · `}{current.sites?.length ? '지원 예매처' : '추천 예매처'} · {matchedSites.map((site) => site.name).join(', ')}</span>
+        )}
+        {current.sites?.length === 0 && <label>
           {current.title}의 예매처를 직접 선택해 주세요.{' '}
           <select aria-label="예매처 직접 선택" value="" onChange={(e) => {
             const site = platforms.find((p) => p.id === Number(e.target.value));
@@ -268,7 +273,7 @@ export function HomePage() {
             <option value="">예매처 선택</option>
             {platforms.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
           </select>
-        </label>)}
+        </label>}
         <button type="button" onClick={clearLookup}>이름으로 검색</button>
       </section>}
       <div className="pc-discovery-header">
