@@ -38,6 +38,7 @@ export interface Agent {
 export const categoryNames: Record<string, string> = {
   CONCERT: '콘서트',
   MUSICAL: '뮤지컬',
+  MOVIE: '영화',
   SPORTS: '스포츠',
   COURSE: '강좌',
   FACILITY: '시설',

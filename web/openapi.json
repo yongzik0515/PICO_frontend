@@ -18530,6 +18530,7 @@
         "enum": [
           "CONCERT",
           "MUSICAL",
+          "MOVIE",
           "SPORTS",
           "COURSE",
           "FACILITY",
@@ -18794,7 +18795,7 @@
             "items": {
               "$ref": "#/components/schemas/ServiceCategory"
             },
-            "maxItems": 6,
+            "maxItems": 7,
             "minItems": 0,
             "uniqueItems": true
           },
@@ -18895,7 +18896,7 @@
             "items": {
               "$ref": "#/components/schemas/ServiceCategory"
             },
-            "maxItems": 6,
+            "maxItems": 7,
             "minItems": 0,
             "uniqueItems": true
           }

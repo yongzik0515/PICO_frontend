@@ -3771,7 +3771,7 @@ export interface components {
          * @description agent_profile_versions.primary_category의 DDL CHECK 허용값
          * @enum {string}
          */
-        ServiceCategory: "CONCERT" | "MUSICAL" | "SPORTS" | "COURSE" | "FACILITY" | "OTHER";
+        ServiceCategory: "CONCERT" | "MUSICAL" | "MOVIE" | "SPORTS" | "COURSE" | "FACILITY" | "OTHER";
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseMapStringObject: {
             success?: boolean;

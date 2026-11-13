@@ -42,7 +42,7 @@ const tabs: [Tab, string][] = [
   ['setup', '약관·예매처'],
 ];
 
-const categoryNames: Record<string, string> = { CONCERT: '콘서트', MUSICAL: '뮤지컬', SPORTS: '스포츠', COURSE: '강좌', FACILITY: '시설', OTHER: '기타' };
+const categoryNames: Record<string, string> = { CONCERT: '콘서트', MUSICAL: '뮤지컬', MOVIE: '영화', SPORTS: '스포츠', COURSE: '강좌', FACILITY: '시설', OTHER: '기타' };
 const purposeNames: Record<string, string> = { CAREER: '경력', ACTIVITY: '활동', BUSINESS: '사업자', RESULT: '결과', ATTEMPT: '시도', REPORT: '신고' };
 
 // 도우미 신청 AI 자동 사전 심사(GET /api/admin/agent-profiles의 ai*, GET /api/admin/ai/profile-reviews)
