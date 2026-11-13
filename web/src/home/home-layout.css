@@ -265,7 +265,7 @@ main.page.home {
   }
 }
 
-/* 검색창 옆 '요청서 먼저 쓰기' 버튼. 1024px 미만은 검색창 왼쪽에 작게, PC는 검색창 오른쪽에 크게 둔다. */
+/* 검색창 옆 '요청서 먼저 쓰기' 버튼. 좁은 모바일은 아래, 480~1023px은 왼쪽, PC는 오른쪽에 둔다. */
 .search-line {
   display: flex;
   flex-direction: row;
@@ -333,6 +333,20 @@ main.page.home {
   }
   .request-cta span {
     display: block;
+  }
+}
+/* 작은 화면에서도 검색어와 검색 대상 안내를 읽을 수 있도록 입력칸 폭을 확보한다. */
+@media (max-width: 479px) {
+  .search-line {
+    flex-wrap: wrap;
+  }
+  .search-line > .search-container {
+    flex-basis: 100%;
+  }
+  .request-cta {
+    flex-basis: 100%;
+    order: 0;
+    min-height: 48px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
