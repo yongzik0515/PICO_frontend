@@ -28,6 +28,7 @@ import { MoneyInput, kstDay, useAction } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
+import './application-note.css';
 import { Verification } from '../ui/account';
 import { money } from '../ui/format';
 import { useToast } from '../ui/Toast';
@@ -801,7 +802,11 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
                   <input required maxLength={250} type={contactDraft.kind === 'EMAIL' ? 'email' : 'text'} value={contactDraft.value} placeholder={contactPlaceholders[contactDraft.kind]} onChange={(e) => setContact({ ...contactDraft, value: e.target.value })} />
                 </Field>
               </div>
-              <p className="record-note">요청을 수락한 뒤 거래하는 이용자에게만 공개돼요. 공개 프로필에는 표시하지 않아요.</p>
+              <p className="record-note contact-share-note">
+                요청을 수락한 뒤 거래하는 이용자에게만 공개돼요. 공개 프로필에는 표시하지 않아요.
+                <br />
+                ※ 본인인증 번호와 달라도 괜찮아요. 입력한 연락처와 공개 프로필에 적은 내용 외의 개인정보는 이용자에게 제공되지 않아요.
+              </p>
             </Card>
             <Card title="추가 정보 (선택)">
               <Field label="경력 소개 (선택)" className={fl('careerDescription')} helper="입력하지 않아도 신청할 수 있어요. 직접 작성한 소개로 표시돼요.">

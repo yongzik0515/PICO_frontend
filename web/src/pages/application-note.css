@@ -1,0 +1,7 @@
+/* 도우미 신청 2단계 '매칭 후 연락 방법' 아래 안내(연락처 공개 범위).
+   글자색은 기본 안내(record-note)보다 조금 진하게 하고,
+   연락처 입력칸과의 간격은 원래(29px)의 70% 수준(약 20px)으로 줄인다. */
+.record-note.contact-share-note {
+  color: #6b7180;
+  margin-top: 1px;
+}
