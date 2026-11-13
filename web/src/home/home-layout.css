@@ -191,7 +191,7 @@ main.page.home {
   .home .pc-search-row:has(> .popular-shows) {
     grid-template-areas: "search promo" "popular promo" "guide promo";
   }
-  .home .pc-search-row > .search-container { grid-area: search; }
+  .home .pc-search-row > .search-line { grid-area: search; }
   .home .pc-search-row > .popular-shows { grid-area: popular; margin: 0; }
   .home .pc-search-row > .home-ad {
     grid-column: 2;
@@ -262,5 +262,74 @@ main.page.home {
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
+  }
+}
+
+/* 검색창 옆 '요청서 먼저 쓰기' 버튼. PC는 검색창 오른쪽, 모바일은 검색창 아래 한 줄. */
+.search-line {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.search-line > .search-container {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.request-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 8px 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--primary-500), #5b78ff);
+  box-shadow: 0 8px 20px #3a5bff33;
+  color: #fff;
+  text-align: center;
+  transition: box-shadow var(--dur-fast), transform var(--dur-fast);
+}
+.request-cta strong {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.3;
+}
+.request-cta span {
+  font-size: 11.5px;
+  line-height: 1.3;
+  opacity: 0.9;
+}
+.request-cta:hover {
+  box-shadow: 0 10px 26px #3a5bff4d;
+  transform: translateY(-1px);
+}
+.request-cta:focus-visible {
+  outline: 3px solid #3a5bff66;
+  outline-offset: 2px;
+}
+@media (min-width: 1024px) {
+  .search-line {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .home .search-line > .search-container {
+    max-width: none;
+  }
+  .request-cta {
+    flex: 0 0 auto;
+    min-width: 168px;
+    min-height: 60px;
+    padding: 0 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .request-cta {
+    transition: none;
+  }
+  .request-cta:hover {
+    transform: none;
   }
 }

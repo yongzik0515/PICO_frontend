@@ -206,6 +206,8 @@ export function HomePage() {
         <TicketCarousel />
       </section>
       <div className="pc-search-row">
+        {/* 검색창 옆(모바일은 아래)의 요청서 먼저 쓰기 버튼: 도우미를 고르기 전에 요청서부터 쓰는 진입점이다. */}
+        <div className="search-line">
         <div className="search-container">
           <input
             id="search"
@@ -221,6 +223,11 @@ export function HomePage() {
           <button type="button" className="search-chip" aria-label="검색" onClick={() => submitSearch()}>
             <Icon name="search" size={20} />
           </button>
+        </div>
+        <Link className="request-cta" to="/request/start?source=onboarding-home">
+          <strong>요청서 먼저 쓰기</strong>
+          <span>맞는 도우미를 찾아 드려요</span>
+        </Link>
         </div>
         {popular.length > 0 && <div className="popular-shows">
           <span>인기 검색</span>
