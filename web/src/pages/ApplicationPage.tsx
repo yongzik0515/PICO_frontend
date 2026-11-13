@@ -803,8 +803,6 @@ function ApplicationEditor({ editRoute, userKey }: { editRoute: boolean; userKey
                 </Field>
               </div>
               <p className="record-note contact-share-note">
-                요청을 수락한 뒤 거래하는 이용자에게만 공개돼요. 공개 프로필에는 표시하지 않아요.
-                <br />
                 ※ 본인인증 번호와 달라도 괜찮아요. 입력한 연락처와 공개 프로필에 적은 내용 외의 개인정보는 이용자에게 제공되지 않아요.
               </p>
             </Card>
