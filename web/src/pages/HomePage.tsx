@@ -324,7 +324,7 @@ export function HomePage() {
                 </button>
               </div>
             ) : list.length ? (
-              list.map((a) => <AgentCard key={a.id} agent={a} />)
+              list.map((a) => <AgentCard key={a.id} agent={a} showFee={false} />)
             ) : (
               <div className="empty">
                 <Icon name="search" size={40} />

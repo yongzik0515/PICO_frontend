@@ -51,7 +51,8 @@ export function Badges({ agent }: { agent: Agent }) {
   );
 }
 
-export function AgentCard({ agent: a }: { agent: Agent }) {
+// showFee=false면 착수비 칸을 숨긴다(홈 목록).
+export function AgentCard({ agent: a, showFee = true }: { agent: Agent; showFee?: boolean }) {
   return (
     <article className="agent-card pc-agent-card">
       <div className="agent-main">
@@ -80,13 +81,15 @@ export function AgentCard({ agent: a }: { agent: Agent }) {
             </span>
           </div>
         </div>
-        <div className="pc-card-price">
-          <span>착수비</span>
-          <strong>
-            {money(a.fee)}
-            <small>원부터</small>
-          </strong>
-        </div>
+        {showFee && (
+          <div className="pc-card-price">
+            <span>착수비</span>
+            <strong>
+              {money(a.fee)}
+              <small>원부터</small>
+            </strong>
+          </div>
+        )}
       </div>
       <div className="agent-bottom">
         <div className="site-tags">
