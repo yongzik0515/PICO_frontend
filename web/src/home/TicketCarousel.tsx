@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
-import { getBanners, getPerformance, type Banner, type PerformanceDetail } from './banners';
+import { doomsdayBanner, getBanners, getPerformance, type Banner, type PerformanceDetail } from './banners';
 import { Modal } from '../ui/Modal';
 import './ticket-carousel.css';
 
@@ -32,13 +32,21 @@ export function TicketCarousel() {
     });
     return () => controller.abort();
   }, [reload]);
+  const banners = useMemo(() => [doomsdayBanner, ...(page?.banners ?? [])], [page]);
+  function openBanner(banner: Banner) {
+    if (banner.movieUrl) {
+      window.open(banner.movieUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setSelected(banner);
+  }
+
   return <>
+    <Carousel key={banners.length} banners={banners} onOpen={openBanner} />
     {!page ? <div className="content-card" role="status">
       <p>{error || 'KOPIS 공연 정보를 불러오는 중이에요.'}</p>
       {error && <button type="button" className="btn secondary" onClick={() => { setError(''); setPage(null); setReload((n) => n + 1); }}>다시 불러오기</button>}
-    </div> : <>
-      {page.banners.length ? <Carousel banners={page.banners} onOpen={setSelected} /> : <p role="status">현재 집계된 공연이 없습니다.</p>}
-    </>}
+    </div> : null}
     {selected && <PerformanceDialog key={selected.id} banner={selected} onClose={() => setSelected(null)} />}
   </>;
 }
@@ -325,6 +333,8 @@ function Slide({
   const [imgOk, setImgOk] = useState(true); // 이미지 파일이 없으면 배경색만 남긴다
   const color = banner.color || FALLBACK_COLOR;
   const dates = banner.period.match(/^(\d{4})\.(\d{2})\.(\d{2})\s*~\s*(\d{4})\.(\d{2})\.(\d{2})$/);
+  const release = banner.movieUrl ? banner.period.match(/^(\d{4})\.(\d{2}\.\d{2})$/) : null;
+  const action = banner.movieUrl ? '영화 정보 보기' : '공연 정보 보기';
   const pad = (n: number) => String(n).padStart(2, '0');
 
   return (
@@ -342,7 +352,7 @@ function Slide({
         style={{ '--tsb-color': color } as CSSProperties}
         role={active ? 'button' : undefined}
         tabIndex={active ? 0 : -1}
-        aria-label={active ? `${banner.title} 공연 정보 보기` : undefined}
+        aria-label={active ? `${banner.title} ${action}` : undefined}
         onKeyDown={(e) => {
           if (!active || (e.key !== 'Enter' && e.key !== ' ')) return;
           e.preventDefault();
@@ -367,7 +377,7 @@ function Slide({
           {(!imgOk || !banner.image) && <div className="tsb-poster-empty" aria-hidden="true">PICO<span>공연 포스터</span></div>}
           <div className="tsb-copy">
             <span className="tsb-chip tsb-rise" style={{ '--d': 0 } as CSSProperties}>
-              {banner.category} · KOPIS {banner.rank}위
+              {banner.category}{banner.rank != null && ` · KOPIS ${banner.rank}위`}
             </span>
             <div className="tsb-copy-mid">
               <h2 className="tsb-title tsb-rise" style={{ '--d': 1 } as CSSProperties}>
@@ -378,7 +388,7 @@ function Slide({
                 <span>{banner.venue}</span>
               </p>
             </div>
-            <span className="tsb-cta tsb-rise" style={{ '--d': 3 } as CSSProperties}>공연 정보 보기 <span aria-hidden="true">↗</span></span>
+            <span className="tsb-cta tsb-rise" style={{ '--d': 3 } as CSSProperties}>{action} <span aria-hidden="true">↗</span></span>
           </div>
         </div>
 
@@ -391,8 +401,11 @@ function Slide({
 
         <div className="tsb-stub">
           <div className="tsb-stub-top">
-            <span className="tsb-open-label">PERFORMANCE</span>
-            {dates ? <>
+            <span className="tsb-open-label">{banner.movieUrl ? 'MOVIE' : 'PERFORMANCE'}</span>
+            {release ? <>
+              <strong className="tsb-dates"><span>{release[2]}</span></strong>
+              <span className="tsb-year">{release[1]}</span>
+            </> : dates ? <>
               <strong className="tsb-dates"><span>{dates[2]}.{dates[3]}</span><span className="tsb-date-separator">—</span><span>{dates[5]}.{dates[6]}</span></strong>
               <span className="tsb-year">{dates[1] === dates[4] ? dates[1] : `${dates[1]} — ${dates[4]}`}</span>
             </> : <strong className="tsb-period">{banner.period}</strong>}
