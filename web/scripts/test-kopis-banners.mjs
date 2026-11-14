@@ -4,7 +4,9 @@ import vm from 'node:vm';
 import ts from 'typescript';
 
 // Exercise the actual adapter without a browser or a real API key.
-const source = readFileSync(new URL('../src/home/banners.ts', import.meta.url), 'utf8');
+// Vite replaces BASE_URL at build time; the Node VM supplies a subpath to verify it.
+const source = readFileSync(new URL('../src/home/banners.ts', import.meta.url), 'utf8')
+  .replaceAll('import.meta.env.BASE_URL', JSON.stringify('/preview/'));
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
@@ -23,7 +25,9 @@ vm.runInNewContext(compiled, {
     unwrap: async (call) => call,
   }),
 });
-const { safeExternalUrl, getBanners, getPerformance } = exports;
+const { doomsdayBanner, safeExternalUrl, getBanners, getPerformance } = exports;
+assert.equal(doomsdayBanner.image, '/preview/avengers-doomsday.png');
+assert.equal(doomsdayBanner.movieUrl, 'https://movies.disney.com/avengers-doomsday');
 assert.equal(safeExternalUrl('javascript:alert(1)'), undefined);
 assert.equal(safeExternalUrl('data:text/html,test'), undefined);
 assert.equal(safeExternalUrl('https://user:password@example.com/'), undefined);

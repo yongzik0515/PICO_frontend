@@ -94,10 +94,11 @@ function Carousel({ banners, onOpen }: { banners: Banner[]; onOpen: (banner: Ban
   const running = !reduceMotion && !hovered && !focused && !dragging && visible && loop;
 
   const go = useCallback((step: number) => {
+    if (!loop) return;
     setJumping(false);
     setIndex((i) => i + step);
     setFilled(0); // 직접 넘기면 진행 표시를 처음부터
-  }, []);
+  }, [loop]);
 
   // 복제본에 도착하면 이동이 끝난 뒤 트랜지션을 끈 채 같은 배너의 진짜 위치로 옮겨 끊김 없이 이어 준다.
   useEffect(() => {
@@ -210,7 +211,8 @@ function Carousel({ banners, onOpen }: { banners: Banner[]; onOpen: (banner: Ban
       setDragging(true);
       e.currentTarget.setPointerCapture(e.pointerId);
     }
-    setOffset(dx);
+    // 한 장일 때도 드래그 후 클릭은 막되 트랙은 움직이지 않는다.
+    if (loop) setOffset(dx);
   };
   const endDrag = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
