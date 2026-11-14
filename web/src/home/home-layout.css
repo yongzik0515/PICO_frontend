@@ -186,10 +186,14 @@ main.page.home {
     display: grid;
     grid-template-columns: minmax(0, 750px) minmax(240px, 1fr);
     grid-template-areas: "search promo" "guide promo";
+    /* 오른쪽 배너 높이가 왼쪽 검색·안내 영역을 늘리지 않도록 한다. */
+    grid-template-rows: min-content 1fr;
+    align-items: start;
     gap: 12px 24px;
   }
   .home .pc-search-row:has(> .popular-shows) {
     grid-template-areas: "search promo" "popular promo" "guide promo";
+    grid-template-rows: min-content min-content 1fr;
   }
   .home .pc-search-row > .search-line { grid-area: search; }
   .home .pc-search-row > .popular-shows { grid-area: popular; margin: 0; }

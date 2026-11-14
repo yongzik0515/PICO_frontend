@@ -2,7 +2,21 @@ import { api, unwrap } from '../api/client';
 
 export type Banner = {
   id: string; category: string; title: string; description: string;
-  venue: string; period: string; image: string; imageAlt: string; color?: string; rank: number;
+  venue: string; period: string; image: string; imageAlt: string; color?: string; rank?: number;
+  movieUrl?: string;
+};
+
+export const doomsdayBanner: Banner = {
+  id: 'avengers-doomsday',
+  category: '영화',
+  title: '어벤져스: 둠스데이',
+  description: '',
+  venue: '북미 극장 개봉 예정',
+  period: '2026.12.18',
+  image: import.meta.env.BASE_URL + 'avengers-doomsday.png',
+  imageAlt: '어벤져스: 둠스데이 팬아트 포스터',
+  color: '#17302c',
+  movieUrl: 'https://movies.disney.com/avengers-doomsday',
 };
 
 export type PerformanceDetail = {
