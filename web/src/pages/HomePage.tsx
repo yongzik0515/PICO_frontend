@@ -210,28 +210,28 @@ export function HomePage() {
         <TicketCarousel />
       </section>
       <div className="pc-search-row">
-        {/* 검색창 옆(모바일은 아래)의 요청서 먼저 쓰기 버튼: 도우미를 고르기 전에 요청서부터 쓰는 진입점이다. */}
+        {/* 검색창 옆(좁은 모바일은 아래)의 요청서 먼저 쓰기 버튼: 도우미를 고르기 전에 요청서부터 쓰는 진입점이다. */}
         <div className="search-line">
-        <div className="search-container">
-          <input
-            id="search"
-            type="search"
-            value={input}
-            placeholder="공연명, 도우미 이름, 예매처를 검색해 보세요"
-            aria-label="도우미 검색"
-            onChange={(e) => setInput(e.target.value)}
-            // 한글 조합 중의 Enter는 건너뛴다. 조합이 끝난 마지막 글자까지 들어가도록 입력란의 현재 값으로 검색한다.
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitSearch(e.currentTarget.value); }}
-          />
-          {/* 돋보기를 입력란 오른쪽 끝의 누를 수 있는 칩으로 둔다. 목록은 Enter나 이 버튼을 눌러야 검색어로 갱신된다. */}
-          <button type="button" className="search-chip" aria-label="검색" onClick={() => submitSearch()}>
-            <Icon name="search" size={20} />
-          </button>
-        </div>
-        <Link className="request-cta" to="/request/start?source=onboarding-home">
-          <strong>요청서 먼저 쓰기</strong>
-          <span>맞는 도우미를 찾아 드려요</span>
-        </Link>
+          <div className="search-container">
+            <input
+              id="search"
+              type="search"
+              value={input}
+              placeholder="공연명·도우미·예매처 검색"
+              aria-label="공연명, 도우미 이름, 예매처 검색"
+              onChange={(e) => setInput(e.target.value)}
+              // 한글 조합 중의 Enter는 건너뛴다. 조합이 끝난 마지막 글자까지 들어가도록 입력란의 현재 값으로 검색한다.
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitSearch(e.currentTarget.value); }}
+            />
+            {/* 돋보기를 입력란 오른쪽 끝의 누를 수 있는 칩으로 둔다. 목록은 Enter나 이 버튼을 눌러야 검색어로 갱신된다. */}
+            <button type="button" className="search-chip" aria-label="검색" onClick={() => submitSearch()}>
+              <Icon name="search" size={20} />
+            </button>
+          </div>
+          <Link className="request-cta" to="/request/start?source=onboarding-home">
+            <strong>요청서 먼저 쓰기</strong>
+            <span>맞는 도우미를 찾아 드려요</span>
+          </Link>
         </div>
         {popular.length > 0 && <div className="popular-shows">
           <span>인기 검색</span>
