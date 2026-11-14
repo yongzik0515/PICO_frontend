@@ -6,7 +6,7 @@ import { loadPlatforms, useAgentSearch, usePlatforms, type Platform } from '../d
 import { AgentCard } from '../discovery/AgentCard';
 import { FilterModal, QuickFilter } from '../discovery/FilterControls';
 import { emptyFilters, filterLabels, removeFilter, sortOptions, type Filters, type Sort } from '../discovery/filters';
-import { PromoSlot } from '../home/PromoSlot';
+import { CatchtablePromo, PromoSlot } from '../home/PromoSlot';
 import { TicketCarousel } from '../home/TicketCarousel';
 import { getPerformance } from '../home/banners';
 import { bookingPlatforms, fallbackPlatforms, findPerformances, type PerformanceCandidate } from '../home/performanceSearch';
@@ -146,6 +146,15 @@ export function HomePage() {
     searchRequest.current?.abort();
     setLookup(undefined);
   }
+  function searchCatchtable() {
+    clearLookup();
+    setAiAlias(null);
+    setInput('캐치테이블');
+    setState((s) => ({ ...s, query: '캐치테이블', filters: { ...s.filters, sites: [] } }));
+    setLookup({ keyword: '캐치테이블' });
+    void recordSearch('캐치테이블');
+    document.getElementById('agent-results')?.scrollIntoView({ block: 'start' });
+  }
   const reset = () => {
     clearLookup();
     setInput('');
@@ -243,15 +252,7 @@ export function HomePage() {
         </div>}
         {/* 검색창 오른쪽 빈 자리(1024px 이상) 또는 검색창 아래(그보다 좁을 때)를 이벤트·광고 자리로 쓴다.
             배너 문구와 기간은 home/promos.ts에서 관리한다. */}
-        <PromoSlot onCatchtableSearch={() => {
-          clearLookup();
-          setAiAlias(null);
-          setInput('캐치테이블');
-          setState((s) => ({ ...s, query: '캐치테이블', filters: { ...s.filters, sites: [] } }));
-          setLookup({ keyword: '캐치테이블' });
-          void recordSearch('캐치테이블');
-          document.getElementById('agent-results')?.scrollIntoView({ block: 'start' });
-        }} />
+        <PromoSlot onCatchtableSearch={searchCatchtable} />
         <Link className="service-guide-banner" to="/service-guide">
           <span className="service-guide-banner-icon"><Icon name="file" size={22} /></span>
           <span className="service-guide-banner-copy">
@@ -292,30 +293,33 @@ export function HomePage() {
           {alias && <p className="record-note">AI가 고친 검색어 ‘{alias}’로 찾은 도우미도 함께 보여 드려요.</p>}
         </div>
       </div>
-      <div className="pc-filterbar">
-        <GuideTip />
-        <div className="filter-chips">
-          {quickFilters.map(([key, label]) => (
-            <QuickFilter key={key} filterKey={key} label={label} selected={labels.some(([k]) => k === key)} filters={filters} onApply={setFilters} />
-          ))}
-        </div>
-        <button className="filter-button" aria-label="상세 필터" onClick={() => setFilterOpen(true)}>
-          <Icon name="filter" size={18} /> 필터
-        </button>
-      </div>
-      <div className="pc-result-toolbar">
-        <p>
-          {search ? '조건에 맞는 도우미' : '지금 제일 핫한!'} <strong>{total}</strong> 명
-        </p>
-        <label className="sort-label">
-          <select id="sort" aria-label="도우미 정렬" value={sort} onChange={(e) => setState((s) => ({ ...s, sort: e.target.value as Sort }))}>
-            {sortOptions.map(([v, t]) => (
-              <option key={v} value={v}>
-                {t}
-              </option>
+      <div className="home-discovery-controls">
+        <div className="pc-filterbar">
+          <GuideTip />
+          <div className="filter-chips">
+            {quickFilters.map(([key, label]) => (
+              <QuickFilter key={key} filterKey={key} label={label} selected={labels.some(([k]) => k === key)} filters={filters} onApply={setFilters} />
             ))}
-          </select>
-        </label>
+          </div>
+          <button className="filter-button" aria-label="상세 필터" onClick={() => setFilterOpen(true)}>
+            <Icon name="filter" size={18} /> 필터
+          </button>
+        </div>
+        <CatchtablePromo className="home-filter-promo" onSearch={searchCatchtable} />
+        <div className="pc-result-toolbar">
+          <p>
+            {search ? '조건에 맞는 도우미' : '지금 제일 핫한!'} <strong>{total}</strong> 명
+          </p>
+          <label className="sort-label">
+            <select id="sort" aria-label="도우미 정렬" value={sort} onChange={(e) => setState((s) => ({ ...s, sort: e.target.value as Sort }))}>
+              {sortOptions.map(([v, t]) => (
+                <option key={v} value={v}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
       {labels.length > 0 && (
         <div className="pc-applied-filters">

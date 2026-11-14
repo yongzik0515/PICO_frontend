@@ -336,7 +336,7 @@ function Slide({
   const color = banner.color || FALLBACK_COLOR;
   const dates = banner.period.match(/^(\d{4})\.(\d{2})\.(\d{2})\s*~\s*(\d{4})\.(\d{2})\.(\d{2})$/);
   const release = banner.movieUrl ? banner.period.match(/^(\d{4})\.(\d{2}\.\d{2})$/) : null;
-  const action = banner.movieUrl ? '영화 정보 보기' : '공연 정보 보기';
+  const action = banner.movieUrl ? '공식 예고편 보기' : '공연 정보 보기';
   const pad = (n: number) => String(n).padStart(2, '0');
 
   return (

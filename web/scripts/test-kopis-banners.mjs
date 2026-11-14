@@ -27,7 +27,7 @@ vm.runInNewContext(compiled, {
 });
 const { doomsdayBanner, safeExternalUrl, getBanners, getPerformance } = exports;
 assert.equal(doomsdayBanner.image, '/preview/avengers-doomsday.png');
-assert.equal(doomsdayBanner.movieUrl, 'https://movies.disney.com/avengers-doomsday');
+assert.equal(doomsdayBanner.movieUrl, 'https://www.youtube.com/watch?v=VBzaokmi2Jo');
 assert.equal(safeExternalUrl('javascript:alert(1)'), undefined);
 assert.equal(safeExternalUrl('data:text/html,test'), undefined);
 assert.equal(safeExternalUrl('https://user:password@example.com/'), undefined);

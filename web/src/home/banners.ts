@@ -11,12 +11,12 @@ export const doomsdayBanner: Banner = {
   category: '영화',
   title: '어벤져스: 둠스데이',
   description: '',
-  venue: '북미 극장 개봉 예정',
-  period: '2026.12.18',
+  venue: '국내 극장 개봉 예정',
+  period: '2026.12.16',
   image: import.meta.env.BASE_URL + 'avengers-doomsday.png',
   imageAlt: '어벤져스: 둠스데이 팬아트 포스터',
   color: '#17302c',
-  movieUrl: 'https://movies.disney.com/avengers-doomsday',
+  movieUrl: 'https://www.youtube.com/watch?v=VBzaokmi2Jo',
 };
 
 export type PerformanceDetail = {

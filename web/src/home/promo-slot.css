@@ -81,3 +81,33 @@
     bottom: 2px;
   }
 }
+
+/* 모바일은 검색 영역의 배너를 유지하고, PC는 필터 오른쪽 빈자리를 쓴다. */
+.home-discovery-controls { display: contents; }
+.home-filter-promo { display: none; }
+@media (min-width: 1024px) {
+  .home-promo-stack > .home-promo-search { display: none; }
+  .home .home-discovery-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 288px;
+    grid-template-rows: min-content 1fr;
+    grid-template-areas: "filters promo" "toolbar promo";
+    column-gap: 24px;
+    align-items: start;
+    margin-bottom: 16px;
+  }
+  .home .home-discovery-controls > .pc-filterbar {
+    grid-area: filters;
+    width: auto;
+  }
+  .home .home-discovery-controls > .pc-result-toolbar {
+    grid-area: toolbar;
+    width: auto;
+    margin-bottom: 0;
+  }
+  .home-filter-promo {
+    display: grid;
+    grid-area: promo;
+    height: auto;
+  }
+}
