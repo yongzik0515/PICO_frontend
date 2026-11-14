@@ -1,12 +1,28 @@
 /* 홈 이벤트·광고 자리. 모든 슬라이드를 같은 격자에 두어 전환 중 높이를 유지한다. */
-.home-promo {
-  position: relative;
+.home-promo-stack {
+  display: grid;
+  grid-auto-rows: 1fr;
+  gap: 12px;
   margin-top: 12px;
 }
+.home-promo { position: relative; }
 .home-promo-link {
   display: grid;
+  height: 100%;
   border-radius: 14px;
   box-shadow: 0 6px 18px #5478c71a;
+}
+.home-promo-search {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.promo-banner.promo-catchtable {
+  --promo-accent: #db836c;
+  background: linear-gradient(110deg, #fff6ef, #f9dfd5);
 }
 .home-promo-slide {
   grid-area: 1 / 1;
@@ -56,11 +72,10 @@
 }
 
 @media (min-width: 1024px) {
-  .home-promo-link { height: 100%; }
-  .home .pc-search-row > .home-promo {
+  .home .pc-search-row > .home-promo-stack {
     grid-area: promo;
     margin-top: 0;
-    align-self: stretch;
+    align-self: start;
   }
   .home-promo-dots {
     bottom: 2px;

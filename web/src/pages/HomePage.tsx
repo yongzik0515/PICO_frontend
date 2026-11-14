@@ -243,7 +243,15 @@ export function HomePage() {
         </div>}
         {/* 검색창 오른쪽 빈 자리(1024px 이상) 또는 검색창 아래(그보다 좁을 때)를 이벤트·광고 자리로 쓴다.
             배너 문구와 기간은 home/promos.ts에서 관리한다. */}
-        <PromoSlot />
+        <PromoSlot onCatchtableSearch={() => {
+          clearLookup();
+          setAiAlias(null);
+          setInput('캐치테이블');
+          setState((s) => ({ ...s, query: '캐치테이블', filters: { ...s.filters, sites: [] } }));
+          setLookup({ keyword: '캐치테이블' });
+          void recordSearch('캐치테이블');
+          document.getElementById('agent-results')?.scrollIntoView({ block: 'start' });
+        }} />
         <Link className="service-guide-banner" to="/service-guide">
           <span className="service-guide-banner-icon"><Icon name="file" size={22} /></span>
           <span className="service-guide-banner-copy">
