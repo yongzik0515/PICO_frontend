@@ -183,7 +183,9 @@ main.page.home {
 }
 @media (min-width: 1024px) {
   .home .pc-search-row {
+    position: relative;
     display: grid;
+    margin-bottom: 36px;
     grid-template-columns: minmax(0, 750px) minmax(240px, 1fr);
     grid-template-areas: "search promo" "guide promo";
     /* 오른쪽 배너 높이가 왼쪽 검색·안내 영역을 늘리지 않도록 한다. */
@@ -195,6 +197,7 @@ main.page.home {
     grid-template-areas: "search promo" "popular promo" "guide promo";
     grid-template-rows: min-content min-content 1fr;
   }
+  .home .pc-discovery-header { width: calc(100% - 312px); }
   .home .pc-search-row > .search-line { grid-area: search; }
   .home .pc-search-row > .popular-shows { grid-area: popular; margin: 0; }
   .home .pc-search-row > .home-ad {

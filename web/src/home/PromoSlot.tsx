@@ -59,15 +59,9 @@ export function PromoSlot({ onCatchtableSearch }: { onCatchtableSearch: () => vo
           </div>
         )}
       </div>
-      <CatchtablePromo onSearch={onCatchtableSearch} />
+      <button className="home-promo-link home-promo-search" type="button" onClick={onCatchtableSearch} aria-label={catchtablePromo.alt}>
+        <PromoBanner promo={catchtablePromo} />
+      </button>
     </div>
-  );
-}
-
-export function CatchtablePromo({ onSearch, className = '' }: { onSearch: () => void; className?: string }) {
-  return (
-    <button className={`home-promo-link home-promo-search ${className}`} type="button" onClick={onSearch} aria-label={catchtablePromo.alt}>
-      <PromoBanner promo={catchtablePromo} />
-    </button>
   );
 }
