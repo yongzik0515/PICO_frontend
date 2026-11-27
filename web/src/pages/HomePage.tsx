@@ -8,8 +8,7 @@ import { FilterModal, QuickFilter } from '../discovery/FilterControls';
 import { emptyFilters, filterLabels, removeFilter, sortOptions, type Filters, type Sort } from '../discovery/filters';
 import { PromoSlot } from '../home/PromoSlot';
 import { TicketCarousel } from '../home/TicketCarousel';
-import { getPerformance } from '../home/banners';
-import { bookingPlatforms, fallbackPlatforms, findPerformances, type PerformanceCandidate } from '../home/performanceSearch';
+import { searchBookingTargets, type BookingCandidate } from '../home/bookingSearch';
 import { correctKeyword } from '../home/aiKeyword';
 import { loadPopularSearch, recordSearch, type PopularKeyword } from '../home/popularSearch';
 import '../home/home-layout.css';
@@ -127,15 +126,15 @@ export function HomePage() {
   const searchRequest = useRef<AbortController | null>(null);
   const [lookup, setLookup] = useState<{
     keyword: string;
-    candidates?: PerformanceCandidate[];
+    candidates?: BookingCandidate[];
+    attribution?: string[];
     sites?: Platform[];
     loading?: boolean;
     title?: string;
   }>();
   useEffect(() => () => searchRequest.current?.abort(), []);
   const current = lookup?.keyword === query.trim() ? lookup : undefined;
-  const recommended = current ? fallbackPlatforms(current.keyword, platforms) : [];
-  const matchedSites = current?.sites?.length ? current.sites : recommended.length ? recommended : current?.sites;
+  const matchedSites = current?.sites;
   const result = useAgentSearch(matchedSites ? '' : query, sort, filters, reload, matchedSites ? undefined : alias, matchedSites?.map((site) => site.id));
   const list = result.status === 'done' ? result.items : [];
   const total = result.status === 'done' ? result.total : 0;
@@ -152,11 +151,11 @@ export function HomePage() {
     setAiAlias(null);
     setState((s) => ({ ...s, query: '', filters: emptyFilters() }));
   };
-  function beginLookup(keyword: string, candidates?: PerformanceCandidate[]) {
+  function beginLookup(keyword: string) {
     searchRequest.current?.abort();
     const controller = new AbortController();
     searchRequest.current = controller;
-    setLookup({ keyword, loading: true, candidates });
+    setLookup({ keyword, loading: true });
     return controller.signal;
   }
   function submitSearch(keyword = input, ai = true) {
@@ -169,29 +168,28 @@ export function HomePage() {
     if (!text || text.length > 100) { clearLookup(); return; }
     const signal = beginLookup(text);
     void (async () => {
-      const items = await findPerformances(text, signal, ai).catch(() => []);
+      let result = await searchBookingTargets(text, signal);
       if (signal.aborted) return;
-      if (items.length) { setLookup({ keyword: text, candidates: items }); return; }
+      if (!result.items.length && ai && loggedIn) {
+        const fixed = await correctKeyword(text);
+        if (signal.aborted) return;
+        if (fixed) {
+          setAiAlias({ query: text, keyword: fixed });
+          result = await searchBookingTargets(fixed, signal);
+        }
+      }
+      if (signal.aborted) return;
+      if (!result.items.length) { setLookup(undefined); return; }
       const available = await loadPlatforms().catch(() => []);
       if (signal.aborted) return;
-      const sites = fallbackPlatforms(text, available);
-      setLookup(sites.length ? { keyword: text } : undefined);
-      if (!sites.length && ai && loggedIn) {
-        const fixed = await correctKeyword(text).catch(() => null);
-        if (!signal.aborted && fixed) setAiAlias({ query: text, keyword: fixed });
-      }
-    })();
+      const item = result.items.length === 1 ? result.items[0] : undefined;
+      setLookup({ keyword: text, candidates: item ? undefined : result.items, attribution: result.attribution,
+        title: item?.name, sites: item && available.filter((site) => item.platformIds.includes(site.id)) });
+    })().catch(() => { if (!signal.aborted) setLookup(undefined); });
   }
 
-  async function selectPerformance(item: PerformanceCandidate) {
-    const keyword = query.trim();
-    const candidates = current?.candidates;
-    const signal = beginLookup(keyword, candidates);
-    const [detail, available] = await Promise.all([
-      getPerformance(item.kopisId, signal).catch(() => undefined),
-      loadPlatforms().catch(() => []),
-    ]);
-    if (!signal.aborted) setLookup({ keyword, candidates, title: item.name, sites: bookingPlatforms(detail?.bookingLinks, available) });
+  function selectBookingTarget(item: BookingCandidate) {
+    if (current) setLookup({ ...current, title: item.name, sites: platforms.filter((site) => item.platformIds.includes(site.id)) });
   }
 
   function saveAlert(e: FormEvent<HTMLFormElement>) {
@@ -265,12 +263,12 @@ export function HomePage() {
         {current.loading && <span role="status">공연과 예매처를 찾는 중이에요.</span>}
         {current.candidates && <span>공연을 선택하면 해당 예매처의 도우미를 보여드려요.</span>}
         {current.candidates?.map((item) => (
-          <button type="button" key={item.kopisId} onClick={() => void selectPerformance(item)}>
+          <button type="button" key={item.id} onClick={() => selectBookingTarget(item)}>
             {[item.name, item.venueName, item.startsOn].filter(Boolean).join(' · ')}
           </button>
         ))}
         {!!matchedSites?.length && (
-          <span>{current.title && `${current.title} · `}{current.sites?.length ? '지원 예매처' : '추천 예매처'} · {matchedSites.map((site) => site.name).join(', ')}</span>
+          <span>{current.title && `${current.title} · `}지원 예매처 · {matchedSites.map((site) => site.name).join(', ')}</span>
         )}
         {current.sites?.length === 0 && <label>
           {current.title}의 예매처를 직접 선택해 주세요.{' '}
@@ -282,6 +280,7 @@ export function HomePage() {
             {platforms.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
           </select>
         </label>}
+        {current.attribution?.map((line) => <small key={line}>{line}</small>)}
         <button type="button" onClick={clearLookup}>이름으로 검색</button>
       </section>}
       <div className="pc-discovery-header">
